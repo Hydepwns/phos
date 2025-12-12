@@ -19,6 +19,8 @@ pub struct Colorizer {
     in_block: bool,
     /// Block coloring style (if in_block is true)
     block_style: Option<Style>,
+    /// Whether color output is enabled (false = pass-through mode)
+    color_enabled: bool,
 }
 
 impl Colorizer {
@@ -29,6 +31,7 @@ impl Colorizer {
             theme: Theme::default(),
             in_block: false,
             block_style: None,
+            color_enabled: true,
         }
     }
 
@@ -40,6 +43,15 @@ impl Colorizer {
     /// Set the theme.
     pub fn with_theme(mut self, theme: Theme) -> Self {
         self.theme = theme;
+        self
+    }
+
+    /// Enable or disable color output.
+    ///
+    /// When disabled, the colorizer passes through text unchanged.
+    /// Useful for piping to files or commands that don't support ANSI.
+    pub fn with_color_enabled(mut self, enabled: bool) -> Self {
+        self.color_enabled = enabled;
         self
     }
 
@@ -98,6 +110,11 @@ impl Colorizer {
         }
 
         let had_matches = !colored_ranges.is_empty();
+
+        // If colors disabled, return plain text but still report matches for stats
+        if !self.color_enabled {
+            return (line.to_string(), had_matches);
+        }
 
         // Sort ranges by start position
         colored_ranges.sort_by_key(|(start, _, _)| *start);

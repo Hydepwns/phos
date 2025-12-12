@@ -180,7 +180,12 @@ fn main() -> Result<()> {
         Vec::new()
     };
 
-    let mut colorizer = Colorizer::new(rules).with_theme(theme);
+    // Enable colors if: --color flag set OR stdout is a TTY
+    let color_enabled = cli.color || atty::is(atty::Stream::Stdout);
+
+    let mut colorizer = Colorizer::new(rules)
+        .with_theme(theme)
+        .with_color_enabled(color_enabled);
     let mut stats = cli.stats.then(StatsCollector::new);
 
     if is_pipe {
