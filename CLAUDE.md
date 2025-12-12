@@ -60,11 +60,11 @@ src/
     common.rs        # Shared rule builders (log levels, IPs, timestamps, HTTP)
     ethereum/        # Ethereum client programs (15)
     devops/          # Docker, kubectl, Terraform, k9s, Helm, Ansible, docker-compose, AWS (8)
-    system/          # systemd, syslog, fail2ban (3)
+    system/          # systemd, syslog, fail2ban, dmesg, cron, auditd, iptables (7)
     dev/             # git, cargo, npm, go, make, yarn, pnpm, elixir (8)
     network/         # ping, curl, dig, nginx, caddy, Apache, HAProxy, Traefik (8)
     data/            # PostgreSQL, Redis, MySQL, MongoDB, Elasticsearch (5)
-    monitoring/      # Prometheus (1)
+    monitoring/      # Prometheus, Grafana, Datadog, SigNoz (4)
     messaging/       # Kafka, RabbitMQ (2)
     ci/              # GitHub Actions, Jenkins (2)
 ```
