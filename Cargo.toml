@@ -1,0 +1,58 @@
+[package]
+name = "phos"
+version = "0.1.0"
+edition = "2021"
+authors = ["DROO <droo@axol.io>"]
+description = "High-performance universal log colorizer"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/Hydepwns/phos"
+keywords = ["ethereum", "logs", "colorizer", "terminal", "web3"]
+categories = ["command-line-utilities", "development-tools"]
+
+[dependencies]
+# CLI
+clap = { version = "4.4", features = ["derive", "env"] }
+clap_complete = "4.4"
+atty = "0.2"
+
+# Colors
+nu-ansi-term = "0.50"
+
+# Regex
+regex = "1.10"
+once_cell = "1.19"
+
+# Config
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1.0"
+
+# Directories
+dirs = "5.0"
+
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bin]]
+name = "phos"
+path = "src/main.rs"
+
+# TODO: Add phoscat pipe-only binary
+# [[bin]]
+# name = "phoscat"
+# path = "src/phoscat.rs"
+
+# TODO: Add benchmarks
+# [[bench]]
+# name = "colorize"
+# harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

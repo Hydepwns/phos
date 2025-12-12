@@ -1,0 +1,307 @@
+//! Color types and ANSI code generation.
+
+use nu_ansi_term::{Color as AnsiColor, Style};
+
+/// Color representation for styling text.
+#[derive(Debug, Clone, PartialEq)]
+pub enum Color {
+    /// Named color (e.g., "red", "bright_blue")
+    Named(String),
+    /// Hex color (e.g., "#FF5555")
+    Hex(String),
+    /// RGB color
+    Rgb { r: u8, g: u8, b: u8 },
+    /// Semantic color resolved by theme
+    Semantic(SemanticColor),
+}
+
+/// Semantic colors that themes resolve to actual colors.
+/// Includes both universal colors and domain-specific (Ethereum) colors for backward compatibility.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SemanticColor {
+    // === UNIVERSAL (domain-agnostic) ===
+    // Log levels
+    Error,
+    Warn,
+    Info,
+    Debug,
+    Trace,
+
+    // Data types
+    Number,
+    String,
+    Boolean,
+
+    // Structure
+    Timestamp,
+    Key,
+    Value,
+
+    // Status
+    Success,
+    Failure,
+
+    // Generic identifiers
+    Identifier, // Generic hash, ID, UUID, etc.
+    Label,      // Generic tag, label, category
+    Metric,     // Numeric measurements, durations
+
+    // === ETHEREUM DOMAIN (kept for backward compatibility) ===
+    // Will be moved to domain configs in future refactor
+    Hash,
+    Address,
+    Slot,
+    Epoch,
+    BlockNumber,
+    PeerId,
+
+    // Validator operations
+    Validator,
+    Pubkey,
+    Duty,
+    Committee,
+
+    // Consensus state
+    Finality,
+    Root,
+    Attestation,
+
+    // MEV
+    MevValue,
+    Relay,
+    Builder,
+
+    // Ethereum status
+    Syncing,
+}
+
+/// Color specification that can reference universal semantics or domain colors.
+/// Used in rules to specify colors flexibly.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ColorSpec {
+    /// Universal semantic color (resolved by theme)
+    Semantic(SemanticColor),
+    /// Domain-specific color (resolved by program's domain_colors)
+    Domain(String),
+    /// Named ANSI color
+    Named(String),
+    /// Hex color
+    Hex(String),
+}
+
+impl ColorSpec {
+    /// Create from a color name, trying to parse as semantic first.
+    pub fn from_name(name: &str) -> Self {
+        if let Some(semantic) = SemanticColor::from_name(name) {
+            Self::Semantic(semantic)
+        } else if name.starts_with('#') {
+            Self::Hex(name.to_string())
+        } else if is_ansi_color(name) {
+            Self::Named(name.to_string())
+        } else {
+            // Assume it's a domain-specific color
+            Self::Domain(name.to_string())
+        }
+    }
+}
+
+impl SemanticColor {
+    /// Parse a semantic color from its name.
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name.to_lowercase().as_str() {
+            // === Universal ===
+            // Log levels
+            "error" => Some(Self::Error),
+            "warn" | "warning" => Some(Self::Warn),
+            "info" => Some(Self::Info),
+            "debug" => Some(Self::Debug),
+            "trace" => Some(Self::Trace),
+            // Data types
+            "number" => Some(Self::Number),
+            "string" => Some(Self::String),
+            "boolean" | "bool" => Some(Self::Boolean),
+            // Structure
+            "timestamp" | "time" => Some(Self::Timestamp),
+            "key" => Some(Self::Key),
+            "value" => Some(Self::Value),
+            // Status
+            "success" => Some(Self::Success),
+            "failure" | "fail" => Some(Self::Failure),
+            // Generic identifiers
+            "identifier" | "id" => Some(Self::Identifier),
+            "label" | "tag" => Some(Self::Label),
+            "metric" | "measure" => Some(Self::Metric),
+
+            // === Ethereum domain (backward compatibility) ===
+            "hash" => Some(Self::Hash),
+            "address" => Some(Self::Address),
+            "slot" => Some(Self::Slot),
+            "epoch" => Some(Self::Epoch),
+            "block" | "blocknumber" | "block_number" => Some(Self::BlockNumber),
+            "peer" | "peerid" | "peer_id" => Some(Self::PeerId),
+            // Validator operations
+            "validator" | "validator_index" => Some(Self::Validator),
+            "pubkey" | "public_key" => Some(Self::Pubkey),
+            "duty" => Some(Self::Duty),
+            "committee" | "subnet" => Some(Self::Committee),
+            // Consensus state
+            "finality" | "finalized" | "justified" => Some(Self::Finality),
+            "root" | "state_root" | "block_root" => Some(Self::Root),
+            "attestation" | "attest" => Some(Self::Attestation),
+            // MEV
+            "mev" | "mev_value" | "bid" => Some(Self::MevValue),
+            "relay" => Some(Self::Relay),
+            "builder" => Some(Self::Builder),
+            // Ethereum status
+            "syncing" | "sync" => Some(Self::Syncing),
+
+            _ => None,
+        }
+    }
+}
+
+/// Check if a name is a standard ANSI color.
+fn is_ansi_color(name: &str) -> bool {
+    matches!(
+        name.to_lowercase().as_str(),
+        "black"
+            | "red"
+            | "green"
+            | "yellow"
+            | "blue"
+            | "magenta"
+            | "purple"
+            | "cyan"
+            | "white"
+            | "gray"
+            | "grey"
+            | "bright_black"
+            | "bright_red"
+            | "bright_green"
+            | "bright_yellow"
+            | "bright_blue"
+            | "bright_magenta"
+            | "bright_cyan"
+            | "bright_white"
+    )
+}
+
+impl Color {
+    /// Create a semantic color.
+    pub fn semantic(s: SemanticColor) -> Self {
+        Self::Semantic(s)
+    }
+
+    /// Create a named color.
+    pub fn named(name: &str) -> Self {
+        Self::Named(name.to_string())
+    }
+
+    /// Create a hex color.
+    pub fn hex(hex: &str) -> Self {
+        Self::Hex(hex.to_string())
+    }
+
+    /// Create an RGB color.
+    pub fn rgb(r: u8, g: u8, b: u8) -> Self {
+        Self::Rgb { r, g, b }
+    }
+
+    /// Convert to nu_ansi_term Style.
+    pub fn to_style(&self) -> Style {
+        match self {
+            Color::Named(name) => Self::named_to_style(name),
+            Color::Hex(hex) => Self::hex_to_style(hex),
+            Color::Rgb { r, g, b } => Style::new().fg(AnsiColor::Rgb(*r, *g, *b)),
+            Color::Semantic(_) => Style::new(), // Resolved by theme
+        }
+    }
+
+    fn named_to_style(name: &str) -> Style {
+        let color = match name.to_lowercase().as_str() {
+            "black" => AnsiColor::Black,
+            "red" => AnsiColor::Red,
+            "green" => AnsiColor::Green,
+            "yellow" => AnsiColor::Yellow,
+            "blue" => AnsiColor::Blue,
+            "magenta" | "purple" => AnsiColor::Magenta,
+            "cyan" => AnsiColor::Cyan,
+            "white" => AnsiColor::White,
+            "bright_black" | "gray" | "grey" => AnsiColor::DarkGray,
+            "bright_red" => AnsiColor::LightRed,
+            "bright_green" => AnsiColor::LightGreen,
+            "bright_yellow" => AnsiColor::LightYellow,
+            "bright_blue" => AnsiColor::LightBlue,
+            "bright_magenta" => AnsiColor::LightMagenta,
+            "bright_cyan" => AnsiColor::LightCyan,
+            "bright_white" => AnsiColor::LightGray,
+            _ => AnsiColor::Default,
+        };
+        Style::new().fg(color)
+    }
+
+    fn hex_to_style(hex: &str) -> Style {
+        parse_hex_rgb(hex)
+            .map(|(r, g, b)| Style::new().fg(AnsiColor::Rgb(r, g, b)))
+            .unwrap_or_default()
+    }
+}
+
+/// Parse a hex color string to RGB components.
+///
+/// Accepts formats: "#RRGGBB", "RRGGBB"
+/// Returns None if the string is invalid.
+pub fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
+    let hex = hex.trim_start_matches('#');
+    if hex.len() < 6 {
+        return None;
+    }
+
+    let r = u8::from_str_radix(&hex[0..2], 16).ok()?;
+    let g = u8::from_str_radix(&hex[2..4], 16).ok()?;
+    let b = u8::from_str_radix(&hex[4..6], 16).ok()?;
+
+    Some((r, g, b))
+}
+
+/// Brand colors for Ethereum clients.
+pub mod brands {
+    /// Get brand color hex for a client.
+    pub fn color(client: &str) -> Option<&'static str> {
+        match client.to_lowercase().as_str() {
+            "lighthouse" => Some("#9933FF"),
+            "prysm" => Some("#22CC88"),
+            "teku" => Some("#3366FF"),
+            "nimbus" => Some("#CC9933"),
+            "lodestar" => Some("#AA44FF"),
+            "grandine" => Some("#FF6633"),
+            "lambda" => Some("#9966FF"),
+            "geth" => Some("#6699FF"),
+            "nethermind" => Some("#33CCCC"),
+            "besu" => Some("#009999"),
+            "erigon" => Some("#66CC33"),
+            "reth" => Some("#FF9966"),
+            "mana" => Some("#CC66FF"),
+            "charon" => Some("#6633FF"),
+            "mevboost" | "mev-boost" | "mev_boost" => Some("#FF6699"),
+            _ => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hex_parsing() {
+        let color = Color::hex("#FF5555");
+        let _style = color.to_style();
+    }
+
+    #[test]
+    fn test_brand_colors() {
+        assert!(brands::color("geth").is_some());
+        assert!(brands::color("unknown").is_none());
+    }
+}

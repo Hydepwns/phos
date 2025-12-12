@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cargo check:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo run:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(cargo test:*)",
+      "Bash(chmod:*)",
+      "Bash(./scripts/preview-themes.sh:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(./target/debug/phos:*)",
+      "Bash(cat:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(echo:*)",
+      "Bash(sort:*)",
+      "Bash(while read line)",
+      "Bash(do echo \"$line\")",
+      "Bash(done)",
+      "Bash(git rev-parse:*)",
+      "Bash(./target/release/phos:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
