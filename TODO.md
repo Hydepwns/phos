@@ -32,7 +32,7 @@
 
 ### Polish
 - [ ] Better error messages (config parsing, regex errors)
-- [ ] `--version` shows git commit hash
+- [x] `--version` shows git commit hash
 - [x] `--help` is comprehensive and pretty
 - [x] Shell completions (bash, zsh, fish) - `phos completions <shell>`
 - [ ] Man page generation
@@ -43,7 +43,8 @@
 
 ### Package Managers
 - [ ] crates.io publish
-- [ ] Homebrew formula
+- [x] Homebrew tap (`brew install Hydepwns/phos/phos`)
+- [ ] Homebrew core (submit after community feedback/30+ stars)
 - [ ] AUR package (Arch Linux)
 - [ ] Nix flake
 - [ ] Docker image
