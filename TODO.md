@@ -9,10 +9,10 @@
 - [x] Unit tests for `config.rs` (load YAML/JSON, to_rules) - 2 tests
 - [x] Unit tests for `colorizer.rs` (colorize, block mode) - 5 tests
 - [x] Unit tests for all program categories - 39 tests (59 total)
-- [ ] Integration tests for each client (verify rules work on sample logs)
-- [ ] CLI integration tests (argument parsing, pipe behavior)
-- [ ] Property tests: colorization is idempotent
-- [ ] Property tests: output never contains malformed ANSI
+- [x] Integration tests for each client (verify rules work on sample logs) - 39 tests
+- [x] CLI integration tests (argument parsing, pipe behavior) - 48 tests
+- [x] Property tests: colorization preserves text (idempotent not applicable - see tests/property_tests.rs)
+- [x] Property tests: output never contains malformed ANSI
 
 ### CI/CD
 - [ ] GitHub Actions: `cargo test` on push/PR
@@ -28,14 +28,14 @@
 - [ ] Rustdoc examples for common use cases
 - [ ] CHANGELOG.md
 - [ ] CONTRIBUTING.md
-- [ ] LICENSE files (MIT + Apache-2.0)
+- [x] LICENSE files (MIT + Apache-2.0)
 
 ### Polish
-- [ ] Better error messages (config parsing, regex errors)
+- [x] Better error messages (config parsing, regex errors) - `phos config validate`
 - [x] `--version` shows git commit hash
 - [x] `--help` is comprehensive and pretty
 - [x] Shell completions (bash, zsh, fish) - `phos completions <shell>`
-- [ ] Man page generation
+- [x] Man page generation - `phos man`
 
 ---
 
@@ -47,7 +47,7 @@
 - [ ] Homebrew core (submit after community feedback/30+ stars)
 - [ ] AUR package (Arch Linux)
 - [ ] Nix flake
-- [ ] Docker image
+- [x] Docker image (2.89MB scratch-based)
 
 ### Pre-built Binaries
 - [ ] Linux x86_64 (musl for static linking)
@@ -124,10 +124,10 @@
 
 ## Known Issues
 
-- [ ] Block coloring state not reset between files
-- [ ] Some regex patterns may be slow on very long lines
-- [ ] No validation that theme covers all semantic colors
-- [ ] Client auto-detection may have false positives
+- [x] Block coloring state not reset between files (added `Colorizer::reset()`)
+- [x] Some regex patterns may be slow on very long lines (fixed nested quantifiers, added 10KB line limit)
+- [x] No validation that theme covers all semantic colors (added `Theme::validate()`)
+- [x] Client auto-detection may have false positives (word-boundary matching, removed ambiguous patterns)
 
 ---
 

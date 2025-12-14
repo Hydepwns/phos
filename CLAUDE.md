@@ -4,13 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-phos is a universal log colorizer with built-in support for 59 programs across multiple domains:
+phos is a universal log colorizer with built-in support for 98 programs across multiple domains:
 
 - **Ethereum**: Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda, Geth, Nethermind, Besu, Erigon, Reth, Mana, Charon, MEV-Boost (15)
+- **System**: systemd/journalctl, syslog, fail2ban, dmesg, cron, auditd, iptables/nftables, ls, df, du, stat, mount, ps, free, top, uptime, lsof, lsmod, lspci, vmstat, iostat, env, blkid, fdisk, lsblk, dnf (26)
+- **Network**: ping, curl, dig, nginx, caddy, Apache, HAProxy, Traefik, traceroute, netstat, nmap, ss, sockstat, ifconfig, ip, iwconfig, arp, mtr, tcpdump, whois, ntpdate (21)
+- **Dev**: git, cargo, npm, go, make, yarn, pnpm, elixir/mix, diff, gcc, wdiff, configure, ant, mvn, php (15)
 - **DevOps**: Docker, kubectl, Terraform, k9s, Helm, Ansible, docker-compose, AWS CLI (8)
-- **System**: systemd/journalctl, syslog, fail2ban, dmesg, cron, auditd, iptables/nftables (7)
-- **Dev**: git, cargo, npm, go, make, yarn, pnpm, elixir/mix (8)
-- **Network**: ping, curl, dig, nginx, caddy, Apache, HAProxy, Traefik (8)
 - **Data**: PostgreSQL, Redis, MySQL/MariaDB, MongoDB, Elasticsearch (5)
 - **Monitoring**: Prometheus, Grafana, Datadog, SigNoz (4)
 - **Messaging**: Kafka, RabbitMQ (2)
@@ -60,9 +60,28 @@ src/
     common.rs        # Shared rule builders (log levels, IPs, timestamps, HTTP)
     ethereum/        # Ethereum client programs (15)
     devops/          # Docker, kubectl, Terraform, k9s, Helm, Ansible, docker-compose, AWS (8)
-    system/          # systemd, syslog, fail2ban, dmesg, cron, auditd, iptables (7)
-    dev/             # git, cargo, npm, go, make, yarn, pnpm, elixir (8)
-    network/         # ping, curl, dig, nginx, caddy, Apache, HAProxy, Traefik (8)
+    system/          # System utilities (26)
+      mod.rs         # Registration
+      core.rs        # systemd, syslog, dmesg, cron
+      security.rs    # fail2ban, auditd, iptables
+      files.rs       # ls, df, du, stat, mount
+      processes.rs   # ps, free, top, uptime, lsof
+      hardware.rs    # lsmod, lspci, vmstat, iostat, env, blkid, fdisk, lsblk
+      packages.rs    # dnf
+    dev/             # Development tools (15)
+      mod.rs         # Registration
+      vcs.rs         # git, diff, wdiff
+      rust.rs        # cargo
+      node.rs        # npm, yarn, pnpm
+      build.rs       # make, gcc, configure, ant, mvn
+      lang.rs        # go, elixir, php
+    network/         # Network tools (21)
+      mod.rs         # Registration
+      tools.rs       # ping, curl, dig, traceroute, nmap
+      servers.rs     # nginx, caddy, apache, haproxy, traefik
+      sockets.rs     # netstat, ss, sockstat
+      interfaces.rs  # ifconfig, ip, iwconfig, arp
+      diagnostics.rs # mtr, tcpdump, whois, ntpdate
     data/            # PostgreSQL, Redis, MySQL, MongoDB, Elasticsearch (5)
     monitoring/      # Prometheus, Grafana, Datadog, SigNoz (4)
     messaging/       # Kafka, RabbitMQ (2)

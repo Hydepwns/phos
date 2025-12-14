@@ -8,7 +8,7 @@ Inspired by [grc](https://github.com/garabik/grc) by Radovan Garabik.
 ## Features
 
 - **Fast**: ~2MB binary, instant startup
-- **59 programs built-in**: Ethereum, DevOps, Dev, Network, Data, System, CI/CD, Messaging, Monitoring
+- **98 programs built-in**: Ethereum, DevOps, Dev, Network, Data, System, CI/CD, Messaging, Monitoring
 - **Theme system**: 13 themes including Dracula, Nord, Catppuccin
 - **Auto-detection**: Detects program from command
 - **Extensible**: Add custom programs via YAML configs
@@ -95,6 +95,7 @@ phos -p cargo --stats -- cargo test
 ```bash
 # List all programs
 phos list
+phos list --format json              # JSON output for scripting
 
 # List by category
 phos list --category devops
@@ -105,7 +106,7 @@ phos themes
 
 # Show program info
 phos info docker
-phos info lodestar
+phos info lodestar --format json     # JSON output
 
 # Show Ethereum brand colors
 phos colors
@@ -114,6 +115,21 @@ phos colors
 phos completions bash > ~/.local/share/bash-completion/completions/phos
 phos completions zsh > ~/.zfunc/_phos
 phos completions fish > ~/.config/fish/completions/phos.fish
+
+# Shell integration (auto-colorize commands)
+eval "$(phos shell-init bash)"       # Add to ~/.bashrc
+eval "$(phos shell-init zsh)"        # Add to ~/.zshrc
+phos shell-init fish | source        # Add to config.fish
+
+# Configuration management
+phos config path                     # Show config directory paths
+phos config init                     # Initialize config with example
+phos config validate                 # Validate all configs
+phos config validate myapp.yaml      # Validate specific file
+
+# Generate man pages
+phos man                             # Print man page to stdout
+phos man -o ./man                    # Generate all man pages to directory
 ```
 
 ## Built-in Programs
@@ -140,7 +156,7 @@ phos completions fish > ~/.config/fish/completions/phos.fish
 | docker-compose | Docker Compose logs and output |
 | aws | AWS CLI output |
 
-### Development (8)
+### Development (15)
 
 | Program | Description |
 |---------|-------------|
@@ -152,8 +168,15 @@ phos completions fish > ~/.config/fish/completions/phos.fish
 | yarn | Yarn package manager output |
 | pnpm | pnpm package manager output |
 | elixir | Elixir/Mix build and test output |
+| diff | File comparison output |
+| wdiff | Word diff output |
+| gcc | GCC/G++/Clang compiler output |
+| configure | Autoconf configure script output |
+| ant | Apache Ant build output |
+| mvn | Apache Maven build output |
+| php | PHP interpreter and composer output |
 
-### Network (8)
+### Network (21)
 
 | Program | Description |
 |---------|-------------|
@@ -165,6 +188,19 @@ phos completions fish > ~/.config/fish/completions/phos.fish
 | apache | Apache/httpd web server logs |
 | haproxy | HAProxy load balancer logs |
 | traefik | Traefik reverse proxy logs |
+| traceroute | Network path tracing |
+| nmap | Network scanner output |
+| netstat | Network statistics |
+| ss | Socket statistics |
+| sockstat | BSD socket statistics |
+| ifconfig | Network interface config |
+| ip | Linux ip command output |
+| iwconfig | Wireless interface config |
+| arp | ARP table output |
+| mtr | My traceroute output |
+| tcpdump | Packet capture output |
+| whois | Domain lookup output |
+| ntpdate | NTP time sync output |
 
 ### Data (5)
 
@@ -176,7 +212,7 @@ phos completions fish > ~/.config/fish/completions/phos.fish
 | mongodb | MongoDB database logs |
 | elasticsearch | Elasticsearch cluster logs |
 
-### System (7)
+### System (26)
 
 | Program | Description |
 |---------|-------------|
@@ -187,6 +223,25 @@ phos completions fish > ~/.config/fish/completions/phos.fish
 | cron | Cron scheduled task logs |
 | auditd | Linux audit daemon logs |
 | iptables | iptables/nftables firewall logs |
+| ls | Directory listing output |
+| df | Disk space usage |
+| du | Disk usage output |
+| stat | File statistics output |
+| mount | Filesystem mount output |
+| ps | Process status output |
+| free | Memory usage output |
+| top | Process monitor output |
+| uptime | System uptime output |
+| lsof | List open files output |
+| lsmod | List kernel modules |
+| lspci | List PCI devices |
+| vmstat | Virtual memory statistics |
+| iostat | I/O statistics output |
+| env | Environment variables |
+| blkid | Block device attributes |
+| fdisk | Partition table output |
+| lsblk | List block devices |
+| dnf | DNF package manager output |
 
 ### CI/CD (2)
 
@@ -293,13 +348,13 @@ Rules can use semantic color names resolved by themes:
 | Identifiers | identifier, label, metric |
 | Status | success, failure |
 | Structure | timestamp, key, value |
-| Ethereum | hash, address, slot, epoch, validator, pubkey |
+
+Domain-specific colors (e.g., Ethereum's slot, epoch, hash) are defined as hex colors in each program's rules rather than as universal semantic colors.
 
 ## Library Usage
 
 ```rust
-use phos::{Colorizer, Client, Theme};
-use phos::programs;
+use phos::{Colorizer, Theme, programs};
 
 // Use program registry
 let registry = programs::default_registry();
@@ -309,10 +364,12 @@ if let Some(program) = registry.get("docker") {
     println!("{}", colorizer.colorize("container abc123 started"));
 }
 
-// Ethereum client (legacy API still works)
-let mut colorizer = Colorizer::for_client(Client::Lodestar)
-    .with_theme(Theme::nord());
-println!("{}", colorizer.colorize("INFO: Synced slot 12345"));
+// Auto-detect program from command
+let cmd = "docker logs mycontainer";
+if let Some(program) = registry.detect(cmd) {
+    let colorizer = Colorizer::new(program.rules());
+    // ...
+}
 
 // Custom rules
 use phos::{Rule, SemanticColor};
