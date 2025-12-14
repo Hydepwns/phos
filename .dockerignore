@@ -1,0 +1,37 @@
+# Build artifacts
+target/
+debug/
+
+# Git (keep .git for version info during build)
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Test files
+tests/
+benches/
+
+# Config files not needed in image
+.claude/
+.editorconfig
+rustfmt.toml
+.clippy.toml
+
+# Misc
+*.log
+*.bak
+Makefile
