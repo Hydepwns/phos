@@ -30,6 +30,83 @@ pub enum ConfigError {
 
     #[error("Unknown file format: {0}")]
     UnknownFormat(String),
+
+    #[error("{file}: {message}")]
+    FileError {
+        file: String,
+        message: String,
+        line: Option<usize>,
+        suggestion: Option<String>,
+    },
+}
+
+impl ConfigError {
+    /// Create a file error with context.
+    pub fn file_error(file: impl Into<String>, message: impl Into<String>) -> Self {
+        Self::FileError {
+            file: file.into(),
+            message: message.into(),
+            line: None,
+            suggestion: None,
+        }
+    }
+
+    /// Add line number to a file error.
+    pub fn with_line(self, line: usize) -> Self {
+        match self {
+            Self::FileError { file, message, suggestion, .. } => Self::FileError {
+                file,
+                message,
+                line: Some(line),
+                suggestion,
+            },
+            _ => self,
+        }
+    }
+
+    /// Add suggestion to a file error.
+    pub fn with_suggestion(self, suggestion: impl Into<String>) -> Self {
+        match self {
+            Self::FileError { file, message, line, .. } => Self::FileError {
+                file,
+                message,
+                line,
+                suggestion: Some(suggestion.into()),
+            },
+            _ => self,
+        }
+    }
+
+    /// Format a detailed error message for display.
+    pub fn detailed_message(&self) -> String {
+        match self {
+            Self::FileError { file, message, line, suggestion } => {
+                let mut msg = file.to_string();
+                if let Some(l) = line {
+                    msg.push_str(&format!(":{l}"));
+                }
+                msg.push_str(&format!(": {message}"));
+                if let Some(s) = suggestion {
+                    msg.push_str(&format!("\n  Hint: {s}"));
+                }
+                msg
+            }
+            Self::YamlError(e) => {
+                let mut msg = format!("YAML parse error: {e}");
+                if let Some(loc) = e.location() {
+                    msg = format!("line {}: {msg}", loc.line());
+                }
+                msg
+            }
+            Self::JsonError(e) => {
+                format!("JSON parse error at line {}, column {}: {e}", e.line(), e.column())
+            }
+            Self::RegexError(e) => {
+                format!("Invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, ), etc.")
+            }
+            _ => self.to_string(),
+        }
+    }
 }
 
 /// User-defined program configuration from YAML/JSON.
@@ -80,6 +157,14 @@ pub struct RuleConfig {
     /// Whether to apply bold
     #[serde(default)]
     pub bold: bool,
+
+    /// Skip the entire line if this rule matches
+    #[serde(default)]
+    pub skip: bool,
+
+    /// Replacement pattern (uses ${1}, ${2} for backreferences)
+    #[serde(default)]
+    pub replace: Option<String>,
 }
 
 impl ProgramConfig {
@@ -160,6 +245,16 @@ impl ProgramConfig {
 
             if rule_config.bold || rule_config.colors.contains(&"bold".to_string()) {
                 builder = builder.bold();
+            }
+
+            // Apply skip if set
+            if rule_config.skip {
+                builder = builder.skip();
+            }
+
+            // Apply replace if set
+            if let Some(ref replacement) = rule_config.replace {
+                builder = builder.replace(replacement);
             }
 
             rules.push(builder.build());

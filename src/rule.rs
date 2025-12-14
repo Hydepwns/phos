@@ -36,6 +36,10 @@ pub struct Rule {
     pub count_mode: CountMode,
     /// Whether to apply bold
     pub bold: bool,
+    /// Skip the entire line if this rule matches
+    pub skip: bool,
+    /// Replacement pattern (uses $1, $2 for backreferences)
+    pub replace: Option<String>,
 }
 
 /// Builder for creating rules.
@@ -44,6 +48,8 @@ pub struct RuleBuilder {
     colors: Vec<Color>,
     count_mode: CountMode,
     bold: bool,
+    skip: bool,
+    replace: Option<String>,
 }
 
 impl Rule {
@@ -57,6 +63,8 @@ impl Rule {
             colors: Vec::new(),
             count_mode: CountMode::default(),
             bold: false,
+            skip: false,
+            replace: None,
         })
     }
 
@@ -108,6 +116,20 @@ impl RuleBuilder {
         self
     }
 
+    /// Set skip mode - skip the entire line if this rule matches.
+    pub fn skip(mut self) -> Self {
+        self.skip = true;
+        self
+    }
+
+    /// Set a replacement pattern.
+    /// Uses `${1}`, `${2}`, etc. for backreferences to capture groups.
+    /// Named groups use `${name}` syntax.
+    pub fn replace(mut self, pattern: &str) -> Self {
+        self.replace = Some(pattern.to_string());
+        self
+    }
+
     /// Build the rule.
     pub fn build(self) -> Rule {
         Rule {
@@ -115,6 +137,8 @@ impl RuleBuilder {
             colors: self.colors,
             count_mode: self.count_mode,
             bold: self.bold,
+            skip: self.skip,
+            replace: self.replace,
         }
     }
 }
@@ -144,5 +168,34 @@ mod tests {
             .build();
 
         assert_eq!(rule.count_mode, CountMode::Once);
+    }
+
+    #[test]
+    fn test_skip_rule() {
+        let rule = Rule::new(r"DEBUG")
+            .unwrap()
+            .skip()
+            .build();
+
+        assert!(rule.skip);
+        assert!(rule.is_match("DEBUG: some message"));
+        assert!(!rule.is_match("INFO: some message"));
+    }
+
+    #[test]
+    fn test_replace_rule() {
+        let rule = Rule::new(r"(\d{2}):(\d{2}):(\d{2})")
+            .unwrap()
+            .replace("${1}h${2}m${3}s")
+            .build();
+
+        assert!(rule.replace.is_some());
+        assert_eq!(rule.replace.as_deref(), Some("${1}h${2}m${3}s"));
+
+        // Test the replacement using replace_all which is what colorizer uses
+        let input = "12:34:56";
+        let replacement = rule.replace.as_deref().unwrap();
+        let result = rule.regex.replace_all(input, replacement);
+        assert_eq!(result.as_ref(), "12h34m56s");
     }
 }

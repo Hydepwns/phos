@@ -2,10 +2,14 @@
 //!
 //! Provides Program implementations for all 15 supported Ethereum clients.
 
+pub mod clients;
+pub mod patterns;
+
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::clients::Client;
+use clients::{ClientMeta, Layer, ALL_CLIENTS};
+
 use crate::colors::Color;
 use crate::program::{Program, ProgramInfo, ProgramRegistry};
 use crate::rule::Rule;
@@ -14,10 +18,11 @@ use crate::rule::Rule;
 /// These are colors specific to the Ethereum ecosystem.
 pub mod colors {
     use crate::colors::Color;
+    use std::collections::HashMap;
 
     /// Get Ethereum domain color definitions.
-    pub fn domain_colors() -> std::collections::HashMap<String, Color> {
-        let mut colors = std::collections::HashMap::new();
+    pub fn domain_colors() -> HashMap<String, Color> {
+        let mut colors = HashMap::new();
 
         // Core Ethereum concepts
         colors.insert("hash".to_string(), Color::hex("#88AAFF"));
@@ -50,51 +55,55 @@ pub mod colors {
     }
 }
 
-/// Wrapper that makes a Client implement the Program trait.
+/// An Ethereum client program with full metadata.
 pub struct EthereumProgram {
-    client: Client,
     info: ProgramInfo,
+    rules: Vec<Rule>,
     domain_colors: HashMap<String, Color>,
+    detect_patterns: Vec<&'static str>,
+    meta: &'static ClientMeta,
 }
 
 impl EthereumProgram {
-    /// Create a new EthereumProgram for a client.
-    pub fn new(client: Client) -> Self {
-        let client_info = client.info();
-
+    /// Create a new Ethereum program from client metadata.
+    pub fn new(meta: &'static ClientMeta) -> Self {
         let info = ProgramInfo::new(
-            &format!("ethereum.{}", client_info.name.to_lowercase()),
-            client_info.name,
-            client_info.description,
+            &format!("ethereum.{}", meta.name.to_lowercase()),
+            meta.name,
+            meta.description,
             "ethereum",
         );
 
+        let rules = clients::rules_for(meta.name)
+            .unwrap_or_default();
+
         Self {
-            client,
             info,
+            rules,
             domain_colors: colors::domain_colors(),
+            detect_patterns: meta.detect_patterns.to_vec(),
+            meta,
         }
     }
 
-    /// Get detection patterns for this client.
-    fn detection_patterns(&self) -> Vec<&'static str> {
-        match self.client {
-            Client::Lighthouse => vec!["lighthouse"],
-            Client::Prysm => vec!["prysm", "beacon-chain", "validator"],
-            Client::Teku => vec!["teku"],
-            Client::Nimbus => vec!["nimbus"],
-            Client::Lodestar => vec!["lodestar"],
-            Client::Grandine => vec!["grandine"],
-            Client::Lambda => vec!["lambda_ethereum"],
-            Client::Geth => vec!["geth"],
-            Client::Nethermind => vec!["nethermind"],
-            Client::Besu => vec!["besu"],
-            Client::Erigon => vec!["erigon"],
-            Client::Reth => vec!["reth"],
-            Client::Mana => vec!["mana"],
-            Client::Charon => vec!["charon"],
-            Client::MevBoost => vec!["mev-boost", "mev_boost", "mevboost"],
-        }
+    /// Get the client layer (Consensus, Execution, Full, Middleware).
+    pub fn layer(&self) -> Layer {
+        self.meta.layer
+    }
+
+    /// Get the implementation language.
+    pub fn language(&self) -> &'static str {
+        self.meta.language
+    }
+
+    /// Get the project website.
+    pub fn website(&self) -> &'static str {
+        self.meta.website
+    }
+
+    /// Get the brand color hex.
+    pub fn brand_color(&self) -> &'static str {
+        self.meta.brand_color
     }
 }
 
@@ -104,7 +113,7 @@ impl Program for EthereumProgram {
     }
 
     fn rules(&self) -> Vec<Rule> {
-        self.client.rules()
+        self.rules.clone()
     }
 
     fn domain_colors(&self) -> HashMap<String, Color> {
@@ -112,21 +121,37 @@ impl Program for EthereumProgram {
     }
 
     fn detect_patterns(&self) -> Vec<&'static str> {
-        self.detection_patterns()
+        self.detect_patterns.clone()
     }
 }
 
 /// Register all Ethereum clients as programs.
 pub fn register_all(registry: &mut ProgramRegistry) {
-    for client in Client::all() {
-        let program = Arc::new(EthereumProgram::new(client));
+    for meta in ALL_CLIENTS {
+        let program = Arc::new(EthereumProgram::new(meta));
         registry.register(program);
     }
 }
 
-/// Get an Ethereum program by client.
-pub fn program_for_client(client: Client) -> Arc<dyn Program> {
-    Arc::new(EthereumProgram::new(client))
+/// Get an Ethereum program by client name.
+pub fn program_for(name: &str) -> Option<Arc<dyn Program>> {
+    clients::meta_for(name)
+        .map(|meta| Arc::new(EthereumProgram::new(meta)) as Arc<dyn Program>)
+}
+
+/// Get client metadata by name.
+pub fn client_meta(name: &str) -> Option<&'static ClientMeta> {
+    clients::meta_for(name)
+}
+
+/// Get brand color for an Ethereum client.
+pub fn brand_color(name: &str) -> Option<&'static str> {
+    clients::meta_for(name).map(|m| m.brand_color)
+}
+
+/// List all client names.
+pub fn all_client_names() -> Vec<&'static str> {
+    ALL_CLIENTS.iter().map(|m| m.name).collect()
 }
 
 #[cfg(test)]
@@ -171,10 +196,36 @@ mod tests {
 
     #[test]
     fn test_domain_colors() {
-        let program = EthereumProgram::new(Client::Lodestar);
+        let program = EthereumProgram::new(&clients::LODESTAR);
         let colors = program.domain_colors();
         assert!(colors.contains_key("slot"));
         assert!(colors.contains_key("epoch"));
         assert!(colors.contains_key("hash"));
+    }
+
+    #[test]
+    fn test_client_metadata() {
+        let meta = client_meta("lodestar").unwrap();
+        assert_eq!(meta.name, "Lodestar");
+        assert_eq!(meta.layer, Layer::Consensus);
+        assert_eq!(meta.language, "TypeScript");
+    }
+
+    #[test]
+    fn test_brand_colors() {
+        assert!(brand_color("geth").is_some());
+        assert!(brand_color("unknown").is_none());
+    }
+
+    #[test]
+    fn test_mana_is_full_node() {
+        let meta = client_meta("mana").unwrap();
+        assert_eq!(meta.layer, Layer::Full);
+    }
+
+    #[test]
+    fn test_elixir_clients() {
+        assert_eq!(client_meta("lambda").unwrap().language, "Elixir");
+        assert_eq!(client_meta("mana").unwrap().language, "Elixir");
     }
 }

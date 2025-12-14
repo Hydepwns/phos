@@ -6,6 +6,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use regex::Regex;
+
 use crate::colors::Color;
 use crate::rule::Rule;
 
@@ -159,18 +161,32 @@ impl ProgramRegistry {
     }
 
     /// Detect a program from a command string.
+    ///
+    /// Uses word-boundary matching to avoid false positives where a pattern
+    /// might match a substring (e.g., "git" matching "digit").
+    /// Returns the most specific match (longest pattern wins).
     pub fn detect(&self, cmd: &str) -> Option<Arc<dyn Program>> {
         let cmd_lower = cmd.to_lowercase();
 
+        // Collect all matches with their pattern length for specificity
+        let mut matches: Vec<(usize, Arc<dyn Program>)> = Vec::new();
+
         for program in self.programs.values() {
             for pattern in program.detect_patterns() {
-                if cmd_lower.contains(&pattern.to_lowercase()) {
-                    return Some(Arc::clone(program));
+                // Use word boundary matching to avoid substring false positives
+                let regex_pattern = format!(r"(?i)\b{}\b", regex::escape(pattern));
+                if let Ok(re) = Regex::new(&regex_pattern) {
+                    if re.is_match(&cmd_lower) {
+                        matches.push((pattern.len(), Arc::clone(program)));
+                        break; // One match per program is enough
+                    }
                 }
             }
         }
 
-        None
+        // Return most specific match (longest pattern wins)
+        matches.sort_by(|a, b| b.0.cmp(&a.0));
+        matches.into_iter().next().map(|(_, p)| p)
     }
 
     /// List all registered programs.

@@ -16,10 +16,11 @@ pub enum Color {
 }
 
 /// Semantic colors that themes resolve to actual colors.
-/// Includes both universal colors and domain-specific (Ethereum) colors for backward compatibility.
+/// These are universal, domain-agnostic colors that work across all programs.
+/// Domain-specific colors (e.g., Ethereum's slot, epoch) should use hex colors
+/// or be defined in the program's domain_colors().
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SemanticColor {
-    // === UNIVERSAL (domain-agnostic) ===
     // Log levels
     Error,
     Warn,
@@ -45,34 +46,6 @@ pub enum SemanticColor {
     Identifier, // Generic hash, ID, UUID, etc.
     Label,      // Generic tag, label, category
     Metric,     // Numeric measurements, durations
-
-    // === ETHEREUM DOMAIN (kept for backward compatibility) ===
-    // Will be moved to domain configs in future refactor
-    Hash,
-    Address,
-    Slot,
-    Epoch,
-    BlockNumber,
-    PeerId,
-
-    // Validator operations
-    Validator,
-    Pubkey,
-    Duty,
-    Committee,
-
-    // Consensus state
-    Finality,
-    Root,
-    Attestation,
-
-    // MEV
-    MevValue,
-    Relay,
-    Builder,
-
-    // Ethereum status
-    Syncing,
 }
 
 /// Color specification that can reference universal semantics or domain colors.
@@ -106,10 +79,29 @@ impl ColorSpec {
 }
 
 impl SemanticColor {
+    /// All semantic color variants for validation.
+    pub const ALL: &'static [SemanticColor] = &[
+        SemanticColor::Error,
+        SemanticColor::Warn,
+        SemanticColor::Info,
+        SemanticColor::Debug,
+        SemanticColor::Trace,
+        SemanticColor::Number,
+        SemanticColor::String,
+        SemanticColor::Boolean,
+        SemanticColor::Timestamp,
+        SemanticColor::Key,
+        SemanticColor::Value,
+        SemanticColor::Success,
+        SemanticColor::Failure,
+        SemanticColor::Identifier,
+        SemanticColor::Label,
+        SemanticColor::Metric,
+    ];
+
     /// Parse a semantic color from its name.
     pub fn from_name(name: &str) -> Option<Self> {
         match name.to_lowercase().as_str() {
-            // === Universal ===
             // Log levels
             "error" => Some(Self::Error),
             "warn" | "warning" => Some(Self::Warn),
@@ -131,29 +123,6 @@ impl SemanticColor {
             "identifier" | "id" => Some(Self::Identifier),
             "label" | "tag" => Some(Self::Label),
             "metric" | "measure" => Some(Self::Metric),
-
-            // === Ethereum domain (backward compatibility) ===
-            "hash" => Some(Self::Hash),
-            "address" => Some(Self::Address),
-            "slot" => Some(Self::Slot),
-            "epoch" => Some(Self::Epoch),
-            "block" | "blocknumber" | "block_number" => Some(Self::BlockNumber),
-            "peer" | "peerid" | "peer_id" => Some(Self::PeerId),
-            // Validator operations
-            "validator" | "validator_index" => Some(Self::Validator),
-            "pubkey" | "public_key" => Some(Self::Pubkey),
-            "duty" => Some(Self::Duty),
-            "committee" | "subnet" => Some(Self::Committee),
-            // Consensus state
-            "finality" | "finalized" | "justified" => Some(Self::Finality),
-            "root" | "state_root" | "block_root" => Some(Self::Root),
-            "attestation" | "attest" => Some(Self::Attestation),
-            // MEV
-            "mev" | "mev_value" | "bid" => Some(Self::MevValue),
-            "relay" => Some(Self::Relay),
-            "builder" => Some(Self::Builder),
-            // Ethereum status
-            "syncing" | "sync" => Some(Self::Syncing),
 
             _ => None,
         }

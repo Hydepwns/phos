@@ -1,12 +1,16 @@
 //! Core colorization engine.
 
+use std::borrow::Cow;
 use std::io::{self, BufRead, Write};
 
 use nu_ansi_term::Style;
 
-use crate::clients::Client;
 use crate::rule::{CountMode, Rule};
 use crate::theme::Theme;
+
+/// Maximum line length to colorize. Lines longer than this are passed through
+/// unchanged to prevent performance issues with pathological regex patterns.
+const MAX_LINE_LENGTH: usize = 10_000;
 
 /// The colorizer applies rules to text and outputs colored results.
 #[derive(Debug, Clone)]
@@ -35,11 +39,6 @@ impl Colorizer {
         }
     }
 
-    /// Create a colorizer for a specific Ethereum client.
-    pub fn for_client(client: Client) -> Self {
-        Self::new(client.rules())
-    }
-
     /// Set the theme.
     pub fn with_theme(mut self, theme: Theme) -> Self {
         self.theme = theme;
@@ -55,7 +54,17 @@ impl Colorizer {
         self
     }
 
+    /// Reset colorization state between files or streams.
+    ///
+    /// This clears block mode state that may persist from a previous stream.
+    /// Called automatically after `process_stdio()` and `process_stdio_with_stats()`.
+    pub fn reset(&mut self) {
+        self.in_block = false;
+        self.block_style = None;
+    }
+
     /// Colorize a single line of text.
+    /// Returns the colorized line, or the original if skipped by a skip rule.
     pub fn colorize(&mut self, line: &str) -> String {
         self.colorize_with_match_info(line).0
     }
@@ -63,25 +72,71 @@ impl Colorizer {
     /// Colorize a single line and return whether it had any matches.
     /// Returns (colorized_string, had_matches).
     pub fn colorize_with_match_info(&mut self, line: &str) -> (String, bool) {
+        match self.colorize_opt_with_match_info(line) {
+            Some((output, had_match)) => (output, had_match),
+            None => (String::new(), true), // Line was skipped
+        }
+    }
+
+    /// Colorize a single line, returning None if the line should be skipped.
+    /// Returns Some((colorized_string, had_matches)) or None if skipped.
+    pub fn colorize_opt(&mut self, line: &str) -> Option<String> {
+        self.colorize_opt_with_match_info(line).map(|(s, _)| s)
+    }
+
+    /// Colorize with skip support and match info.
+    /// Returns None if a skip rule matched, otherwise Some((output, had_matches)).
+    pub fn colorize_opt_with_match_info(&mut self, line: &str) -> Option<(String, bool)> {
         if line.is_empty() {
-            return (String::new(), false);
+            return Some((String::new(), false));
         }
 
+        // Skip colorization for extremely long lines to prevent performance issues
+        if line.len() > MAX_LINE_LENGTH {
+            return Some((line.to_string(), false));
+        }
+
+        // Phase 1: Check skip rules first
+        for rule in &self.rules {
+            if rule.skip && rule.is_match(line) {
+                return None; // Skip this line
+            }
+        }
+
+        // Phase 2: Apply replacements
+        let line: Cow<str> = self.rules.iter().fold(Cow::Borrowed(line), |line, rule| {
+            if let Some(ref replacement) = rule.replace {
+                if rule.is_match(&line) {
+                    Cow::Owned(rule.regex.replace_all(&line, replacement).into_owned())
+                } else {
+                    line
+                }
+            } else {
+                line
+            }
+        });
+
+        // Phase 3: Colorization
         // Track which parts of the line have been colored
         let mut colored_ranges: Vec<(usize, usize, Style)> = Vec::new();
 
         for rule in &self.rules {
+            // Skip rules that are only for skip/replace (no colors)
+            if rule.skip || rule.replace.is_some() && rule.colors.is_empty() {
+                continue;
+            }
+
             // Handle block mode
-            if rule.count_mode == CountMode::Block && rule.is_match(line) {
+            if rule.count_mode == CountMode::Block && rule.is_match(&line) {
                 self.in_block = true;
                 self.block_style = Some(self.rule_to_style(rule));
-            } else if rule.count_mode == CountMode::Unblock && rule.is_match(line) {
+            } else if rule.count_mode == CountMode::Unblock && rule.is_match(&line) {
                 self.in_block = false;
                 self.block_style = None;
             }
 
             // Find matches
-            let matches: Vec<_> = rule.find_iter(line).collect();
+            let matches: Vec<_> = rule.find_iter(&line).collect();
 
             for m in matches {
                 let start = m.start();
@@ -113,14 +168,14 @@ impl Colorizer {
 
         // If colors disabled, return plain text but still report matches for stats
         if !self.color_enabled {
-            return (line.to_string(), had_matches);
+            return Some((line.into_owned(), had_matches));
         }
 
         // Sort ranges by start position
         colored_ranges.sort_by_key(|(start, _, _)| *start);
 
         // Build the output string
-        (self.build_colored_output(line, &colored_ranges), had_matches)
+        Some((self.build_colored_output(&line, &colored_ranges), had_matches))
     }
 
     /// Convert a rule to a Style.
@@ -180,6 +235,7 @@ impl Colorizer {
     }
 
     /// Process stdin and write colorized output to stdout.
+    /// Lines matching skip rules are not output.
     pub fn process_stdio(&mut self) -> io::Result<()> {
         let stdin = io::stdin();
         let stdout = io::stdout();
@@ -187,15 +243,20 @@ impl Colorizer {
 
         for line in stdin.lock().lines() {
             let line = line?;
-            let colored = self.colorize(&line);
-            writeln!(stdout, "{colored}")?;
+            if let Some(colored) = self.colorize_opt(&line) {
+                writeln!(stdout, "{colored}")?;
+            }
+            // Skip rule matched - don't output anything
         }
+
+        // Reset block state for next stream
+        self.reset();
 
         Ok(())
     }
 
     /// Process stdin with statistics collection.
-    /// Returns the stats collector with accumulated statistics.
+    /// Lines matching skip rules are not output but are counted in stats.
     pub fn process_stdio_with_stats(
         &mut self,
         stats: &mut crate::stats::StatsCollector,
@@ -206,36 +267,24 @@ impl Colorizer {
 
         for line in stdin.lock().lines() {
             let line = line?;
-            let (colored, had_match) = self.colorize_with_match_info(&line);
-            stats.process_line(&line, had_match);
-            writeln!(stdout, "{colored}")?;
+            match self.colorize_opt_with_match_info(&line) {
+                Some((colored, had_match)) => {
+                    stats.process_line(&line, had_match);
+                    writeln!(stdout, "{colored}")?;
+                }
+                None => {
+                    // Skip rule matched - count but don't output
+                    stats.process_line(&line, true);
+                    stats.record_skipped();
+                }
+            }
         }
+
+        // Reset block state for next stream
+        self.reset();
 
         Ok(())
     }
-}
-
-/// Try to auto-detect client from command and arguments.
-pub fn detect_client(cmd: &str, args: &[String]) -> Option<Client> {
-    let full_cmd = format!("{} {}", cmd, args.join(" ")).to_lowercase();
-
-    // Check for client names in command
-    Client::all()
-        .into_iter()
-        .find(|client| {
-            let name = format!("{client:?}").to_lowercase();
-            full_cmd.contains(&name)
-        })
-        .or_else(|| {
-            // Check for common container/service names
-            if full_cmd.contains("beacon") || full_cmd.contains("consensus") {
-                Some(Client::Lighthouse)
-            } else if full_cmd.contains("execution") || full_cmd.contains("el-") {
-                Some(Client::Geth)
-            } else {
-                None
-            }
-        })
 }
 
 #[cfg(test)]
@@ -294,14 +343,63 @@ mod tests {
     }
 
     #[test]
-    fn test_client_detection() {
-        assert_eq!(
-            detect_client("docker", &["logs".to_string(), "lighthouse".to_string()]),
-            Some(Client::Lighthouse)
-        );
-        assert_eq!(
-            detect_client("journalctl", &["-u".to_string(), "geth".to_string()]),
-            Some(Client::Geth)
-        );
+    fn test_skip_rule() {
+        let rules = vec![
+            Rule::new(r"DEBUG")
+                .unwrap()
+                .skip()
+                .build(),
+            Rule::new(r"error")
+                .unwrap()
+                .semantic(SemanticColor::Error)
+                .build(),
+        ];
+        let mut colorizer = Colorizer::new(rules);
+
+        // DEBUG lines should be skipped
+        assert!(colorizer.colorize_opt("DEBUG: some message").is_none());
+
+        // Other lines should be colorized
+        let result = colorizer.colorize_opt("ERROR: something went wrong");
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_replace_rule() {
+        let rules = vec![
+            Rule::new(r"(\d{2}):(\d{2}):(\d{2})")
+                .unwrap()
+                .replace("${1}h${2}m${3}s")
+                .semantic(SemanticColor::Timestamp)
+                .build(),
+        ];
+        let mut colorizer = Colorizer::new(rules).with_color_enabled(false);
+
+        let result = colorizer.colorize("Time: 12:34:56");
+        assert!(result.contains("12h34m56s"));
+    }
+
+    #[test]
+    fn test_skip_and_replace_together() {
+        let rules = vec![
+            // Skip DEBUG lines
+            Rule::new(r"^\[DEBUG\]")
+                .unwrap()
+                .skip()
+                .build(),
+            // Replace timestamp format
+            Rule::new(r"(\d{4})-(\d{2})-(\d{2})")
+                .unwrap()
+                .replace("${2}/${3}/${1}")
+                .build(),
+        ];
+        let mut colorizer = Colorizer::new(rules).with_color_enabled(false);
+
+        // DEBUG should be skipped
+        assert!(colorizer.colorize_opt("[DEBUG] 2024-01-15 test").is_none());
+
+        // INFO should have replacement
+        let result = colorizer.colorize_opt("[INFO] 2024-01-15 test").unwrap();
+        assert!(result.contains("01/15/2024"));
     }
 }

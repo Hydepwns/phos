@@ -56,6 +56,14 @@ pub struct RuleConfig {
     /// Whether to apply bold
     #[serde(default)]
     pub bold: bool,
+
+    /// Skip the entire line if this rule matches
+    #[serde(default)]
+    pub skip: bool,
+
+    /// Replacement pattern (uses ${1}, ${2} for backreferences)
+    #[serde(default)]
+    pub replace: Option<String>,
 }
 
 impl Config {
@@ -84,7 +92,7 @@ impl Config {
 
 /// Convert a single rule config to a Rule.
 fn rule_from_config(config: &RuleConfig) -> Result<Rule, ConfigError> {
-    let builder = config
+    let mut builder = config
         .colors
         .iter()
         .filter(|c| *c != "bold")
@@ -94,6 +102,16 @@ fn rule_from_config(config: &RuleConfig) -> Result<Rule, ConfigError> {
                 None => b.named(color),
             }
         });
+
+    // Apply skip if set
+    if config.skip {
+        builder = builder.skip();
+    }
+
+    // Apply replace if set
+    if let Some(ref replacement) = config.replace {
+        builder = builder.replace(replacement);
+    }
 
     let should_bold = config.bold || config.colors.iter().any(|c| c == "bold");
 
@@ -105,44 +123,9 @@ fn rule_from_config(config: &RuleConfig) -> Result<Rule, ConfigError> {
 }
 
 /// Parse a semantic color name.
+/// Non-semantic colors (domain colors, hex, ANSI) return None and are handled elsewhere.
 fn parse_semantic_color(name: &str) -> Option<SemanticColor> {
-    match name.to_lowercase().as_str() {
-        "error" => Some(SemanticColor::Error),
-        "warn" | "warning" => Some(SemanticColor::Warn),
-        "info" => Some(SemanticColor::Info),
-        "debug" => Some(SemanticColor::Debug),
-        "trace" => Some(SemanticColor::Trace),
-        "number" => Some(SemanticColor::Number),
-        "string" => Some(SemanticColor::String),
-        "boolean" | "bool" => Some(SemanticColor::Boolean),
-        "hash" => Some(SemanticColor::Hash),
-        "address" => Some(SemanticColor::Address),
-        "slot" => Some(SemanticColor::Slot),
-        "epoch" => Some(SemanticColor::Epoch),
-        "block" | "blocknumber" | "block_number" => Some(SemanticColor::BlockNumber),
-        "peer" | "peerid" | "peer_id" => Some(SemanticColor::PeerId),
-        // Validator operations
-        "validator" | "validator_index" => Some(SemanticColor::Validator),
-        "pubkey" | "public_key" => Some(SemanticColor::Pubkey),
-        "duty" => Some(SemanticColor::Duty),
-        "committee" | "subnet" => Some(SemanticColor::Committee),
-        // Consensus state
-        "finality" | "finalized" | "justified" => Some(SemanticColor::Finality),
-        "root" | "state_root" | "block_root" => Some(SemanticColor::Root),
-        "attestation" | "attest" => Some(SemanticColor::Attestation),
-        // MEV
-        "mev" | "mev_value" | "bid" => Some(SemanticColor::MevValue),
-        "relay" => Some(SemanticColor::Relay),
-        "builder" => Some(SemanticColor::Builder),
-        // Status
-        "success" => Some(SemanticColor::Success),
-        "failure" | "fail" => Some(SemanticColor::Failure),
-        "syncing" | "sync" => Some(SemanticColor::Syncing),
-        "timestamp" | "time" => Some(SemanticColor::Timestamp),
-        "key" => Some(SemanticColor::Key),
-        "value" => Some(SemanticColor::Value),
-        _ => None,
-    }
+    SemanticColor::from_name(name)
 }
 
 #[cfg(test)]

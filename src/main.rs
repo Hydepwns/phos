@@ -7,10 +7,13 @@
 //!   echo "error at slot 12345" | phos -c lodestar
 
 use anyhow::{Context, Result};
-use clap::{CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 use clap_complete::{generate, Shell};
 use phos::programs;
-use phos::{Client, Colorizer, Config, StatsCollector, Theme};
+use phos::programs::ethereum;
+use phos::shell::{self, ShellType};
+use phos::{Colorizer, Config, StatsCollector, Theme};
+use serde::Serialize;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
@@ -31,7 +34,7 @@ fn version_string() -> &'static str {
 #[command(
     name = "phos",
     version = version_string(),
-    about = "Universal log colorizer with built-in support for 59 programs",
+    about = "Universal log colorizer with built-in support for 98 programs",
     long_about = "A fast, portable log colorizer with built-in support for:\n\n\
                   Ethereum:   Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda,\n\
                               Geth, Nethermind, Besu, Erigon, Reth, Mana, Charon, MEV-Boost\n\n\
@@ -78,6 +81,16 @@ struct Cli {
     args: Vec<String>,
 }
 
+/// Output format for commands
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+enum OutputFormat {
+    /// Human-readable table format
+    #[default]
+    Table,
+    /// JSON format for scripting
+    Json,
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// List available programs
@@ -86,6 +99,9 @@ enum Commands {
         /// Filter by category (ethereum, devops, system, dev, network, data, monitoring, messaging, ci)
         #[arg(long)]
         category: Option<String>,
+        /// Output format
+        #[arg(long, short = 'f', value_enum, default_value = "table")]
+        format: OutputFormat,
     },
 
     /// List available clients (alias for 'list --category ethereum')
@@ -105,6 +121,9 @@ enum Commands {
     Info {
         /// Program or client name
         name: String,
+        /// Output format
+        #[arg(long, short = 'f', value_enum, default_value = "table")]
+        format: OutputFormat,
     },
 
     /// Show brand colors for Ethereum clients
@@ -118,6 +137,46 @@ enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+
+    /// Generate shell integration script for automatic command colorization
+    #[command(name = "shell-init")]
+    ShellInit {
+        /// Shell to generate integration for (bash, zsh, fish)
+        shell: String,
+    },
+
+    /// Manage configuration
+    #[command(name = "config")]
+    Config {
+        #[command(subcommand)]
+        action: ConfigAction,
+    },
+
+    /// Generate man page
+    #[command(name = "man")]
+    Man {
+        /// Output directory (prints to stdout if not specified)
+        #[arg(long, short = 'o')]
+        output: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum ConfigAction {
+    /// Show configuration directory paths
+    #[command(name = "path")]
+    Path,
+
+    /// Validate user program configurations
+    #[command(name = "validate")]
+    Validate {
+        /// Specific file to validate (validates all if not specified)
+        file: Option<String>,
+    },
+
+    /// Initialize config directory with example files
+    #[command(name = "init")]
+    Init,
 }
 
 fn main() -> Result<()> {
@@ -128,19 +187,22 @@ fn main() -> Result<()> {
 
     // Load user programs from config directory
     let load_errors = phos::program::loader::load_user_programs(&mut registry);
-    for err in load_errors {
-        eprintln!("Warning: Failed to load user program: {err}");
+    for err in &load_errors {
+        eprintln!("Warning: {}", err.format());
     }
 
     // Handle subcommands
     if let Some(cmd) = cli.command {
         return match cmd {
-            Commands::List { category } => list_programs(&registry, category.as_deref()),
-            Commands::ListClients => list_programs(&registry, Some("ethereum")),
+            Commands::List { category, format } => list_programs(&registry, category.as_deref(), format),
+            Commands::ListClients => list_programs(&registry, Some("ethereum"), OutputFormat::Table),
             Commands::Themes | Commands::ListThemes => list_themes(),
-            Commands::Info { name } => show_info(&registry, &name),
+            Commands::Info { name, format } => show_info(&registry, &name, format),
             Commands::Colors => show_colors(),
             Commands::Completions { shell } => generate_completions(shell),
+            Commands::ShellInit { shell } => generate_shell_init(&registry, &shell),
+            Commands::Config { action } => handle_config_action(action),
+            Commands::Man { output } => generate_man_page(output),
         };
     }
 
@@ -150,14 +212,11 @@ fn main() -> Result<()> {
     // Get the theme
     let theme = Theme::builtin(&cli.theme).unwrap_or_else(Theme::default_dark);
 
-    // Get rules - check program first, then client (for backward compat), then config
+    // Get rules - check program first, then config, then auto-detect
     let rules = if let Some(ref program_name) = cli.program.as_ref().or(cli.client.as_ref()) {
-        // Try program registry first
+        // Look up program in registry
         if let Some(program) = registry.get(program_name) {
             program.rules()
-        } else if let Some(client) = Client::parse(program_name) {
-            // Fall back to legacy client parsing
-            client.rules()
         } else {
             anyhow::bail!("Unknown program: {program_name}. Run 'phos list' to see available programs.");
         }
@@ -165,13 +224,10 @@ fn main() -> Result<()> {
         // Load from config file
         Config::load(config_path)?.to_rules()?
     } else if !cli.args.is_empty() {
-        // Try to auto-detect from command using new registry
+        // Try to auto-detect from command
         let cmd_str = cli.args.join(" ");
         if let Some(program) = registry.detect(&cmd_str) {
             program.rules()
-        } else if let Some(client) = phos::colorizer::detect_client(&cli.args[0], &cli.args[1..]) {
-            // Fall back to legacy client detection
-            client.rules()
         } else {
             // No program detected, use empty rules
             Vec::new()
@@ -295,48 +351,90 @@ fn run_command(
     Ok(())
 }
 
-fn list_programs(registry: &phos::ProgramRegistry, category: Option<&str>) -> Result<()> {
+/// Serializable program info for JSON output
+#[derive(Serialize)]
+struct ProgramJson {
+    id: String,
+    name: String,
+    description: String,
+    category: String,
+    rules: usize,
+}
+
+#[derive(Serialize)]
+struct ProgramListJson {
+    total: usize,
+    programs: Vec<ProgramJson>,
+}
+
+fn list_programs(registry: &phos::ProgramRegistry, category: Option<&str>, format: OutputFormat) -> Result<()> {
     let categories = category
         .map(|c| vec![c.to_string()])
         .unwrap_or_else(|| registry.categories());
 
-    println!("Available programs ({} total):\n", registry.len());
+    match format {
+        OutputFormat::Json => {
+            let programs: Vec<ProgramJson> = categories
+                .iter()
+                .flat_map(|cat| registry.list_by_category(cat))
+                .map(|info| {
+                    let program = registry.get(&info.id);
+                    ProgramJson {
+                        id: info.id.clone(),
+                        name: info.name.clone(),
+                        description: info.description.clone(),
+                        category: info.category.clone(),
+                        rules: program.map(|p| p.rules().len()).unwrap_or(0),
+                    }
+                })
+                .collect();
 
-    categories
-        .iter()
-        .filter_map(|cat| {
-            let programs = registry.list_by_category(cat);
-            (!programs.is_empty()).then_some((cat, programs))
-        })
-        .for_each(|(cat, programs)| {
-            let cat_display = match cat.as_str() {
-                "ethereum" => "Ethereum",
-                "devops" => "DevOps",
-                "system" => "System",
-                "dev" => "Development",
-                "network" => "Network",
-                "ci" => "CI/CD",
-                "data" => "Data",
-                "messaging" => "Messaging",
-                "monitoring" => "Monitoring",
-                _ => cat,
+            let output = ProgramListJson {
+                total: programs.len(),
+                programs,
             };
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        }
+        OutputFormat::Table => {
+            println!("Available programs ({} total):\n", registry.len());
 
-            println!("{cat_display}:");
-            programs.iter().for_each(|info| {
-                let name = info.id.split('.').next_back().unwrap_or(&info.id);
-                println!("  {:12} - {}", name, info.description);
-            });
-            println!();
-        });
+            categories
+                .iter()
+                .filter_map(|cat| {
+                    let programs = registry.list_by_category(cat);
+                    (!programs.is_empty()).then_some((cat, programs))
+                })
+                .for_each(|(cat, programs)| {
+                    let cat_display = match cat.as_str() {
+                        "ethereum" => "Ethereum",
+                        "devops" => "DevOps",
+                        "system" => "System",
+                        "dev" => "Development",
+                        "network" => "Network",
+                        "ci" => "CI/CD",
+                        "data" => "Data",
+                        "messaging" => "Messaging",
+                        "monitoring" => "Monitoring",
+                        _ => cat,
+                    };
 
-    // Also show Ethereum layer info if showing ethereum category
-    if category == Some("ethereum") {
-        println!("Ethereum clients by layer:");
-        println!("  Consensus:  Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda");
-        println!("  Execution:  Geth, Nethermind, Besu, Erigon, Reth");
-        println!("  Full Node:  Mana");
-        println!("  Middleware: Charon, MEV-Boost");
+                    println!("{cat_display}:");
+                    programs.iter().for_each(|info| {
+                        let name = info.id.split('.').next_back().unwrap_or(&info.id);
+                        println!("  {:12} - {}", name, info.description);
+                    });
+                    println!();
+                });
+
+            // Also show Ethereum layer info if showing ethereum category
+            if category == Some("ethereum") {
+                println!("Ethereum clients by layer:");
+                println!("  Consensus:  Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda");
+                println!("  Execution:  Geth, Nethermind, Besu, Erigon, Reth");
+                println!("  Full Node:  Mana");
+                println!("  Middleware: Charon, MEV-Boost");
+            }
+        }
     }
 
     Ok(())
@@ -353,59 +451,82 @@ fn list_themes() -> Result<()> {
     Ok(())
 }
 
-fn show_info(registry: &phos::ProgramRegistry, name: &str) -> Result<()> {
-    // Try program registry first
-    if let Some(program) = registry.get(name) {
-        let info = program.info();
-        println!("{}", info.name);
-        println!("  ID:          {}", info.id);
-        println!("  Description: {}", info.description);
-        println!("  Category:    {}", info.category);
-        println!("  Rules:       {}", program.rules().len());
+/// Extended program info for JSON output (includes Ethereum metadata when applicable)
+#[derive(Serialize)]
+struct ProgramInfoJson {
+    id: String,
+    name: String,
+    description: String,
+    category: String,
+    rules: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    layer: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    website: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    brand_color: Option<String>,
+}
 
-        // Show brand color for Ethereum clients
-        if info.category == "ethereum" {
-            let brand = phos::colors::brands::color(&info.name.to_lowercase()).unwrap_or("#888888");
-            println!("  Brand color: {brand}");
+fn show_info(registry: &phos::ProgramRegistry, name: &str, format: OutputFormat) -> Result<()> {
+    let program = registry.get(name)
+        .ok_or_else(|| anyhow::anyhow!("Unknown program: {name}. Run 'phos list' to see available programs."))?;
 
-            // Also show layer info if it's an Ethereum client
-            if let Some(client) = Client::parse(&info.name) {
-                let client_info = client.info();
-                println!("  Layer:       {:?}", client_info.layer);
-                println!("  Language:    {}", client_info.language);
-                println!("  Website:     {}", client_info.website);
+    let info = program.info();
+
+    match format {
+        OutputFormat::Json => {
+            let meta = if info.category == "ethereum" {
+                ethereum::client_meta(&info.name)
+            } else {
+                None
+            };
+
+            let output = ProgramInfoJson {
+                id: info.id.clone(),
+                name: info.name.clone(),
+                description: info.description.clone(),
+                category: info.category.clone(),
+                rules: program.rules().len(),
+                layer: meta.map(|m| format!("{:?}", m.layer)),
+                language: meta.map(|m| m.language.to_string()),
+                website: meta.map(|m| m.website.to_string()),
+                brand_color: meta.map(|m| m.brand_color.to_string()),
+            };
+            println!("{}", serde_json::to_string_pretty(&output)?);
+        }
+        OutputFormat::Table => {
+            println!("{}", info.name);
+            println!("  ID:          {}", info.id);
+            println!("  Description: {}", info.description);
+            println!("  Category:    {}", info.category);
+            println!("  Rules:       {}", program.rules().len());
+
+            // Show extra info for Ethereum clients
+            if info.category == "ethereum" {
+                if let Some(meta) = ethereum::client_meta(&info.name) {
+                    println!("  Layer:       {:?}", meta.layer);
+                    println!("  Language:    {}", meta.language);
+                    println!("  Website:     {}", meta.website);
+                    println!("  Brand color: {}", meta.brand_color);
+                }
             }
         }
-        return Ok(());
     }
 
-    // Fall back to legacy client lookup
-    if let Some(client) = Client::parse(name) {
-        let info = client.info();
-        let brand = phos::colors::brands::color(name).unwrap_or("#888888");
-
-        println!("{}", info.name);
-        println!("  Description: {}", info.description);
-        println!("  Layer:       {:?}", info.layer);
-        println!("  Language:    {}", info.language);
-        println!("  Website:     {}", info.website);
-        println!("  Brand color: {brand}");
-        println!("  Rules:       {}", client.rules().len());
-        return Ok(());
-    }
-
-    anyhow::bail!("Unknown program: {name}. Run 'phos list' to see available programs.");
+    Ok(())
 }
 
 fn show_colors() -> Result<()> {
     println!("Ethereum Client Brand Colors:\n");
 
-    Client::all().iter().for_each(|client| {
-        let name = format!("{client:?}").to_lowercase();
-        let hex = phos::colors::brands::color(&name).unwrap_or("#888888");
+    ethereum::all_client_names().iter().for_each(|name| {
+        let name_lower = name.to_lowercase();
+        let hex = ethereum::brand_color(&name_lower).unwrap_or("#888888");
         let (r, g, b) = phos::parse_hex_rgb(hex).unwrap_or((128, 128, 128));
 
-        println!("  \x1b[38;2;{r};{g};{b}m##\x1b[0m {name:12} {hex}");
+        println!("  \x1b[38;2;{r};{g};{b}m##\x1b[0m {name_lower:12} {hex}");
     });
 
     Ok(())
@@ -415,5 +536,221 @@ fn generate_completions(shell: Shell) -> Result<()> {
     let mut cmd = Cli::command();
     let name = cmd.get_name().to_string();
     generate(shell, &mut cmd, name, &mut std::io::stdout());
+    Ok(())
+}
+
+fn generate_shell_init(registry: &phos::ProgramRegistry, shell_name: &str) -> Result<()> {
+    let shell_type = ShellType::parse(shell_name).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Unknown shell: {shell_name}. Supported shells: {}",
+            ShellType::supported().join(", ")
+        )
+    })?;
+
+    let script = shell::generate_script(shell_type, registry);
+    print!("{script}");
+    Ok(())
+}
+
+fn handle_config_action(action: ConfigAction) -> Result<()> {
+    use phos::program::loader;
+
+    match action {
+        ConfigAction::Path => {
+            println!("Configuration paths:\n");
+            println!("  Config directory:   {}",
+                loader::config_dir().map(|p| p.display().to_string()).unwrap_or_else(|| "(unavailable)".to_string()));
+            println!("  Programs directory: {}",
+                loader::programs_dir().map(|p| p.display().to_string()).unwrap_or_else(|| "(unavailable)".to_string()));
+            println!("  Themes directory:   {}",
+                loader::themes_dir().map(|p| p.display().to_string()).unwrap_or_else(|| "(unavailable)".to_string()));
+
+            // Show if directories exist
+            println!();
+            if let Some(programs_dir) = loader::programs_dir() {
+                if programs_dir.exists() {
+                    let files = loader::list_program_files();
+                    println!("  Programs found: {}", files.len());
+                } else {
+                    println!("  Programs directory does not exist yet.");
+                    println!("  Run 'phos config init' to create it.");
+                }
+            }
+            Ok(())
+        }
+
+        ConfigAction::Validate { file } => {
+            if let Some(file_path) = file {
+                // Validate specific file
+                let path = std::path::PathBuf::from(&file_path);
+                if !path.exists() {
+                    anyhow::bail!("File not found: {file_path}");
+                }
+                match loader::validate_program_file(&path) {
+                    Ok(info) => {
+                        println!("Valid: {info}");
+                        Ok(())
+                    }
+                    Err(result) => {
+                        eprintln!("Error: {}", result.format());
+                        std::process::exit(1);
+                    }
+                }
+            } else {
+                // Validate all files in programs directory
+                let files = loader::list_program_files();
+                if files.is_empty() {
+                    println!("No program configuration files found.");
+                    if let Some(dir) = loader::programs_dir() {
+                        println!("Expected location: {}", dir.display());
+                    }
+                    return Ok(());
+                }
+
+                println!("Validating {} configuration file(s):\n", files.len());
+                let mut errors = 0;
+                for path in &files {
+                    let filename = path.file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or("unknown");
+                    match loader::validate_program_file(path) {
+                        Ok(info) => println!("  [OK] {filename}: {info}"),
+                        Err(result) => {
+                            eprintln!("  [ERROR] {}", result.format());
+                            errors += 1;
+                        }
+                    }
+                }
+                println!();
+                if errors > 0 {
+                    eprintln!("{errors} error(s) found.");
+                    std::process::exit(1);
+                } else {
+                    println!("All configurations valid.");
+                }
+                Ok(())
+            }
+        }
+
+        ConfigAction::Init => {
+            // Create config directories
+            loader::ensure_config_dirs()?;
+
+            let programs_dir = loader::programs_dir()
+                .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
+
+            println!("Created configuration directories.");
+            println!();
+            println!("Programs directory: {}", programs_dir.display());
+            println!();
+
+            // Create example program config
+            let example_path = programs_dir.join("example.yaml");
+            if !example_path.exists() {
+                let example_content = r#"# Example phos program configuration
+# Rename this file and customize for your application
+
+name: MyApp
+description: Example custom application colorization
+category: custom
+
+# Patterns for auto-detection (matched against command line)
+detect:
+  - myapp
+  - docker.*myapp
+
+# Custom semantic colors for your domain
+semantic_colors:
+  request_id: '#88AAFF'
+  user_id: '#FFAA88'
+
+# Colorization rules (applied in order)
+rules:
+  # Log levels
+  - regex: '\[ERROR\]'
+    colors: [error]
+    bold: true
+
+  - regex: '\[WARN\]'
+    colors: [warn]
+    bold: true
+
+  - regex: '\[INFO\]'
+    colors: [info]
+
+  - regex: '\[DEBUG\]'
+    colors: [debug]
+
+  # Custom patterns using domain colors
+  - regex: 'request_id=([a-f0-9-]+)'
+    colors: [request_id]
+
+  - regex: 'user_id=(\d+)'
+    colors: [user_id]
+
+  # Timestamps
+  - regex: '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
+    colors: [timestamp]
+
+  # Numbers
+  - regex: '\b\d+(\.\d+)?\b'
+    colors: [number]
+"#;
+                std::fs::write(&example_path, example_content)?;
+                println!("Created example config: {}", example_path.display());
+                println!();
+                println!("Edit this file and rename it to match your application.");
+                println!("Run 'phos config validate' to check your configuration.");
+            } else {
+                println!("Example config already exists: {}", example_path.display());
+            }
+
+            Ok(())
+        }
+    }
+}
+
+fn generate_man_page(output: Option<String>) -> Result<()> {
+    use clap_mangen::Man;
+    use std::fs;
+    use std::path::PathBuf;
+
+    let cmd = Cli::command();
+    let man = Man::new(cmd.clone());
+
+    match output {
+        Some(dir) => {
+            let out_dir = PathBuf::from(&dir);
+            fs::create_dir_all(&out_dir)?;
+
+            // Generate main man page
+            let main_path = out_dir.join("phos.1");
+            let mut file = fs::File::create(&main_path)?;
+            man.render(&mut file)?;
+            println!("Generated: {}", main_path.display());
+
+            // Generate man pages for subcommands
+            for subcommand in cmd.get_subcommands() {
+                let name = subcommand.get_name();
+                if name == "help" {
+                    continue;
+                }
+                let sub_path = out_dir.join(format!("phos-{name}.1"));
+                let mut file = fs::File::create(&sub_path)?;
+                let sub_man = Man::new(subcommand.clone());
+                sub_man.render(&mut file)?;
+                println!("Generated: {}", sub_path.display());
+            }
+
+            println!("\nInstall with:");
+            println!("  sudo cp {dir}/*.1 /usr/local/share/man/man1/");
+            println!("  sudo mandb  # Linux only");
+        }
+        None => {
+            // Print to stdout
+            man.render(&mut std::io::stdout())?;
+        }
+    }
+
     Ok(())
 }

@@ -58,6 +58,8 @@ pub struct Stats {
     pub total_lines: usize,
     /// Lines that matched at least one rule
     pub matched_lines: usize,
+    /// Lines skipped by skip rules
+    pub skipped_lines: usize,
     /// Log level counts
     pub log_levels: LogLevelCounts,
     /// First timestamp seen (if any)
@@ -240,6 +242,15 @@ impl Stats {
             percentage(self.matched_lines, self.total_lines)
         )
         .ok();
+        if self.skipped_lines > 0 {
+            writeln!(
+                stderr,
+                "Lines skipped:    {} ({:.1}%)",
+                self.skipped_lines,
+                percentage(self.skipped_lines, self.total_lines)
+            )
+            .ok();
+        }
         writeln!(stderr).ok();
 
         // Time range (if timestamps were found)
@@ -302,6 +313,7 @@ impl Stats {
     pub fn merge(&mut self, other: &Stats) {
         self.total_lines += other.total_lines;
         self.matched_lines += other.matched_lines;
+        self.skipped_lines += other.skipped_lines;
 
         // Merge log level counts
         self.log_levels.error += other.log_levels.error;
@@ -345,6 +357,11 @@ impl StatsCollector {
     /// Process a line and return whether it had matches (for external colorizer to use).
     pub fn process_line(&mut self, line: &str, had_match: bool) {
         self.stats.process_line(line, &self.patterns, had_match);
+    }
+
+    /// Record that a line was skipped by a skip rule.
+    pub fn record_skipped(&mut self) {
+        self.stats.skipped_lines += 1;
     }
 
     /// Get the collected stats.

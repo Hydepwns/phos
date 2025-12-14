@@ -219,6 +219,199 @@ pub fn key_value_rule() -> Rule {
         .build()
 }
 
+// =============================================================================
+// NEW COMMON BUILDERS FOR GRC PARITY
+// =============================================================================
+
+/// File permission patterns (rwxr-xr-x, drwxr-xr-x).
+pub fn permission_rule() -> Rule {
+    Rule::new(r"[-dlbcps][-rwxsStT]{9}")
+        .unwrap()
+        .semantic(SemanticColor::Label)
+        .build()
+}
+
+/// Device names (sda, nvme0n1, eth0, etc.).
+pub fn device_name_rule() -> Rule {
+    Rule::new(r"\b(sd[a-z]+\d*|nvme\d+n\d+p?\d*|eth\d+|enp\d+s\d+|ens\d+|wlan\d+|wlp\d+s\d+|lo)\b")
+        .unwrap()
+        .semantic(SemanticColor::Identifier)
+        .build()
+}
+
+/// UUID patterns.
+pub fn uuid_rule() -> Rule {
+    Rule::new(r"\b[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}\b")
+        .unwrap()
+        .semantic(SemanticColor::Identifier)
+        .build()
+}
+
+/// MAC address patterns.
+pub fn mac_address_rule() -> Rule {
+    Rule::new(r"\b([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}\b")
+        .unwrap()
+        .semantic(SemanticColor::Identifier)
+        .build()
+}
+
+/// Process states for ps/top (R, S, D, Z, T, etc.).
+pub fn process_state_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b[R]\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .build(),
+        Rule::new(r"\b[S]\b")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\b[DT]\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\b[Z]\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+    ]
+}
+
+/// Network connection states for netstat/ss.
+pub fn connection_state_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\bESTABLISHED\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .build(),
+        Rule::new(r"\bLISTEN(ING)?\b")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\b(TIME_WAIT|TIME-WAIT)\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\b(CLOSE_WAIT|CLOSE-WAIT|CLOSING)\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\b(SYN_SENT|SYN-SENT|SYN_RECV|SYN-RECV)\b")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+        Rule::new(r"\b(FIN_WAIT|FIN-WAIT)\d?\b")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+        Rule::new(r"\bCLOSED\b")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+    ]
+}
+
+/// Port state rules for nmap.
+pub fn port_state_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\bopen\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .bold()
+            .build(),
+        Rule::new(r"\bclosed\b")
+            .unwrap()
+            .semantic(SemanticColor::Failure)
+            .build(),
+        Rule::new(r"\bfiltered\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\bopen\|filtered\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+    ]
+}
+
+/// Diff rules for unified diff format.
+pub fn diff_rules() -> Vec<Rule> {
+    vec![
+        // Added lines
+        Rule::new(r"^\+[^+].*$")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .build(),
+        // Removed lines
+        Rule::new(r"^-[^-].*$")
+            .unwrap()
+            .semantic(SemanticColor::Failure)
+            .build(),
+        // Hunk headers
+        Rule::new(r"^@@.*@@")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .bold()
+            .build(),
+        // File headers
+        Rule::new(r"^(\+\+\+|---).*$")
+            .unwrap()
+            .semantic(SemanticColor::Key)
+            .bold()
+            .build(),
+        // Index/diff headers
+        Rule::new(r"^(diff|index|similarity|rename|copy).*$")
+            .unwrap()
+            .semantic(SemanticColor::Label)
+            .build(),
+    ]
+}
+
+/// Compiler error location (file:line:col).
+pub fn compiler_location_rule() -> Rule {
+    Rule::new(r"[^\s:]+:\d+:\d+:")
+        .unwrap()
+        .semantic(SemanticColor::Identifier)
+        .build()
+}
+
+/// Build status rules (SUCCESS, FAILED, PASSED, etc.).
+pub fn build_status_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(PASSED|SUCCESS|SUCCEEDED|OK)\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .bold()
+            .build(),
+        Rule::new(r"\b(FAILED|FAILURE|ERROR)\b")
+            .unwrap()
+            .semantic(SemanticColor::Failure)
+            .bold()
+            .build(),
+        Rule::new(r"\b(SKIPPED|IGNORED)\b")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+    ]
+}
+
+/// Filesystem mount point patterns.
+pub fn mount_point_rule() -> Rule {
+    Rule::new(r"/[^\s]+")
+        .unwrap()
+        .semantic(SemanticColor::Identifier)
+        .build()
+}
+
+/// Filesystem type patterns.
+pub fn filesystem_type_rule() -> Rule {
+    Rule::new(r"\b(ext[234]|xfs|btrfs|zfs|ntfs|vfat|fat32|tmpfs|devtmpfs|sysfs|proc|cgroup|overlay|nfs|cifs|squashfs)\b")
+        .unwrap()
+        .semantic(SemanticColor::Label)
+        .build()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

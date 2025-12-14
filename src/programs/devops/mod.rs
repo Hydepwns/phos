@@ -180,7 +180,7 @@ fn kubectl_program() -> SimpleProgram {
         "devops",
         kubectl_rules(),
     )
-    .with_detect_patterns(vec!["kubectl", "k8s", "kubernetes", "helm"])
+    .with_detect_patterns(vec!["kubectl", "k8s", "kubernetes"])
 }
 
 // =============================================================================
@@ -453,12 +453,12 @@ fn helm_program() -> SimpleProgram {
 fn ansible_rules() -> Vec<Rule> {
     vec![
         // PLAY and TASK headers
-        Rule::new(r"^PLAY\s+\[.*\]\s*\*+")
+        Rule::new(r"^PLAY\s+\[[^\]]*\]\s*\*+")
             .unwrap()
             .semantic(SemanticColor::Key)
             .bold()
             .build(),
-        Rule::new(r"^TASK\s+\[.*\]\s*\*+")
+        Rule::new(r"^TASK\s+\[[^\]]*\]\s*\*+")
             .unwrap()
             .semantic(SemanticColor::Label)
             .bold()
@@ -469,29 +469,29 @@ fn ansible_rules() -> Vec<Rule> {
             .bold()
             .build(),
         // Task status
-        Rule::new(r"^ok:\s*\[.*\]")
+        Rule::new(r"^ok:\s*\[[^\]]*\]")
             .unwrap()
             .semantic(SemanticColor::Success)
             .build(),
-        Rule::new(r"^changed:\s*\[.*\]")
+        Rule::new(r"^changed:\s*\[[^\]]*\]")
             .unwrap()
             .semantic(SemanticColor::Warn)
             .build(),
-        Rule::new(r"^failed:\s*\[.*\]")
+        Rule::new(r"^failed:\s*\[[^\]]*\]")
             .unwrap()
             .semantic(SemanticColor::Failure)
             .bold()
             .build(),
-        Rule::new(r"^skipping:\s*\[.*\]")
+        Rule::new(r"^skipping:\s*\[[^\]]*\]")
             .unwrap()
             .semantic(SemanticColor::Debug)
             .build(),
-        Rule::new(r"^unreachable:\s*\[.*\]")
+        Rule::new(r"^unreachable:\s*\[[^\]]*\]")
             .unwrap()
             .semantic(SemanticColor::Failure)
             .bold()
             .build(),
-        Rule::new(r"^fatal:\s*\[.*\]")
+        Rule::new(r"^fatal:\s*\[[^\]]*\]")
             .unwrap()
             .semantic(SemanticColor::Error)
             .bold()
