@@ -13,6 +13,7 @@ categories = ["command-line-utilities", "development-tools"]
 # CLI
 clap = { version = "4.4", features = ["derive", "env"] }
 clap_complete = "4.4"
+clap_mangen = "0.2"
 atty = "0.2"
 
 # Colors
@@ -36,6 +37,7 @@ anyhow = "1.0"
 
 [dev-dependencies]
 criterion = "0.5"
+proptest = "1.4"
 
 [[bin]]
 name = "phos"
