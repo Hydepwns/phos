@@ -53,6 +53,11 @@ src/
   rule.rs            # Rule struct, RuleBuilder, CountMode
   theme.rs           # Theme system (13 built-in themes)
   config.rs          # YAML/JSON configuration loading
+  stats.rs           # Log statistics collection and reporting
+  alert/             # Webhook alerting system
+    mod.rs           # AlertManager, AlertManagerBuilder
+    conditions.rs    # AlertCondition enum (Error, PeerDrop, SyncStall, etc.)
+    webhook.rs       # Discord/Telegram/generic webhook formatting
   program/
     mod.rs           # Program trait, ProgramRegistry, SimpleProgram
     config.rs        # User program config parsing (YAML/JSON)
@@ -152,6 +157,16 @@ ProgramInfo { id, name, description, category }
 EthereumProgram            // Implements Program trait with Ethereum-specific metadata
 ClientMeta { name, description, layer, language, website, detect_patterns, brand_color }
 Layer { Consensus, Execution, Full, Middleware }
+
+// Alerting
+AlertManager               // Manages alert state, cooldowns, and webhook delivery
+AlertManagerBuilder        // Builder pattern for AlertManager configuration
+AlertCondition             // Enum: Error, ErrorThreshold(N), PeerDrop(N), SyncStall, Pattern(Regex)
+WebhookType                // Enum: Discord, Telegram, Generic (auto-detected from URL)
+
+// Statistics
+StatsCollector             // Collects log statistics (levels, timestamps, errors, peer counts)
+Stats                      // Raw statistics data (total_lines, log_levels, top_errors, etc.)
 ```
 
 ## Key Design Decisions
@@ -186,6 +201,34 @@ Log patterns:
 - Hashes: `0x` + 64 hex chars
 - Addresses: `0x` + 40 hex chars
 - Slot/Epoch: `slot=12345 epoch=385` or `Eph 385/12` (Lodestar)
+
+## Alerting System
+
+phos supports webhook notifications when specific conditions are detected in log streams.
+
+**CLI flags:**
+- `--alert <URL>` - Webhook URL (auto-detects Discord/Telegram from URL)
+- `--alert-on <CONDITION>` - Alert condition (can specify multiple)
+- `--alert-cooldown <SECONDS>` - Minimum time between alerts (default: 60)
+- `--telegram-chat-id <ID>` - Required for Telegram webhooks
+
+**Alert conditions:**
+- `error` - Fire on first ERROR/FATAL/PANIC/CRIT detection
+- `error-threshold:N` - Fire when error count exceeds N
+- `peer-drop:N` - Fire when peer count drops below N (Ethereum-specific)
+- `sync-stall` - Fire when no slot progress detected (Ethereum-specific)
+- `pattern:REGEX` - Fire on custom regex pattern match
+
+**Webhook types** (auto-detected from URL):
+- Discord: Rich embeds with color-coded severity
+- Telegram: MarkdownV2 formatted messages
+- Generic: Simple JSON POST `{"text": "...", "program": "...", "condition": "..."}`
+
+**Implementation notes:**
+- Async HTTP via `reqwest` with `tokio` runtime
+- Rate limiting prevents alert spam (configurable cooldown)
+- StatsCollector tracks peer counts and slot numbers for Ethereum alerts
+- Alerts fire in main thread while colorization runs in separate threads
 
 ## Adding a New Program
 

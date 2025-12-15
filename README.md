@@ -11,6 +11,7 @@ Inspired by [grc](https://github.com/garabik/grc) by Radovan Garabik.
 - **99 programs built-in**: Ethereum, DevOps, Dev, Network, Data, System, CI/CD, Messaging, Monitoring
 - **Theme system**: 13 themes including Dracula, Nord, Catppuccin
 - **Auto-detection**: Detects program from command
+- **Alerting**: Webhook notifications to Discord/Telegram on errors, peer drops, sync stalls
 - **Extensible**: Add custom programs via YAML configs
 - **Zero dependencies**: Single static binary
 
@@ -326,6 +327,45 @@ Statistics include:
 - Log level distribution (ERROR, WARN, INFO, DEBUG, TRACE)
 - Top error messages
 - Error rate
+
+## Alerting
+
+Send webhook notifications to Discord or Telegram when specific conditions are detected:
+
+```bash
+# Discord webhook - alert on errors
+phos -c lodestar --alert "https://discord.com/api/webhooks/xxx/yyy" \
+  -- docker logs -f lodestar
+
+# Telegram webhook - alert on errors
+phos -c geth --alert "https://api.telegram.org/botTOKEN/sendMessage" \
+  --telegram-chat-id "-1001234567890" \
+  -- journalctl -u geth -f
+
+# Multiple conditions with custom cooldown
+phos -c lighthouse --alert "https://discord.com/api/webhooks/xxx/yyy" \
+  --alert-on error \
+  --alert-on "peer-drop:10" \
+  --alert-on sync-stall \
+  --alert-cooldown 300 \
+  -- docker logs -f lighthouse
+```
+
+### Alert Conditions
+
+| Condition | Description |
+|-----------|-------------|
+| `error` | Fire on first ERROR/FATAL/PANIC/CRIT detection |
+| `error-threshold:N` | Fire when error count exceeds N |
+| `peer-drop:N` | Fire when peer count drops below N |
+| `sync-stall` | Fire when no sync progress is detected |
+| `pattern:REGEX` | Fire on custom regex pattern match |
+
+### Supported Services
+
+- **Discord**: Rich embeds with color-coded severity (auto-detected from URL)
+- **Telegram**: MarkdownV2 formatted messages (requires `--telegram-chat-id`)
+- **Generic**: Simple JSON POST to any webhook URL
 
 ## Custom Programs
 
