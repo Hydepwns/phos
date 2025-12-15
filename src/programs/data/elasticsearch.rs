@@ -12,13 +12,8 @@ use super::super::common;
 fn elasticsearch_rules() -> Vec<Rule> {
     let mut rules = vec![];
 
-    // Timestamp in brackets
-    rules.push(
-        Rule::new(r"\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2},\d{3}\]")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
+    // Timestamp in brackets (Log4j format)
+    rules.push(common::log4j_timestamp_rule());
 
     // Log levels
     rules.extend([
@@ -122,20 +117,7 @@ fn elasticsearch_rules() -> Vec<Rule> {
     ]);
 
     // Server lifecycle
-    rules.extend([
-        Rule::new(r"\bstarted\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .build(),
-        Rule::new(r"\binitialized\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .build(),
-        Rule::new(r"\bstopping\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-    ]);
+    rules.extend(common::server_lifecycle_rules());
 
     // GC logs
     rules.extend([

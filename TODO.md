@@ -24,8 +24,8 @@
 - [ ] Code coverage with codecov
 
 ### Documentation
-- [ ] Rustdoc for all public types
-- [ ] Rustdoc examples for common use cases
+- [x] Rustdoc for all public types
+- [x] Rustdoc examples for common use cases
 - [ ] CHANGELOG.md
 - [ ] CONTRIBUTING.md
 - [x] LICENSE files (MIT + Apache-2.0)

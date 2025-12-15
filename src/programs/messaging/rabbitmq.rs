@@ -116,6 +116,8 @@ fn rabbitmq_rules() -> Vec<Rule> {
     ]);
 
     // Server lifecycle
+    rules.extend(common::server_lifecycle_rules());
+    // RabbitMQ-specific lifecycle messages
     rules.extend([
         Rule::new(r"\bStarting RabbitMQ\b")
             .unwrap()
@@ -129,10 +131,6 @@ fn rabbitmq_rules() -> Vec<Rule> {
             .unwrap()
             .semantic(SemanticColor::Success)
             .bold()
-            .build(),
-        Rule::new(r"\bShutdown\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
             .build(),
     ]);
 

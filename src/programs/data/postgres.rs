@@ -13,12 +13,7 @@ fn postgres_rules() -> Vec<Rule> {
     let mut rules = vec![];
 
     // Timestamps (2024-12-05 00:12:36.123 UTC)
-    rules.push(
-        Rule::new(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\s+\w+")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
+    rules.push(common::postgres_timestamp_rule());
 
     // PID in brackets
     rules.push(

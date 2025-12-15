@@ -13,12 +13,7 @@ fn mongodb_rules() -> Vec<Rule> {
     let mut rules = vec![];
 
     // JSON-style timestamp
-    rules.push(
-        Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+[+-]\d{4}")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
+    rules.push(common::mongodb_timestamp_rule());
 
     // Severity levels (MongoDB style: F, E, W, I, D)
     rules.extend([
@@ -99,17 +94,7 @@ fn mongodb_rules() -> Vec<Rule> {
     ]);
 
     // Server lifecycle
-    rules.extend([
-        Rule::new(r"\bWaiting for connections\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .bold()
-            .build(),
-        Rule::new(r"\bshutting down\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-    ]);
+    rules.extend(common::server_lifecycle_rules());
 
     // Slow queries
     rules.push(

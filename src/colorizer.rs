@@ -1,4 +1,43 @@
 //! Core colorization engine.
+//!
+//! The [`Colorizer`] is the main entry point for colorizing text. It applies
+//! rules to text and produces ANSI-colored output.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use phos::{Colorizer, Rule, SemanticColor, Theme};
+//!
+//! // Create rules
+//! let rules = vec![
+//!     Rule::new(r"\bERROR\b").unwrap()
+//!         .semantic(SemanticColor::Error)
+//!         .build(),
+//! ];
+//!
+//! // Create colorizer with theme
+//! let mut colorizer = Colorizer::new(rules)
+//!     .with_theme(Theme::dracula());
+//!
+//! // Colorize text
+//! let colored = colorizer.colorize("ERROR: something failed");
+//! println!("{}", colored);
+//! ```
+//!
+//! # Stdin Processing
+//!
+//! For processing log streams, use the stdio methods:
+//!
+//! ```rust,no_run
+//! use phos::{Colorizer, programs};
+//!
+//! let registry = programs::default_registry();
+//! let program = registry.get("docker").unwrap();
+//! let mut colorizer = Colorizer::new(program.rules());
+//!
+//! // Process stdin to stdout
+//! colorizer.process_stdio().unwrap();
+//! ```
 
 use std::borrow::Cow;
 use std::io::{self, BufRead, Write};
@@ -14,6 +53,34 @@ use crate::theme::Theme;
 const MAX_LINE_LENGTH: usize = 10_000;
 
 /// The colorizer applies rules to text and outputs colored results.
+///
+/// The colorizer is the main engine of phos. It takes a set of rules and a theme,
+/// then applies them to colorize text line by line.
+///
+/// # Features
+///
+/// - **Rule matching**: Applies regex-based rules to colorize patterns
+/// - **Theme support**: Resolves semantic colors through the active theme
+/// - **Skip rules**: Can filter out lines matching certain patterns
+/// - **Replace rules**: Can transform text while colorizing
+/// - **Block mode**: Color entire sections between markers
+/// - **Statistics**: Optional tracking of match counts and patterns
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::{Colorizer, Rule, SemanticColor};
+///
+/// let rules = vec![
+///     Rule::new(r"\d+").unwrap()
+///         .semantic(SemanticColor::Number)
+///         .build(),
+/// ];
+///
+/// let mut colorizer = Colorizer::new(rules);
+/// let result = colorizer.colorize("Count: 42");
+/// assert!(result.contains("\x1b[")); // Contains ANSI codes
+/// ```
 #[derive(Debug, Clone)]
 pub struct Colorizer {
     /// Rules to apply in order (Arc to avoid cloning compiled regexes)

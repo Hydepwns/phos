@@ -21,12 +21,7 @@ fn redis_rules() -> Vec<Rule> {
     );
 
     // Timestamps (05 Dec 2024 00:12:36.123)
-    rules.push(
-        Rule::new(r"\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\.\d{3}")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
+    rules.push(common::redis_timestamp_rule());
 
     // Log level symbols
     rules.extend([
@@ -63,25 +58,13 @@ fn redis_rules() -> Vec<Rule> {
     ]);
 
     // Server lifecycle
-    rules.extend([
-        Rule::new(r"\bReady to accept connections\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .bold()
-            .build(),
-        Rule::new(r"\bServer initialized\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .build(),
-        Rule::new(r"\bShutdown completed\b")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
+    rules.extend(common::server_lifecycle_rules());
+    rules.push(
         Rule::new(r"\bDB loaded from disk\b")
             .unwrap()
             .semantic(SemanticColor::Success)
             .build(),
-    ]);
+    );
 
     // Replication
     rules.extend([

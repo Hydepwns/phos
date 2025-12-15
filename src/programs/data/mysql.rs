@@ -12,17 +12,9 @@ use super::super::common;
 fn mysql_rules() -> Vec<Rule> {
     let mut rules = vec![];
 
-    // Timestamps (2024-12-05T00:12:36.123456Z or 2024-12-05 00:12:36)
-    rules.extend([
-        Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-        Rule::new(r"\d{6}\s+\d{1,2}:\d{2}:\d{2}")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    ]);
+    // Timestamps (2024-12-05T00:12:36.123456Z or YYMMDD HH:MM:SS)
+    rules.push(common::mysql_iso_timestamp_rule());
+    rules.push(common::mysql_legacy_timestamp_rule());
 
     // Thread ID
     rules.push(
@@ -59,21 +51,7 @@ fn mysql_rules() -> Vec<Rule> {
     ]);
 
     // Server lifecycle
-    rules.extend([
-        Rule::new(r"\bready for connections\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .bold()
-            .build(),
-        Rule::new(r"\bShutdown complete\b")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\bStarting\b")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-    ]);
+    rules.extend(common::server_lifecycle_rules());
 
     // SQL keywords
     rules.push(

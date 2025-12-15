@@ -1,10 +1,42 @@
 //! Regex-based pattern matching rules.
+//!
+//! Rules define how to colorize text by matching regex patterns and applying colors.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use phos::{Rule, SemanticColor};
+//! use phos::rule::CountMode;
+//!
+//! // Basic rule: colorize ERROR in red
+//! let error_rule = Rule::new(r"\bERROR\b")
+//!     .unwrap()
+//!     .semantic(SemanticColor::Error)
+//!     .bold()
+//!     .build();
+//!
+//! // Skip rule: hide DEBUG lines
+//! let skip_debug = Rule::new(r"^\[DEBUG\]")
+//!     .unwrap()
+//!     .skip()
+//!     .build();
+//!
+//! // Replace rule: reformat timestamps
+//! let reformat = Rule::new(r"(\d{4})-(\d{2})-(\d{2})")
+//!     .unwrap()
+//!     .replace("${2}/${3}/${1}")
+//!     .semantic(SemanticColor::Timestamp)
+//!     .build();
+//! ```
 
 use regex::Regex;
 
 use crate::colors::{Color, SemanticColor};
 
-/// How a rule should be applied.
+/// How a rule should be applied when multiple matches exist.
+///
+/// Controls whether the rule matches once, multiple times, or affects
+/// subsequent processing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CountMode {
     /// Apply once per line (first match only)
@@ -26,6 +58,26 @@ impl Default for CountMode {
 }
 
 /// A colorization rule with pattern and styling.
+///
+/// Rules are the core building blocks of phos. Each rule defines:
+/// - A regex pattern to match
+/// - Colors to apply to matches
+/// - Optional behavior modifiers (bold, skip, replace)
+///
+/// Rules are typically created using the builder pattern via [`Rule::new`].
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::{Rule, SemanticColor};
+///
+/// let rule = Rule::new(r"\b\d+\.\d+\.\d+\.\d+\b")
+///     .unwrap()
+///     .semantic(SemanticColor::Identifier)
+///     .build();
+///
+/// assert!(rule.is_match("IP: 192.168.1.1"));
+/// ```
 #[derive(Debug, Clone)]
 pub struct Rule {
     /// Compiled regex pattern
@@ -42,7 +94,24 @@ pub struct Rule {
     pub replace: Option<String>,
 }
 
-/// Builder for creating rules.
+/// Builder for creating rules with a fluent API.
+///
+/// Obtained from [`Rule::new`]. Chain methods to configure the rule,
+/// then call [`build`](Self::build) to create the final [`Rule`].
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::{Rule, SemanticColor};
+/// use phos::rule::CountMode;
+///
+/// let rule = Rule::new(r"error")
+///     .unwrap()
+///     .semantic(SemanticColor::Error)  // Set color
+///     .bold()                           // Make it bold
+///     .count(CountMode::Once)           // Only first match
+///     .build();
+/// ```
 pub struct RuleBuilder {
     regex: Regex,
     colors: Vec<Color>,

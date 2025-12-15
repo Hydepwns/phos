@@ -13,12 +13,7 @@ fn kafka_rules() -> Vec<Rule> {
     let mut rules = vec![];
 
     // Log4j timestamp format
-    rules.push(
-        Rule::new(r"\[\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2},\d{3}\]")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
+    rules.push(common::log4j_timestamp_rule());
 
     // Log levels
     rules.extend([
@@ -138,17 +133,15 @@ fn kafka_rules() -> Vec<Rule> {
     ]);
 
     // Server lifecycle
-    rules.extend([
+    rules.extend(common::server_lifecycle_rules());
+    // Kafka-specific startup message
+    rules.push(
         Rule::new(r"\bstarted\s*\(kafka\.server")
             .unwrap()
             .semantic(SemanticColor::Success)
             .bold()
             .build(),
-        Rule::new(r"\bshutting down\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-    ]);
+    );
 
     rules.push(common::ipv4_rule());
     rules.push(common::size_rule());

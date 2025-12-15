@@ -1,39 +1,82 @@
 //! # phos - High-performance universal log colorizer
 //!
-//! A fast, portable log colorizer with support for 98 programs across 9 categories.
+//! A fast, portable log colorizer with support for 99+ programs across 9 categories.
 //!
 //! ## Features
 //!
-//! - 98 built-in program configurations (Ethereum, DevOps, Dev, Network, Data, etc.)
-//! - Theme system with 13 themes and semantic colors
-//! - Regex-based pattern matching
-//! - Zero-copy output with ANSI escape codes
+//! - **99 built-in programs**: Ethereum clients, DevOps tools, dev tools, databases, etc.
+//! - **13 themes**: Dracula, Nord, Catppuccin, Gruvbox, Tokyo Night, and more
+//! - **Semantic colors**: Rules use abstract colors (Error, Warn, Info) that themes resolve
+//! - **Regex-based**: Powerful pattern matching with capture groups and replacements
+//! - **Zero-copy output**: Efficient ANSI escape code generation
+//! - **Extensible**: Define custom programs via YAML/JSON configuration
 //!
 //! ## Quick Start
 //!
 //! ```rust
 //! use phos::{Colorizer, programs};
 //!
+//! // Get a program from the built-in registry
 //! let registry = programs::default_registry();
 //! let program = registry.get("lodestar").unwrap();
+//!
+//! // Create a colorizer with the program's rules
 //! let mut colorizer = Colorizer::new(program.rules());
 //! let colored = colorizer.colorize("INFO: Synced slot 12345");
 //! println!("{}", colored);
 //! ```
 //!
-//! ## Supported Ethereum Clients (15)
+//! ## Custom Rules
 //!
-//! ### Consensus Layer
-//! - Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda
+//! ```rust
+//! use phos::{Colorizer, Rule, SemanticColor, Theme};
 //!
-//! ### Execution Layer
-//! - Geth, Nethermind, Besu, Erigon, Reth
+//! // Define custom rules
+//! let rules = vec![
+//!     Rule::new(r"\bERROR\b").unwrap()
+//!         .semantic(SemanticColor::Error)
+//!         .bold()
+//!         .build(),
+//!     Rule::new(r"\bWARN\b").unwrap()
+//!         .semantic(SemanticColor::Warn)
+//!         .build(),
+//!     Rule::new(r"\d{4}-\d{2}-\d{2}").unwrap()
+//!         .semantic(SemanticColor::Timestamp)
+//!         .build(),
+//! ];
 //!
-//! ### Full Node
-//! - Mana (EL+CL in Elixir)
+//! // Use with a theme
+//! let mut colorizer = Colorizer::new(rules)
+//!     .with_theme(Theme::dracula());
+//! ```
 //!
-//! ### Middleware
-//! - Charon (Obol DVT), MEV-Boost
+//! ## Program Categories
+//!
+//! | Category   | Count | Examples                                    |
+//! |------------|-------|---------------------------------------------|
+//! | Ethereum   | 15    | Lighthouse, Geth, Prysm, Lodestar           |
+//! | System     | 26    | systemd, syslog, dmesg, ps, top             |
+//! | Network    | 21    | nginx, curl, ping, tcpdump                  |
+//! | Dev        | 15    | cargo, git, npm, go, make                   |
+//! | DevOps     | 8     | docker, kubectl, terraform, ansible         |
+//! | Data       | 5     | postgres, redis, mysql, mongodb             |
+//! | Monitoring | 4     | prometheus, grafana, datadog                |
+//! | Messaging  | 2     | kafka, rabbitmq                             |
+//! | CI/CD      | 2     | github-actions, jenkins                     |
+//!
+//! ## Themes
+//!
+//! Built-in themes: `default-dark`, `dracula`, `nord`, `catppuccin`, `gruvbox`,
+//! `monokai`, `solarized`, `synthwave84`, `tokyo-night`, `horizon`, `matrix`,
+//! `phosphor`, `high-contrast`
+//!
+//! ```rust
+//! use phos::Theme;
+//!
+//! let theme = Theme::builtin("dracula").unwrap();
+//! // Or use convenience methods:
+//! let theme = Theme::nord();
+//! ```
 
 pub mod alert;
 pub mod category;

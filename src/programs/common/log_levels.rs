@@ -186,7 +186,7 @@ pub fn json_log_level_rules() -> Vec<Rule> {
     ]
 }
 
-/// Syslog-style bracketed log levels ([emerg], [alert], [crit], etc.).
+/// Syslog-style bracketed log levels (`[emerg]`, `[alert]`, `[crit]`, etc.).
 /// Common in nginx and other traditional Unix services.
 pub fn syslog_bracketed_log_level_rules() -> Vec<Rule> {
     vec![

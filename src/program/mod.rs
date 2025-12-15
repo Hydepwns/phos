@@ -1,7 +1,68 @@
 //! Program system for extensible log colorization.
 //!
-//! This module provides the `Program` trait for defining colorization rules,
-//! and the `ProgramRegistry` for managing and discovering programs.
+//! This module provides the infrastructure for defining and managing log colorization
+//! programs. Each program defines rules for colorizing a specific log format.
+//!
+//! # Key Types
+//!
+//! - [`Program`]: Trait for defining colorization programs
+//! - [`SimpleProgram`]: Convenience implementation for most use cases
+//! - [`ProgramRegistry`]: Registry for managing and discovering programs
+//! - [`ProgramInfo`]: Metadata about a program (name, category, etc.)
+//!
+//! # Built-in Programs
+//!
+//! phos includes 99+ built-in programs. Use [`crate::programs::default_registry`]
+//! to get a registry with all built-in programs.
+//!
+//! # Examples
+//!
+//! ```rust
+//! use phos::programs;
+//!
+//! // Get the default registry with all built-in programs
+//! let registry = programs::default_registry();
+//!
+//! // Find a program by name
+//! let docker = registry.get("docker").unwrap();
+//! println!("Program: {}", docker.info().name);
+//!
+//! // Auto-detect program from a command
+//! if let Some(program) = registry.detect("docker logs -f mycontainer") {
+//!     println!("Detected: {}", program.info().name);
+//! }
+//!
+//! // List programs by category
+//! use phos::Category;
+//! for info in registry.list_by_category(Category::Ethereum) {
+//!     println!("  {}: {}", info.name, info.description);
+//! }
+//! ```
+//!
+//! # Custom Programs
+//!
+//! ```rust
+//! use std::sync::Arc;
+//! use phos::{Rule, SemanticColor, Category};
+//! use phos::program::{SimpleProgram, ProgramRegistry};
+//!
+//! // Create a custom program
+//! let my_program = SimpleProgram::new(
+//!     "custom.myapp",
+//!     "MyApp",
+//!     "My application logs",
+//!     Category::Dev,
+//!     vec![
+//!         Rule::new(r"\bERROR\b").unwrap()
+//!             .semantic(SemanticColor::Error)
+//!             .build(),
+//!     ],
+//! ).with_detect_patterns(vec!["myapp", "my-app"]);
+//!
+//! // Register it
+//! let mut registry = ProgramRegistry::new();
+//! registry.register(Arc::new(my_program));
+//! ```
 
 use std::borrow::Cow;
 use std::collections::HashMap;
@@ -64,6 +125,19 @@ impl ProgramInfo {
 }
 
 /// A program that provides colorization rules for a specific log format.
+///
+/// Implement this trait to define custom log colorization programs.
+/// For most cases, [`SimpleProgram`] provides a convenient implementation.
+///
+/// # Required Methods
+///
+/// - [`info`](Self::info): Returns program metadata
+/// - [`rules`](Self::rules): Returns the colorization rules
+///
+/// # Optional Methods
+///
+/// - [`domain_colors`](Self::domain_colors): Domain-specific colors
+/// - [`detect_patterns`](Self::detect_patterns): Patterns for auto-detection
 pub trait Program: Send + Sync {
     /// Get program information.
     fn info(&self) -> &ProgramInfo;
@@ -87,7 +161,29 @@ pub trait Program: Send + Sync {
 
 /// A simple program implementation that can be constructed from data.
 ///
-/// Use this to define programs without boilerplate struct/impl blocks.
+/// This is the recommended way to define custom programs. It implements
+/// the [`Program`] trait and provides a builder-style API.
+///
+/// # Examples
+///
+/// ```rust
+/// use std::sync::Arc;
+/// use phos::{Rule, SemanticColor, Category};
+/// use phos::program::SimpleProgram;
+///
+/// let program = SimpleProgram::new(
+///     "custom.myapp",
+///     "MyApp",
+///     "My application logs",
+///     Category::Dev,
+///     vec![
+///         Rule::new(r"\bERROR\b").unwrap()
+///             .semantic(SemanticColor::Error)
+///             .build(),
+///     ],
+/// )
+/// .with_detect_patterns(vec!["myapp"]);
+/// ```
 pub struct SimpleProgram {
     info: ProgramInfo,
     rules: Arc<[Rule]>,
@@ -146,6 +242,26 @@ impl Program for SimpleProgram {
 }
 
 /// Registry for managing programs.
+///
+/// The registry stores programs and provides lookup by ID, name, or command.
+/// Use [`crate::programs::default_registry`] to get a registry with all
+/// built-in programs.
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::programs;
+///
+/// let registry = programs::default_registry();
+///
+/// // Lookup by ID or name
+/// let docker = registry.get("docker").unwrap();
+/// let docker = registry.get("devops.docker").unwrap(); // Full ID also works
+///
+/// // Auto-detect from command
+/// let detected = registry.detect("docker logs -f container");
+/// assert!(detected.is_some());
+/// ```
 pub struct ProgramRegistry {
     programs: HashMap<String, Arc<dyn Program>>,
     /// Cached compiled regexes for detection patterns.

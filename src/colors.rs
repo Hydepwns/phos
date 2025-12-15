@@ -1,8 +1,41 @@
 //! Color types and ANSI code generation.
+//!
+//! This module provides color representations for terminal output:
+//!
+//! - [`Color`]: Concrete color values (named, hex, RGB, or semantic)
+//! - [`SemanticColor`]: Abstract colors resolved by themes (Error, Warn, Info, etc.)
+//! - [`ColorSpec`]: Flexible color specification for rule definitions
+//!
+//! # Examples
+//!
+//! ```rust
+//! use phos::colors::{Color, SemanticColor};
+//!
+//! // Create colors in different formats
+//! let named = Color::named("red");
+//! let hex = Color::hex("#FF5555");
+//! let rgb = Color::rgb(255, 85, 85);
+//! let semantic = Color::semantic(SemanticColor::Error);
+//! ```
 
 use nu_ansi_term::{Color as AnsiColor, Style};
 
 /// Color representation for styling text.
+///
+/// Colors can be specified in multiple formats:
+/// - **Named**: Standard ANSI colors like "red", "bright_blue"
+/// - **Hex**: Web colors like "#FF5555"
+/// - **RGB**: Explicit RGB values
+/// - **Semantic**: Abstract colors resolved by the current theme
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::Color;
+///
+/// let color = Color::hex("#FF5555");
+/// let style = color.to_style();
+/// ```
 #[derive(Debug, Clone, PartialEq)]
 pub enum Color {
     /// Named color (e.g., "red", "bright_blue")
@@ -16,9 +49,27 @@ pub enum Color {
 }
 
 /// Semantic colors that themes resolve to actual colors.
-/// These are universal, domain-agnostic colors that work across all programs.
-/// Domain-specific colors (e.g., Ethereum's slot, epoch) should use hex colors
-/// or be defined in the program's domain_colors().
+///
+/// Semantic colors are abstract color concepts that themes map to concrete colors.
+/// This allows rules to be written once and work across all themes.
+///
+/// # Categories
+///
+/// - **Log levels**: Error, Warn, Info, Debug, Trace
+/// - **Data types**: Number, String, Boolean
+/// - **Structure**: Timestamp, Key, Value
+/// - **Status**: Success, Failure
+/// - **Identifiers**: Identifier, Label, Metric
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::{SemanticColor, Theme};
+///
+/// let theme = Theme::dracula();
+/// let color = theme.resolve(SemanticColor::Error);
+/// assert!(color.is_some()); // Dracula defines all semantic colors
+/// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum SemanticColor {
     // Log levels
@@ -49,7 +100,13 @@ pub enum SemanticColor {
 }
 
 /// Color specification that can reference universal semantics or domain colors.
-/// Used in rules to specify colors flexibly.
+///
+/// Used in configuration files to specify colors flexibly. The parser
+/// tries to interpret color names in this order:
+/// 1. Semantic color (error, warn, info, etc.)
+/// 2. Hex color (starts with #)
+/// 3. Named ANSI color (red, blue, etc.)
+/// 4. Domain-specific color (resolved by program)
 #[derive(Debug, Clone, PartialEq)]
 pub enum ColorSpec {
     /// Universal semantic color (resolved by theme)

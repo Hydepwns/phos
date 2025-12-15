@@ -1,10 +1,71 @@
 //! Theme system for semantic color resolution.
+//!
+//! Themes map semantic colors (Error, Warn, Info, etc.) to actual colors,
+//! allowing the same rules to work across different color schemes.
+//!
+//! # Built-in Themes
+//!
+//! phos includes 13 built-in themes:
+//!
+//! | Theme          | Description                    |
+//! |----------------|--------------------------------|
+//! | default-dark   | Default dark theme             |
+//! | dracula        | Popular dark theme             |
+//! | nord           | Arctic blue palette            |
+//! | catppuccin     | Pastel colors (Mocha variant)  |
+//! | gruvbox        | Retro groove colors            |
+//! | monokai        | Classic editor theme           |
+//! | solarized      | Precision colors               |
+//! | synthwave84    | Retro-futuristic neon          |
+//! | tokyo-night    | Modern city aesthetic          |
+//! | horizon        | Warm sunset colors             |
+//! | matrix         | Green monochrome               |
+//! | phosphor       | Amber CRT nostalgia            |
+//! | high-contrast  | Maximum readability            |
+//!
+//! # Examples
+//!
+//! ```rust
+//! use phos::{Theme, SemanticColor, Colorizer};
+//!
+//! // Use a built-in theme
+//! let theme = Theme::dracula();
+//!
+//! // Or load by name
+//! let theme = Theme::builtin("nord").unwrap();
+//!
+//! // Apply to a colorizer
+//! let colorizer = Colorizer::new(vec![])
+//!     .with_theme(theme);
+//! ```
 
 use std::collections::HashMap;
 
 use crate::colors::{Color, SemanticColor};
 
 /// A theme that maps semantic colors to actual colors.
+///
+/// Themes provide the color resolution layer between abstract semantic colors
+/// and concrete terminal colors. This separation allows rules to be portable
+/// across different color schemes.
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::{Theme, SemanticColor, Color};
+///
+/// // Use a built-in theme
+/// let theme = Theme::nord();
+///
+/// // Resolve a semantic color
+/// if let Some(color) = theme.resolve(SemanticColor::Error) {
+///     println!("Error color: {:?}", color);
+/// }
+///
+/// // Create a custom theme
+/// let mut custom = Theme::new("my-theme");
+/// custom.set(SemanticColor::Error, Color::hex("#FF0000"));
+/// ```
 #[derive(Debug, Clone)]
 pub struct Theme {
     /// Theme name
@@ -16,7 +77,12 @@ pub struct Theme {
 }
 
 /// A color palette defining the base colors for a theme.
-/// Semantic colors are derived from these using standard mappings.
+///
+/// Palettes provide a simplified way to define themes using 9 base colors.
+/// Semantic colors are automatically derived from these using standard mappings.
+///
+/// This is used internally by built-in themes but can also be used to create
+/// custom themes with consistent color relationships.
 #[derive(Debug, Clone, Copy)]
 pub struct Palette {
     pub red: &'static str,
