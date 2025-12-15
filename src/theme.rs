@@ -365,9 +365,7 @@ mod tests {
             let missing = theme.validate();
             assert!(
                 missing.is_empty(),
-                "Theme '{}' is missing semantic colors: {:?}",
-                name,
-                missing
+                "Theme '{name}' is missing semantic colors: {missing:?}"
             );
         }
     }

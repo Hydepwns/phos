@@ -10,6 +10,7 @@ use std::sync::Arc;
 
 use clients::{ClientMeta, Layer, ALL_CLIENTS};
 
+use crate::category::Category;
 use crate::colors::Color;
 use crate::program::{Program, ProgramInfo, ProgramRegistry};
 use crate::rule::Rule;
@@ -58,7 +59,7 @@ pub mod colors {
 /// An Ethereum client program with full metadata.
 pub struct EthereumProgram {
     info: ProgramInfo,
-    rules: Vec<Rule>,
+    rules: Arc<[Rule]>,
     domain_colors: HashMap<String, Color>,
     detect_patterns: Vec<&'static str>,
     meta: &'static ClientMeta,
@@ -71,11 +72,12 @@ impl EthereumProgram {
             &format!("ethereum.{}", meta.name.to_lowercase()),
             meta.name,
             meta.description,
-            "ethereum",
+            Category::Ethereum,
         );
 
-        let rules = clients::rules_for(meta.name)
-            .unwrap_or_default();
+        let rules: Arc<[Rule]> = clients::rules_for(meta.name)
+            .unwrap_or_default()
+            .into();
 
         Self {
             info,
@@ -112,8 +114,8 @@ impl Program for EthereumProgram {
         &self.info
     }
 
-    fn rules(&self) -> Vec<Rule> {
-        self.rules.clone()
+    fn rules(&self) -> Arc<[Rule]> {
+        Arc::clone(&self.rules)
     }
 
     fn domain_colors(&self) -> HashMap<String, Color> {
@@ -190,7 +192,7 @@ mod tests {
         let mut registry = ProgramRegistry::new();
         register_all(&mut registry);
 
-        let ethereum_programs = registry.list_by_category("ethereum");
+        let ethereum_programs = registry.list_by_category(Category::Ethereum);
         assert_eq!(ethereum_programs.len(), 15);
     }
 

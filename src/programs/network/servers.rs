@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -124,7 +125,7 @@ pub fn nginx_program() -> Arc<SimpleProgram> {
             "network.nginx",
             "nginx",
             "Nginx access and error logs",
-            "network",
+            Category::Network,
             nginx_rules(),
         )
         .with_detect_patterns(vec!["nginx", "openresty"]),
@@ -227,7 +228,7 @@ pub fn caddy_program() -> Arc<SimpleProgram> {
             "network.caddy",
             "caddy",
             "Caddy web server logs",
-            "network",
+            Category::Network,
             caddy_rules(),
         )
         .with_detect_patterns(vec!["caddy"]),
@@ -357,7 +358,7 @@ pub fn apache_program() -> Arc<SimpleProgram> {
             "network.apache",
             "apache",
             "Apache/httpd web server logs",
-            "network",
+            Category::Network,
             apache_rules(),
         )
         .with_detect_patterns(vec!["apache", "httpd", "apache2"]),
@@ -487,7 +488,7 @@ pub fn haproxy_program() -> Arc<SimpleProgram> {
             "network.haproxy",
             "haproxy",
             "HAProxy load balancer logs",
-            "network",
+            Category::Network,
             haproxy_rules(),
         )
         .with_detect_patterns(vec!["haproxy"]),
@@ -614,7 +615,7 @@ pub fn traefik_program() -> Arc<SimpleProgram> {
             "network.traefik",
             "traefik",
             "Traefik reverse proxy logs",
-            "network",
+            Category::Network,
             traefik_rules(),
         )
         .with_detect_patterns(vec!["traefik"]),

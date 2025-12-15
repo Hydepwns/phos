@@ -16,9 +16,9 @@ fn count_colorized_lines(lines: &[String]) -> usize {
 
 /// Load fixture file and return lines
 fn load_fixture(name: &str) -> Vec<String> {
-    let path = format!("tests/fixtures/{}", name);
+    let path = format!("tests/fixtures/{name}");
     std::fs::read_to_string(&path)
-        .unwrap_or_else(|e| panic!("Failed to load fixture {}: {}", path, e))
+        .unwrap_or_else(|e| panic!("Failed to load fixture {path}: {e}"))
         .lines()
         .filter(|l| !l.is_empty() && !l.starts_with('#'))
         .map(String::from)
@@ -30,7 +30,7 @@ fn colorize_with_program(program_id: &str, lines: &[String]) -> Vec<String> {
     let registry = programs::default_registry();
     let program = registry
         .get(program_id)
-        .unwrap_or_else(|| panic!("Program '{}' not found", program_id));
+        .unwrap_or_else(|| panic!("Program '{program_id}' not found"));
 
     let mut colorizer = Colorizer::new(program.rules()).with_theme(Theme::default());
 
@@ -165,8 +165,7 @@ mod ethereum {
         for (original, colorized) in test_lines.iter().zip(colored.iter()) {
             assert!(
                 has_ansi_codes(colorized),
-                "Expected '{}' to be colorized",
-                original
+                "Expected '{original}' to be colorized"
             );
         }
     }
@@ -864,8 +863,7 @@ mod common_patterns {
         for (original, colorized) in lines.iter().zip(colored.iter()) {
             assert!(
                 has_ansi_codes(colorized),
-                "Expected IP in '{}' to be colorized",
-                original
+                "Expected IP in '{original}' to be colorized"
             );
         }
     }
@@ -885,8 +883,7 @@ mod common_patterns {
         let colorized_count = count_colorized_lines(&colored);
         assert!(
             colorized_count >= 2,
-            "Expected at least error and warning to be colorized, got {}",
-            colorized_count
+            "Expected at least error and warning to be colorized, got {colorized_count}"
         );
     }
 
@@ -904,8 +901,7 @@ mod common_patterns {
 
         assert!(
             colorized_count > 0,
-            "Expected timestamps to be colorized, got {}",
-            colorized_count
+            "Expected timestamps to be colorized, got {colorized_count}"
         );
     }
 
@@ -977,22 +973,18 @@ mod registry {
                 Some(id) => {
                     assert!(
                         detected.is_some(),
-                        "Expected '{}' to detect program '{}'",
-                        command,
-                        id
+                        "Expected '{command}' to detect program '{id}'"
                     );
                     assert_eq!(
                         detected.unwrap().info().id,
                         id,
-                        "Command '{}' detected wrong program",
-                        command
+                        "Command '{command}' detected wrong program"
                     );
                 }
                 None => {
                     assert!(
                         detected.is_none(),
-                        "Expected '{}' to not detect any program",
-                        command
+                        "Expected '{command}' to not detect any program"
                     );
                 }
             }
@@ -1007,8 +999,7 @@ mod registry {
         // Should have 98 programs as documented
         assert_eq!(
             count, 98,
-            "Expected 98 programs in registry, got {}",
-            count
+            "Expected 98 programs in registry, got {count}"
         );
     }
 }

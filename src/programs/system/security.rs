@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -114,7 +115,7 @@ pub fn fail2ban_program() -> Arc<SimpleProgram> {
             "system.fail2ban",
             "fail2ban",
             "Fail2ban intrusion prevention logs",
-            "system",
+            Category::System,
             fail2ban_rules(),
         )
         .with_detect_patterns(vec!["fail2ban", "fail2ban-client"]),
@@ -227,7 +228,7 @@ pub fn auditd_program() -> Arc<SimpleProgram> {
             "system.auditd",
             "auditd",
             "Linux audit daemon logs",
-            "system",
+            Category::System,
             auditd_rules(),
         )
         .with_detect_patterns(vec![
@@ -384,7 +385,7 @@ pub fn iptables_program() -> Arc<SimpleProgram> {
             "system.iptables",
             "iptables",
             "iptables/nftables firewall logs",
-            "system",
+            Category::System,
             iptables_rules(),
         )
         .with_detect_patterns(vec![

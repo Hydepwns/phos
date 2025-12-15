@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -131,7 +132,7 @@ pub fn ifconfig_program() -> Arc<SimpleProgram> {
             "network.ifconfig",
             "ifconfig",
             "Network interface configuration output",
-            "network",
+            Category::Network,
             ifconfig_rules(),
         )
         .with_detect_patterns(vec!["ifconfig"]),
@@ -290,7 +291,7 @@ pub fn ip_program() -> Arc<SimpleProgram> {
             "network.ip",
             "ip",
             "Linux ip command output",
-            "network",
+            Category::Network,
             ip_rules(),
         )
         .with_detect_patterns(vec!["ip addr", "ip link", "ip route", "ip neigh", "ip -"]),
@@ -413,7 +414,7 @@ pub fn iwconfig_program() -> Arc<SimpleProgram> {
             "network.iwconfig",
             "iwconfig",
             "Wireless interface configuration output",
-            "network",
+            Category::Network,
             iwconfig_rules(),
         )
         .with_detect_patterns(vec!["iwconfig", "iw dev", "iwlist"]),
@@ -511,7 +512,7 @@ pub fn arp_program() -> Arc<SimpleProgram> {
             "network.arp",
             "arp",
             "ARP table output",
-            "network",
+            Category::Network,
             arp_rules(),
         )
         .with_detect_patterns(vec!["arp"]),

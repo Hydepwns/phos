@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -136,7 +137,7 @@ pub fn dnf_program() -> Arc<SimpleProgram> {
             "system.dnf",
             "dnf",
             "DNF package manager output",
-            "system",
+            Category::System,
             dnf_rules(),
         )
         .with_detect_patterns(vec!["dnf", "yum", "rpm"]),

@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -73,7 +74,7 @@ pub fn make_program() -> Arc<SimpleProgram> {
             "dev.make",
             "make",
             "Make build output",
-            "dev",
+            Category::Dev,
             make_rules(),
         )
         .with_detect_patterns(vec!["make", "gmake", "cmake"]),
@@ -206,7 +207,7 @@ pub fn gcc_program() -> Arc<SimpleProgram> {
             "dev.gcc",
             "gcc",
             "GCC/G++/Clang compiler output",
-            "dev",
+            Category::Dev,
             gcc_rules(),
         )
         .with_detect_patterns(vec!["gcc", "g++", "clang", "clang++", "cc", "c++"]),
@@ -294,7 +295,7 @@ pub fn configure_program() -> Arc<SimpleProgram> {
             "dev.configure",
             "configure",
             "Autoconf configure script output",
-            "dev",
+            Category::Dev,
             configure_rules(),
         )
         .with_detect_patterns(vec!["./configure", "autoreconf", "autoconf"]),
@@ -381,7 +382,7 @@ pub fn ant_program() -> Arc<SimpleProgram> {
             "dev.ant",
             "ant",
             "Apache Ant build output",
-            "dev",
+            Category::Dev,
             ant_rules(),
         )
         .with_detect_patterns(vec!["ant"]),
@@ -507,7 +508,7 @@ pub fn mvn_program() -> Arc<SimpleProgram> {
             "dev.mvn",
             "mvn",
             "Apache Maven build output",
-            "dev",
+            Category::Dev,
             mvn_rules(),
         )
         .with_detect_patterns(vec!["mvn", "maven", "mvnw"]),

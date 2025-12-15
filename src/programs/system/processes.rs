@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -71,7 +72,7 @@ pub fn ps_program() -> Arc<SimpleProgram> {
             "system.ps",
             "ps",
             "Process status output",
-            "system",
+            Category::System,
             ps_rules(),
         )
         .with_detect_patterns(vec!["ps"]),
@@ -113,7 +114,7 @@ pub fn free_program() -> Arc<SimpleProgram> {
             "system.free",
             "free",
             "Memory usage output",
-            "system",
+            Category::System,
             free_rules(),
         )
         .with_detect_patterns(vec!["free"]),
@@ -186,7 +187,7 @@ pub fn top_program() -> Arc<SimpleProgram> {
             "system.top",
             "top",
             "Process monitor output",
-            "system",
+            Category::System,
             top_rules(),
         )
         .with_detect_patterns(vec!["top", "htop", "btop", "atop"]),
@@ -242,7 +243,7 @@ pub fn uptime_program() -> Arc<SimpleProgram> {
             "system.uptime",
             "uptime",
             "System uptime output",
-            "system",
+            Category::System,
             uptime_rules(),
         )
         .with_detect_patterns(vec!["uptime"]),
@@ -303,7 +304,7 @@ pub fn lsof_program() -> Arc<SimpleProgram> {
             "system.lsof",
             "lsof",
             "List open files output",
-            "system",
+            Category::System,
             lsof_rules(),
         )
         .with_detect_patterns(vec!["lsof"]),

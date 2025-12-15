@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -92,7 +93,7 @@ pub fn ls_program() -> Arc<SimpleProgram> {
             "system.ls",
             "ls",
             "Directory listing output",
-            "system",
+            Category::System,
             ls_rules(),
         )
         .with_detect_patterns(vec!["ls", "exa", "eza", "lsd"]),
@@ -152,7 +153,7 @@ pub fn df_program() -> Arc<SimpleProgram> {
             "system.df",
             "df",
             "Disk space usage output",
-            "system",
+            Category::System,
             df_rules(),
         )
         .with_detect_patterns(vec!["df"]),
@@ -195,7 +196,7 @@ pub fn du_program() -> Arc<SimpleProgram> {
             "system.du",
             "du",
             "Disk usage output",
-            "system",
+            Category::System,
             du_rules(),
         )
         .with_detect_patterns(vec!["du", "ncdu", "dust"]),
@@ -250,7 +251,7 @@ pub fn stat_program() -> Arc<SimpleProgram> {
             "system.stat",
             "stat",
             "File statistics output",
-            "system",
+            Category::System,
             stat_rules(),
         )
         // Use space prefix to avoid matching "git status" -> "git [stat]us"
@@ -308,7 +309,7 @@ pub fn mount_program() -> Arc<SimpleProgram> {
             "system.mount",
             "mount",
             "Filesystem mount output",
-            "system",
+            Category::System,
             mount_rules(),
         )
         .with_detect_patterns(vec!["mount", "findmnt"]),

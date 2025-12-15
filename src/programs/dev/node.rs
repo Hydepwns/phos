@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -115,7 +116,7 @@ pub fn npm_program() -> Arc<SimpleProgram> {
             "dev.npm",
             "npm",
             "Node.js npm commands and output",
-            "dev",
+            Category::Dev,
             npm_rules(),
         )
         .with_detect_patterns(vec!["npm", "node"]),
@@ -204,7 +205,7 @@ pub fn yarn_program() -> Arc<SimpleProgram> {
             "dev.yarn",
             "yarn",
             "Yarn package manager output",
-            "dev",
+            Category::Dev,
             yarn_rules(),
         )
         .with_detect_patterns(vec!["yarn"]),
@@ -281,7 +282,7 @@ pub fn pnpm_program() -> Arc<SimpleProgram> {
             "dev.pnpm",
             "pnpm",
             "pnpm package manager output",
-            "dev",
+            Category::Dev,
             pnpm_rules(),
         )
         .with_detect_patterns(vec!["pnpm"]),

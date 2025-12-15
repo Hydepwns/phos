@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -145,7 +146,7 @@ pub fn git_program() -> Arc<SimpleProgram> {
             "dev.git",
             "git",
             "Git commands and output",
-            "dev",
+            Category::Dev,
             git_rules(),
         )
         .with_detect_patterns(vec!["git"]),
@@ -227,7 +228,7 @@ pub fn diff_program() -> Arc<SimpleProgram> {
             "dev.diff",
             "diff",
             "File comparison output",
-            "dev",
+            Category::Dev,
             diff_rules(),
         )
         // Use specific patterns to avoid matching "git diff"
@@ -276,7 +277,7 @@ pub fn wdiff_program() -> Arc<SimpleProgram> {
             "dev.wdiff",
             "wdiff",
             "Word diff output",
-            "dev",
+            Category::Dev,
             wdiff_rules(),
         )
         .with_detect_patterns(vec!["wdiff", "dwdiff"]),

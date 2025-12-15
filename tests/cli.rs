@@ -343,7 +343,7 @@ mod pipe_input {
         let (stdout, _, success) = run_phos_with_stdin(&["-p", "cargo", "--color"], input);
         assert!(success);
         // With --color flag, should have ANSI codes even when piped
-        assert!(stdout.contains("\x1b["), "Expected ANSI codes in output: {}", stdout);
+        assert!(stdout.contains("\x1b["), "Expected ANSI codes in output: {stdout}");
     }
 
     #[test]
@@ -542,7 +542,7 @@ rules:
         // Clean up
         let _ = fs::remove_file(&config_path);
 
-        assert!(success, "Config test failed: {}", stderr);
+        assert!(success, "Config test failed: {stderr}");
         assert!(stdout.contains("TEST"));
     }
 }
@@ -634,14 +634,11 @@ mod smoke_tests {
             let (stdout, stderr, success) = run_phos_with_stdin(&["-p", program], input);
             assert!(
                 success,
-                "Program '{}' failed: {}",
-                program,
-                stderr
+                "Program '{program}' failed: {stderr}"
             );
             assert!(
                 stdout.contains("test line"),
-                "Program '{}' didn't output correctly",
-                program
+                "Program '{program}' didn't output correctly"
             );
         }
     }
@@ -661,14 +658,11 @@ mod smoke_tests {
             let (stdout, stderr, success) = run_phos_with_stdin(&["-c", client], input);
             assert!(
                 success,
-                "Client '{}' failed: {}",
-                client,
-                stderr
+                "Client '{client}' failed: {stderr}"
             );
             assert!(
                 stdout.contains("INFO") || stdout.contains("slot"),
-                "Client '{}' didn't output correctly",
-                client
+                "Client '{client}' didn't output correctly"
             );
         }
     }

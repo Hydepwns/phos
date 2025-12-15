@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -129,7 +130,7 @@ pub fn mtr_program() -> Arc<SimpleProgram> {
             "network.mtr",
             "mtr",
             "My traceroute output",
-            "network",
+            Category::Network,
             mtr_rules(),
         )
         .with_detect_patterns(vec!["mtr"]),
@@ -312,7 +313,7 @@ pub fn tcpdump_program() -> Arc<SimpleProgram> {
             "network.tcpdump",
             "tcpdump",
             "Packet capture output",
-            "network",
+            Category::Network,
             tcpdump_rules(),
         )
         .with_detect_patterns(vec!["tcpdump", "tshark", "wireshark"]),
@@ -440,7 +441,7 @@ pub fn whois_program() -> Arc<SimpleProgram> {
             "network.whois",
             "whois",
             "WHOIS domain lookup output",
-            "network",
+            Category::Network,
             whois_rules(),
         )
         .with_detect_patterns(vec!["whois"]),
@@ -584,7 +585,7 @@ pub fn ntpdate_program() -> Arc<SimpleProgram> {
             "network.ntpdate",
             "ntpdate",
             "NTP time synchronization output",
-            "network",
+            Category::Network,
             ntpdate_rules(),
         )
         .with_detect_patterns(vec!["ntpdate", "ntpd", "ntpq", "chronyd", "chronyc"]),

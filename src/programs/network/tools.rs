@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -93,7 +94,7 @@ pub fn ping_program() -> Arc<SimpleProgram> {
             "network.ping",
             "ping",
             "Ping command output",
-            "network",
+            Category::Network,
             ping_rules(),
         )
         .with_detect_patterns(vec!["ping", "ping6", "fping"]),
@@ -215,7 +216,7 @@ pub fn curl_program() -> Arc<SimpleProgram> {
             "network.curl",
             "curl",
             "Curl HTTP client output",
-            "network",
+            Category::Network,
             curl_rules(),
         )
         .with_detect_patterns(vec!["curl", "wget", "httpie"]),
@@ -309,7 +310,7 @@ pub fn dig_program() -> Arc<SimpleProgram> {
             "network.dig",
             "dig",
             "DNS dig command output",
-            "network",
+            Category::Network,
             dig_rules(),
         )
         .with_detect_patterns(vec!["dig", "nslookup", "host", "drill"]),
@@ -402,7 +403,7 @@ pub fn traceroute_program() -> Arc<SimpleProgram> {
             "network.traceroute",
             "traceroute",
             "Traceroute network path output",
-            "network",
+            Category::Network,
             traceroute_rules(),
         )
         .with_detect_patterns(vec!["traceroute", "traceroute6", "tracepath"]),
@@ -541,7 +542,7 @@ pub fn nmap_program() -> Arc<SimpleProgram> {
             "network.nmap",
             "nmap",
             "Nmap network scanner output",
-            "network",
+            Category::Network,
             nmap_rules(),
         )
         .with_detect_patterns(vec!["nmap"]),

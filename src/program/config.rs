@@ -8,6 +8,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use thiserror::Error;
 
+use crate::category::{Category, ParseCategoryError};
 use crate::colors::{Color, ColorSpec};
 use crate::rule::Rule;
 
@@ -30,6 +31,9 @@ pub enum ConfigError {
 
     #[error("Unknown file format: {0}")]
     UnknownFormat(String),
+
+    #[error("Invalid category: {0}")]
+    InvalidCategory(#[from] ParseCategoryError),
 
     #[error("{file}: {message}")]
     FileError {
@@ -194,11 +198,12 @@ impl ProgramConfig {
 
     /// Convert to a Program implementation.
     pub fn to_program(self) -> Result<Arc<dyn Program>, ConfigError> {
+        let category: Category = self.category.parse()?;
         let info = ProgramInfo::new(
             &self.program_id(),
             &self.name,
             &self.description,
-            &self.category,
+            category,
         );
 
         // Parse domain colors
@@ -265,7 +270,7 @@ impl ProgramConfig {
 
         Ok(Arc::new(ConfigProgram {
             info,
-            rules,
+            rules: rules.into(),
             domain_colors,
             detect_patterns,
         }))
@@ -275,7 +280,7 @@ impl ProgramConfig {
 /// A program loaded from configuration.
 struct ConfigProgram {
     info: ProgramInfo,
-    rules: Vec<Rule>,
+    rules: Arc<[Rule]>,
     domain_colors: HashMap<String, Color>,
     detect_patterns: Vec<String>,
 }
@@ -285,8 +290,8 @@ impl Program for ConfigProgram {
         &self.info
     }
 
-    fn rules(&self) -> Vec<Rule> {
-        self.rules.clone()
+    fn rules(&self) -> Arc<[Rule]> {
+        Arc::clone(&self.rules)
     }
 
     fn domain_colors(&self) -> HashMap<String, Color> {

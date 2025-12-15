@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -103,7 +104,7 @@ pub fn systemd_program() -> Arc<SimpleProgram> {
             "system.systemd",
             "systemd",
             "Systemd journal and unit logs",
-            "system",
+            Category::System,
             systemd_rules(),
         )
         .with_detect_patterns(vec!["journalctl", "systemctl", "systemd"]),
@@ -175,7 +176,7 @@ pub fn syslog_program() -> Arc<SimpleProgram> {
             "system.syslog",
             "syslog",
             "Traditional syslog format",
-            "system",
+            Category::System,
             syslog_rules(),
         )
         .with_detect_patterns(vec![
@@ -313,7 +314,7 @@ pub fn dmesg_program() -> Arc<SimpleProgram> {
             "system.dmesg",
             "dmesg",
             "Kernel ring buffer messages",
-            "system",
+            Category::System,
             dmesg_rules(),
         )
         .with_detect_patterns(vec!["dmesg", "/var/log/kern", "/var/log/dmesg"]),
@@ -404,7 +405,7 @@ pub fn cron_program() -> Arc<SimpleProgram> {
             "system.cron",
             "cron",
             "Cron scheduled task logs",
-            "system",
+            Category::System,
             cron_rules(),
         )
         .with_detect_patterns(vec!["cron", "crond", "anacron", "/var/log/cron"]),

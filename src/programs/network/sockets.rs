@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -83,7 +84,7 @@ pub fn netstat_program() -> Arc<SimpleProgram> {
             "network.netstat",
             "netstat",
             "Network statistics output",
-            "network",
+            Category::Network,
             netstat_rules(),
         )
         .with_detect_patterns(vec!["netstat"]),
@@ -182,7 +183,7 @@ pub fn ss_program() -> Arc<SimpleProgram> {
             "network.ss",
             "ss",
             "Socket statistics output",
-            "network",
+            Category::Network,
             ss_rules(),
         )
         .with_detect_patterns(vec!["ss "]),
@@ -257,7 +258,7 @@ pub fn sockstat_program() -> Arc<SimpleProgram> {
             "network.sockstat",
             "sockstat",
             "BSD socket statistics output",
-            "network",
+            Category::Network,
             sockstat_rules(),
         )
         .with_detect_patterns(vec!["sockstat"]),

@@ -35,6 +35,7 @@
 //! ### Middleware
 //! - Charon (Obol DVT), MEV-Boost
 
+pub mod category;
 pub mod colorizer;
 pub mod colors;
 pub mod config;
@@ -45,6 +46,7 @@ pub mod shell;
 pub mod stats;
 pub mod theme;
 
+pub use category::{Category, ParseCategoryError};
 pub use colorizer::Colorizer;
 pub use colors::{parse_hex_rgb, Color, ColorSpec, SemanticColor};
 pub use config::Config;
@@ -56,7 +58,7 @@ pub use theme::Theme;
 /// Prelude for convenient imports.
 pub mod prelude {
     pub use crate::{
-        Color, ColorSpec, Colorizer, Config, Program, ProgramInfo, ProgramRegistry, Rule,
-        SemanticColor, Stats, StatsCollector, Theme,
+        Category, Color, ColorSpec, Colorizer, Config, Program, ProgramInfo, ProgramRegistry,
+        Rule, SemanticColor, Stats, StatsCollector, Theme,
     };
 }

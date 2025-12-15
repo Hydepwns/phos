@@ -8,6 +8,7 @@ use std::sync::Arc;
 
 use regex::Regex;
 
+use crate::category::Category;
 use crate::colors::Color;
 use crate::rule::Rule;
 
@@ -23,18 +24,18 @@ pub struct ProgramInfo {
     pub name: String,
     /// Description of what this program colorizes
     pub description: String,
-    /// Category for grouping (e.g., "ethereum", "devops", "system")
-    pub category: String,
+    /// Category for grouping programs
+    pub category: Category,
 }
 
 impl ProgramInfo {
     /// Create a new ProgramInfo.
-    pub fn new(id: &str, name: &str, description: &str, category: &str) -> Self {
+    pub fn new(id: &str, name: &str, description: &str, category: Category) -> Self {
         Self {
             id: id.to_string(),
             name: name.to_string(),
             description: description.to_string(),
-            category: category.to_string(),
+            category,
         }
     }
 }
@@ -45,7 +46,8 @@ pub trait Program: Send + Sync {
     fn info(&self) -> &ProgramInfo;
 
     /// Get the colorization rules for this program.
-    fn rules(&self) -> Vec<Rule>;
+    /// Returns an Arc to avoid cloning compiled regexes on every access.
+    fn rules(&self) -> Arc<[Rule]>;
 
     /// Get domain-specific color definitions.
     /// These are colors specific to this program's domain that are not universal semantic colors.
@@ -65,7 +67,7 @@ pub trait Program: Send + Sync {
 /// Use this to define programs without boilerplate struct/impl blocks.
 pub struct SimpleProgram {
     info: ProgramInfo,
-    rules: Vec<Rule>,
+    rules: Arc<[Rule]>,
     detect_patterns: Vec<&'static str>,
     domain_colors: HashMap<String, Color>,
 }
@@ -76,12 +78,12 @@ impl SimpleProgram {
         id: &str,
         name: &str,
         description: &str,
-        category: &str,
+        category: Category,
         rules: Vec<Rule>,
     ) -> Self {
         Self {
             info: ProgramInfo::new(id, name, description, category),
-            rules,
+            rules: rules.into(),
             detect_patterns: Vec::new(),
             domain_colors: HashMap::new(),
         }
@@ -105,8 +107,8 @@ impl Program for SimpleProgram {
         &self.info
     }
 
-    fn rules(&self) -> Vec<Rule> {
-        self.rules.clone()
+    fn rules(&self) -> Arc<[Rule]> {
+        Arc::clone(&self.rules)
     }
 
     fn detect_patterns(&self) -> Vec<&'static str> {
@@ -121,6 +123,9 @@ impl Program for SimpleProgram {
 /// Registry for managing programs.
 pub struct ProgramRegistry {
     programs: HashMap<String, Arc<dyn Program>>,
+    /// Cached compiled regexes for detection patterns.
+    /// Maps pattern string to compiled Regex.
+    detection_cache: HashMap<&'static str, Regex>,
 }
 
 impl Default for ProgramRegistry {
@@ -134,11 +139,22 @@ impl ProgramRegistry {
     pub fn new() -> Self {
         Self {
             programs: HashMap::new(),
+            detection_cache: HashMap::new(),
         }
     }
 
-    /// Register a program.
+    /// Register a program and cache its detection patterns.
     pub fn register(&mut self, program: Arc<dyn Program>) {
+        // Cache detection regexes for this program
+        for pattern in program.detect_patterns() {
+            if !self.detection_cache.contains_key(pattern) {
+                let regex_pattern = format!(r"(?i)\b{}\b", regex::escape(pattern));
+                if let Ok(re) = Regex::new(&regex_pattern) {
+                    self.detection_cache.insert(pattern, re);
+                }
+            }
+        }
+
         let id = program.info().id.clone();
         self.programs.insert(id, program);
     }
@@ -173,9 +189,8 @@ impl ProgramRegistry {
 
         for program in self.programs.values() {
             for pattern in program.detect_patterns() {
-                // Use word boundary matching to avoid substring false positives
-                let regex_pattern = format!(r"(?i)\b{}\b", regex::escape(pattern));
-                if let Ok(re) = Regex::new(&regex_pattern) {
+                // Look up cached regex
+                if let Some(re) = self.detection_cache.get(pattern) {
                     if re.is_match(&cmd_lower) {
                         matches.push((pattern.len(), Arc::clone(program)));
                         break; // One match per program is enough
@@ -195,22 +210,22 @@ impl ProgramRegistry {
     }
 
     /// List programs by category.
-    pub fn list_by_category(&self, category: &str) -> Vec<&ProgramInfo> {
+    pub fn list_by_category(&self, category: Category) -> Vec<&ProgramInfo> {
         self.programs
             .values()
-            .filter(|p| p.info().category.eq_ignore_ascii_case(category))
+            .filter(|p| p.info().category == category)
             .map(|p| p.info())
             .collect()
     }
 
-    /// Get all unique categories.
-    pub fn categories(&self) -> Vec<String> {
-        let mut categories: Vec<String> = self
+    /// Get all unique categories that have programs.
+    pub fn categories(&self) -> Vec<Category> {
+        let mut categories: Vec<Category> = self
             .programs
             .values()
-            .map(|p| p.info().category.clone())
+            .map(|p| p.info().category)
             .collect();
-        categories.sort();
+        categories.sort_by_key(|c| c.as_str());
         categories.dedup();
         categories
     }
@@ -232,13 +247,20 @@ mod tests {
 
     struct TestProgram {
         info: ProgramInfo,
+        detect: Vec<&'static str>,
     }
 
     impl TestProgram {
-        fn new(id: &str, name: &str, category: &str) -> Self {
+        fn new(id: &str, name: &str, category: Category) -> Self {
             Self {
                 info: ProgramInfo::new(id, name, "Test program", category),
+                detect: vec!["test"],
             }
+        }
+
+        fn with_detect(mut self, patterns: Vec<&'static str>) -> Self {
+            self.detect = patterns;
+            self
         }
     }
 
@@ -247,22 +269,22 @@ mod tests {
             &self.info
         }
 
-        fn rules(&self) -> Vec<Rule> {
-            Vec::new()
+        fn rules(&self) -> Arc<[Rule]> {
+            Arc::from([])
         }
 
         fn detect_patterns(&self) -> Vec<&'static str> {
-            vec!["test"]
+            self.detect.clone()
         }
     }
 
     #[test]
     fn test_registry_register_and_get() {
         let mut registry = ProgramRegistry::new();
-        let program = Arc::new(TestProgram::new("test.program", "TestProgram", "test"));
+        let program = Arc::new(TestProgram::new("dev.program", "TestProgram", Category::Dev));
         registry.register(program);
 
-        assert!(registry.get("test.program").is_some());
+        assert!(registry.get("dev.program").is_some());
         assert!(registry.get("program").is_some()); // Short name lookup
         assert!(registry.get("testprogram").is_some()); // Name lookup (case insensitive)
     }
@@ -270,7 +292,7 @@ mod tests {
     #[test]
     fn test_registry_detect() {
         let mut registry = ProgramRegistry::new();
-        let program = Arc::new(TestProgram::new("test.program", "TestProgram", "test"));
+        let program = Arc::new(TestProgram::new("dev.program", "TestProgram", Category::Dev));
         registry.register(program);
 
         assert!(registry.detect("run test command").is_some());
@@ -280,11 +302,17 @@ mod tests {
     #[test]
     fn test_registry_list_by_category() {
         let mut registry = ProgramRegistry::new();
-        registry.register(Arc::new(TestProgram::new("cat1.prog1", "Prog1", "cat1")));
-        registry.register(Arc::new(TestProgram::new("cat1.prog2", "Prog2", "cat1")));
-        registry.register(Arc::new(TestProgram::new("cat2.prog3", "Prog3", "cat2")));
+        registry.register(Arc::new(
+            TestProgram::new("dev.prog1", "Prog1", Category::Dev).with_detect(vec!["prog1"]),
+        ));
+        registry.register(Arc::new(
+            TestProgram::new("dev.prog2", "Prog2", Category::Dev).with_detect(vec!["prog2"]),
+        ));
+        registry.register(Arc::new(
+            TestProgram::new("system.prog3", "Prog3", Category::System).with_detect(vec!["prog3"]),
+        ));
 
-        assert_eq!(registry.list_by_category("cat1").len(), 2);
-        assert_eq!(registry.list_by_category("cat2").len(), 1);
+        assert_eq!(registry.list_by_category(Category::Dev).len(), 2);
+        assert_eq!(registry.list_by_category(Category::System).len(), 1);
     }
 }

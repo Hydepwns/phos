@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -120,7 +121,7 @@ pub fn cargo_program() -> Arc<SimpleProgram> {
             "dev.cargo",
             "cargo",
             "Rust cargo build and test output",
-            "dev",
+            Category::Dev,
             cargo_rules(),
         )
         .with_detect_patterns(vec!["cargo", "rustc"]),

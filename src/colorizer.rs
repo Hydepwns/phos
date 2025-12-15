@@ -2,6 +2,7 @@
 
 use std::borrow::Cow;
 use std::io::{self, BufRead, Write};
+use std::sync::Arc;
 
 use nu_ansi_term::Style;
 
@@ -15,8 +16,8 @@ const MAX_LINE_LENGTH: usize = 10_000;
 /// The colorizer applies rules to text and outputs colored results.
 #[derive(Debug, Clone)]
 pub struct Colorizer {
-    /// Rules to apply in order
-    rules: Vec<Rule>,
+    /// Rules to apply in order (Arc to avoid cloning compiled regexes)
+    rules: Arc<[Rule]>,
     /// Theme for semantic color resolution
     theme: Theme,
     /// Whether currently in block coloring mode
@@ -29,9 +30,9 @@ pub struct Colorizer {
 
 impl Colorizer {
     /// Create a new colorizer with the given rules.
-    pub fn new(rules: Vec<Rule>) -> Self {
+    pub fn new(rules: impl Into<Arc<[Rule]>>) -> Self {
         Self {
-            rules,
+            rules: rules.into(),
             theme: Theme::default(),
             in_block: false,
             block_style: None,
@@ -97,7 +98,7 @@ impl Colorizer {
         }
 
         // Phase 1: Check skip rules first
-        for rule in &self.rules {
+        for rule in self.rules.iter() {
             if rule.skip && rule.is_match(line) {
                 return None; // Skip this line
             }
@@ -120,7 +121,7 @@ impl Colorizer {
         // Track which parts of the line have been colored
         let mut colored_ranges: Vec<(usize, usize, Style)> = Vec::new();
 
-        for rule in &self.rules {
+        for rule in self.rules.iter() {
             // Skip rules that are only for skip/replace (no colors)
             if rule.skip || rule.replace.is_some() && rule.colors.is_empty() {
                 continue;

@@ -5,6 +5,7 @@
 use std::sync::Arc;
 
 use super::common;
+use crate::category::Category;
 use crate::colors::SemanticColor;
 use crate::program::SimpleProgram;
 use crate::rule::Rule;
@@ -42,7 +43,7 @@ pub fn lsmod_program() -> Arc<SimpleProgram> {
             "system.lsmod",
             "lsmod",
             "List kernel modules output",
-            "system",
+            Category::System,
             lsmod_rules(),
         )
         .with_detect_patterns(vec!["lsmod"]),
@@ -93,7 +94,7 @@ pub fn lspci_program() -> Arc<SimpleProgram> {
             "system.lspci",
             "lspci",
             "List PCI devices output",
-            "system",
+            Category::System,
             lspci_rules(),
         )
         .with_detect_patterns(vec!["lspci"]),
@@ -135,7 +136,7 @@ pub fn vmstat_program() -> Arc<SimpleProgram> {
             "system.vmstat",
             "vmstat",
             "Virtual memory statistics",
-            "system",
+            Category::System,
             vmstat_rules(),
         )
         .with_detect_patterns(vec!["vmstat"]),
@@ -183,7 +184,7 @@ pub fn iostat_program() -> Arc<SimpleProgram> {
             "system.iostat",
             "iostat",
             "I/O statistics output",
-            "system",
+            Category::System,
             iostat_rules(),
         )
         .with_detect_patterns(vec!["iostat"]),
@@ -223,7 +224,7 @@ pub fn env_program() -> Arc<SimpleProgram> {
             "system.env",
             "env",
             "Environment variables output",
-            "system",
+            Category::System,
             env_rules(),
         )
         .with_detect_patterns(vec!["env", "printenv"]),
@@ -287,7 +288,7 @@ pub fn blkid_program() -> Arc<SimpleProgram> {
             "system.blkid",
             "blkid",
             "Block device attributes output",
-            "system",
+            Category::System,
             blkid_rules(),
         )
         .with_detect_patterns(vec!["blkid"]),
@@ -364,7 +365,7 @@ pub fn fdisk_program() -> Arc<SimpleProgram> {
             "system.fdisk",
             "fdisk",
             "Partition table output",
-            "system",
+            Category::System,
             fdisk_rules(),
         )
         .with_detect_patterns(vec!["fdisk", "gdisk", "parted"]),
@@ -425,7 +426,7 @@ pub fn lsblk_program() -> Arc<SimpleProgram> {
             "system.lsblk",
             "lsblk",
             "List block devices output",
-            "system",
+            Category::System,
             lsblk_rules(),
         )
         .with_detect_patterns(vec!["lsblk"]),
