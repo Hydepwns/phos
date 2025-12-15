@@ -1,7 +1,7 @@
 [package]
 name = "phos"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 authors = ["DROO <droo@axol.io>"]
 description = "High-performance universal log colorizer"
 license = "MIT OR Apache-2.0"
@@ -43,15 +43,13 @@ proptest = "1.4"
 name = "phos"
 path = "src/main.rs"
 
-# TODO: Add phoscat pipe-only binary
-# [[bin]]
-# name = "phoscat"
-# path = "src/phoscat.rs"
+[[bin]]
+name = "phoscat"
+path = "src/bin/phoscat.rs"
 
-# TODO: Add benchmarks
-# [[bench]]
-# name = "colorize"
-# harness = false
+[[bench]]
+name = "colorize"
+harness = false
 
 [profile.release]
 lto = true

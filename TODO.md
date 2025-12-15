@@ -37,6 +37,15 @@
 - [x] Shell completions (bash, zsh, fish) - `phos completions <shell>`
 - [x] Man page generation - `phos man`
 
+### Binaries
+- [x] phoscat pipe-only binary (`command | phoscat <program>`)
+- [ ] Performance comparison: phos vs phoscat startup time
+
+### Performance
+- [x] Benchmark infrastructure (criterion)
+- [ ] Baseline performance metrics documented
+- [ ] CI benchmark regression detection
+
 ---
 
 ## Phase 2: Distribution (Priority: MEDIUM)

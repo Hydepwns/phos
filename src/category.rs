@@ -26,6 +26,8 @@ pub enum Category {
     Messaging,
     /// Continuous integration pipelines
     CI,
+    /// User-defined custom programs
+    Custom,
 }
 
 impl Category {
@@ -41,6 +43,7 @@ impl Category {
             Category::Monitoring => "monitoring",
             Category::Messaging => "messaging",
             Category::CI => "ci",
+            Category::Custom => "custom",
         }
     }
 
@@ -56,6 +59,7 @@ impl Category {
             Category::Monitoring => "Observability and metrics",
             Category::Messaging => "Message queues and event streaming",
             Category::CI => "Continuous integration pipelines",
+            Category::Custom => "User-defined custom programs",
         }
     }
 
@@ -71,6 +75,7 @@ impl Category {
             Category::Monitoring => "Monitoring",
             Category::Messaging => "Messaging",
             Category::CI => "CI/CD",
+            Category::Custom => "Custom",
         }
     }
 
@@ -86,6 +91,7 @@ impl Category {
             Category::Monitoring,
             Category::Messaging,
             Category::CI,
+            Category::Custom,
         ]
     }
 }
@@ -131,6 +137,7 @@ impl FromStr for Category {
             "monitoring" => Ok(Category::Monitoring),
             "messaging" => Ok(Category::Messaging),
             "ci" => Ok(Category::CI),
+            "custom" => Ok(Category::Custom),
             _ => Err(ParseCategoryError(s.to_string())),
         }
     }
@@ -170,9 +177,10 @@ mod tests {
     #[test]
     fn test_category_all() {
         let all = Category::all();
-        assert_eq!(all.len(), 9);
+        assert_eq!(all.len(), 10);
         assert!(all.contains(&Category::Ethereum));
         assert!(all.contains(&Category::CI));
+        assert!(all.contains(&Category::Custom));
     }
 
     #[test]
