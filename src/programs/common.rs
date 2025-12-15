@@ -412,6 +412,194 @@ pub fn filesystem_type_rule() -> Rule {
         .build()
 }
 
+// =============================================================================
+// STRUCTURED AND SPECIALIZED LOG LEVEL PATTERNS
+// =============================================================================
+
+/// Structured log level patterns (level=error, level=info).
+/// Common in Prometheus, Grafana, and Go applications.
+pub fn structured_log_level_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\blevel=(error|fatal|panic)\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\blevel=warn(ing)?\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\blevel=info\b")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\blevel=debug\b")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+        Rule::new(r"\blevel=trace\b")
+            .unwrap()
+            .semantic(SemanticColor::Trace)
+            .build(),
+    ]
+}
+
+/// Bracketed log levels ([ERROR], [WARN], [INFO]).
+/// Common in databases and Java applications.
+pub fn bracketed_log_level_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\[(ERROR|FATAL|PANIC)\]")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\[(WARN|WARNING|Warning)\]")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .bold()
+            .build(),
+        Rule::new(r"\[(INFO|INFO\s*|Note|NOTICE)\]")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\[(DEBUG|DEBUG\d*)\]")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+        Rule::new(r"\[(TRACE|TRACE\d*)\]")
+            .unwrap()
+            .semantic(SemanticColor::Trace)
+            .build(),
+    ]
+}
+
+/// Database-style log levels (LOG, NOTICE, FATAL, PANIC).
+/// Common in PostgreSQL, MySQL, and other databases.
+pub fn database_log_level_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(PANIC|FATAL):")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\bERROR:")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .build(),
+        Rule::new(r"\bWARNING:")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\b(NOTICE|LOG|INFO):")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\bDEBUG\d?:")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+    ]
+}
+
+// =============================================================================
+// CONTAINER AND KUBERNETES PATTERNS
+// =============================================================================
+
+/// Container lifecycle states (Docker, Podman).
+pub fn container_status_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(running|Running|RUNNING|Up)\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .build(),
+        Rule::new(r"\b(exited|Exited|EXITED|stopped|Stopped)\b")
+            .unwrap()
+            .semantic(SemanticColor::Failure)
+            .build(),
+        Rule::new(r"\b(created|Created|restarting|Restarting|paused|Paused)\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\b(dead|Dead|removing|Removing)\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .build(),
+    ]
+}
+
+/// Kubernetes pod and resource states.
+pub fn k8s_status_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(Running|Succeeded|Bound|Available|Ready)\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .build(),
+        Rule::new(r"\b(Pending|ContainerCreating|PodInitializing|Terminating)\b")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\b(Failed|Error|Unknown|CrashLoopBackOff|ImagePullBackOff|ErrImagePull|OOMKilled)\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\b(Evicted|NodeLost|Unschedulable)\b")
+            .unwrap()
+            .semantic(SemanticColor::Failure)
+            .build(),
+    ]
+}
+
+/// Kubernetes resource types.
+pub fn k8s_resource_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(pod|deployment|service|configmap|secret|namespace|node|replicaset|daemonset|statefulset|job|cronjob|ingress|pvc|pv)\b")
+            .unwrap()
+            .semantic(SemanticColor::Key)
+            .build(),
+    ]
+}
+
+// =============================================================================
+// DATABASE PATTERNS
+// =============================================================================
+
+/// SQL keywords for database logs.
+pub fn sql_keyword_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE)\b")
+            .unwrap()
+            .semantic(SemanticColor::Key)
+            .build(),
+        Rule::new(r"\b(FROM|WHERE|JOIN|LEFT|RIGHT|INNER|OUTER|ON|AND|OR|NOT|IN|LIKE|ORDER BY|GROUP BY|HAVING|LIMIT|OFFSET)\b")
+            .unwrap()
+            .semantic(SemanticColor::Label)
+            .build(),
+        Rule::new(r"\b(BEGIN|COMMIT|ROLLBACK|TRANSACTION|SAVEPOINT)\b")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+    ]
+}
+
+/// Database connection events.
+pub fn db_connection_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\b(connected|connection established|authenticated|authorized)\b")
+            .unwrap()
+            .semantic(SemanticColor::Success)
+            .build(),
+        Rule::new(r"\b(disconnected|connection closed|connection lost|connection refused)\b")
+            .unwrap()
+            .semantic(SemanticColor::Failure)
+            .build(),
+        Rule::new(r"\b(connecting|authenticating|reconnecting)\b")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -437,6 +625,48 @@ mod tests {
     #[test]
     fn test_metric_rules_compile() {
         let rules = metric_rules();
+        assert_eq!(rules.len(), 3);
+    }
+
+    #[test]
+    fn test_structured_log_level_rules_compile() {
+        let rules = structured_log_level_rules();
+        assert_eq!(rules.len(), 5);
+    }
+
+    #[test]
+    fn test_bracketed_log_level_rules_compile() {
+        let rules = bracketed_log_level_rules();
+        assert_eq!(rules.len(), 5);
+    }
+
+    #[test]
+    fn test_database_log_level_rules_compile() {
+        let rules = database_log_level_rules();
+        assert_eq!(rules.len(), 5);
+    }
+
+    #[test]
+    fn test_container_status_rules_compile() {
+        let rules = container_status_rules();
+        assert_eq!(rules.len(), 4);
+    }
+
+    #[test]
+    fn test_k8s_status_rules_compile() {
+        let rules = k8s_status_rules();
+        assert_eq!(rules.len(), 4);
+    }
+
+    #[test]
+    fn test_sql_keyword_rules_compile() {
+        let rules = sql_keyword_rules();
+        assert_eq!(rules.len(), 3);
+    }
+
+    #[test]
+    fn test_db_connection_rules_compile() {
+        let rules = db_connection_rules();
         assert_eq!(rules.len(), 3);
     }
 }
