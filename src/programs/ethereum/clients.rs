@@ -34,7 +34,16 @@ pub const LIGHTHOUSE: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "Rust",
     website: "https://lighthouse.sigmaprime.io/",
-    detect_patterns: &["lighthouse"],
+    detect_patterns: &[
+        "lighthouse",
+        "lighthouse-bn",
+        "lighthouse-vc",
+        "lighthouse-validator",
+        "lighthouse_beacon",
+        "lighthouse_validator",
+        "lighthouse-consensus",
+        "lighthouse.log",
+    ],
     brand_color: "#9933FF",
 };
 
@@ -44,7 +53,17 @@ pub const PRYSM: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "Go",
     website: "https://prysmaticlabs.com/",
-    detect_patterns: &["prysm", "beacon-chain", "validator"],
+    detect_patterns: &[
+        "prysm",
+        "beacon-chain",
+        "validator",
+        "prysm-bn",
+        "prysm-vc",
+        "prysm_beacon",
+        "prysm_validator",
+        "prysm-consensus",
+        "prysm.log",
+    ],
     brand_color: "#22CC88",
 };
 
@@ -54,7 +73,15 @@ pub const TEKU: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "Java",
     website: "https://consensys.net/knowledge-base/ethereum-2/teku/",
-    detect_patterns: &["teku"],
+    detect_patterns: &[
+        "teku",
+        "teku-bn",
+        "teku-vc",
+        "teku_beacon",
+        "teku_validator",
+        "teku-consensus",
+        "teku.log",
+    ],
     brand_color: "#3366FF",
 };
 
@@ -64,7 +91,16 @@ pub const NIMBUS: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "Nim",
     website: "https://nimbus.team/",
-    detect_patterns: &["nimbus"],
+    detect_patterns: &[
+        "nimbus",
+        "nimbus-bn",
+        "nimbus-vc",
+        "nimbus_beacon",
+        "nimbus_validator",
+        "nimbus-eth2",
+        "nimbus-consensus",
+        "nimbus.log",
+    ],
     brand_color: "#CC9933",
 };
 
@@ -74,7 +110,15 @@ pub const LODESTAR: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "TypeScript",
     website: "https://lodestar.chainsafe.io/",
-    detect_patterns: &["lodestar"],
+    detect_patterns: &[
+        "lodestar",
+        "lodestar-bn",
+        "lodestar-vc",
+        "lodestar_beacon",
+        "lodestar_validator",
+        "lodestar-consensus",
+        "lodestar.log",
+    ],
     brand_color: "#AA44FF",
 };
 
@@ -84,7 +128,14 @@ pub const GRANDINE: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "Rust",
     website: "https://grandine.io/",
-    detect_patterns: &["grandine"],
+    detect_patterns: &[
+        "grandine",
+        "grandine-bn",
+        "grandine-vc",
+        "grandine_beacon",
+        "grandine-consensus",
+        "grandine.log",
+    ],
     brand_color: "#FF6633",
 };
 
@@ -94,7 +145,12 @@ pub const LAMBDA: ClientMeta = ClientMeta {
     layer: Layer::Consensus,
     language: "Elixir",
     website: "https://github.com/lambdaclass/lambda_ethereum_consensus",
-    detect_patterns: &["lambda_ethereum"],
+    detect_patterns: &[
+        "lambda_ethereum",
+        "lambda-bn",
+        "lambda-consensus",
+        "lambda.log",
+    ],
     brand_color: "#9966FF",
 };
 
@@ -104,7 +160,13 @@ pub const GETH: ClientMeta = ClientMeta {
     layer: Layer::Execution,
     language: "Go",
     website: "https://geth.ethereum.org/",
-    detect_patterns: &["geth"],
+    detect_patterns: &[
+        "geth",
+        "geth-el",
+        "geth_execution",
+        "go-ethereum",
+        "geth.log",
+    ],
     brand_color: "#6699FF",
 };
 
@@ -114,7 +176,12 @@ pub const NETHERMIND: ClientMeta = ClientMeta {
     layer: Layer::Execution,
     language: ".NET",
     website: "https://nethermind.io/",
-    detect_patterns: &["nethermind"],
+    detect_patterns: &[
+        "nethermind",
+        "nethermind-el",
+        "nethermind_execution",
+        "nethermind.log",
+    ],
     brand_color: "#33CCCC",
 };
 
@@ -124,7 +191,13 @@ pub const BESU: ClientMeta = ClientMeta {
     layer: Layer::Execution,
     language: "Java",
     website: "https://besu.hyperledger.org/",
-    detect_patterns: &["besu"],
+    detect_patterns: &[
+        "besu",
+        "besu-el",
+        "besu_execution",
+        "hyperledger-besu",
+        "besu.log",
+    ],
     brand_color: "#009999",
 };
 
@@ -134,7 +207,12 @@ pub const ERIGON: ClientMeta = ClientMeta {
     layer: Layer::Execution,
     language: "Go",
     website: "https://github.com/erigontech/erigon",
-    detect_patterns: &["erigon"],
+    detect_patterns: &[
+        "erigon",
+        "erigon-el",
+        "erigon_execution",
+        "erigon.log",
+    ],
     brand_color: "#66CC33",
 };
 
@@ -144,7 +222,12 @@ pub const RETH: ClientMeta = ClientMeta {
     layer: Layer::Execution,
     language: "Rust",
     website: "https://paradigmxyz.github.io/reth/",
-    detect_patterns: &["reth"],
+    detect_patterns: &[
+        "reth",
+        "reth-el",
+        "reth_execution",
+        "reth.log",
+    ],
     brand_color: "#FF9966",
 };
 
@@ -154,7 +237,13 @@ pub const MANA: ClientMeta = ClientMeta {
     layer: Layer::Full,
     language: "Elixir",
     website: "https://github.com/axol-io/mana",
-    detect_patterns: &["mana"],
+    detect_patterns: &[
+        "mana",
+        "mana-el",
+        "mana-cl",
+        "mana_node",
+        "mana.log",
+    ],
     brand_color: "#CC66FF",
 };
 
@@ -164,7 +253,12 @@ pub const CHARON: ClientMeta = ClientMeta {
     layer: Layer::Middleware,
     language: "Go",
     website: "https://obol.tech/",
-    detect_patterns: &["charon"],
+    detect_patterns: &[
+        "charon",
+        "charon-dv",
+        "obol-charon",
+        "charon.log",
+    ],
     brand_color: "#6633FF",
 };
 
@@ -174,7 +268,12 @@ pub const MEVBOOST: ClientMeta = ClientMeta {
     layer: Layer::Middleware,
     language: "Go",
     website: "https://boost.flashbots.net/",
-    detect_patterns: &["mev-boost", "mev_boost", "mevboost"],
+    detect_patterns: &[
+        "mev-boost",
+        "mev_boost",
+        "mevboost",
+        "mev-boost.log",
+    ],
     brand_color: "#FF6699",
 };
 

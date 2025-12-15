@@ -188,6 +188,37 @@ mod tests {
     }
 
     #[test]
+    fn test_detect_eth_docker_patterns() {
+        let mut registry = ProgramRegistry::new();
+        register_all(&mut registry);
+
+        // Test eth-docker beacon node patterns
+        let detected = registry.detect("docker logs eth-docker-lighthouse-bn-1");
+        assert!(detected.is_some());
+        assert_eq!(detected.unwrap().info().name, "Lighthouse");
+
+        // Test eth-docker validator client patterns
+        let detected = registry.detect("docker logs eth-docker-prysm-vc-1");
+        assert!(detected.is_some());
+        assert_eq!(detected.unwrap().info().name, "Prysm");
+
+        // Test eth-docker execution layer patterns
+        let detected = registry.detect("docker logs eth-docker-geth-el-1");
+        assert!(detected.is_some());
+        assert_eq!(detected.unwrap().info().name, "Geth");
+
+        // Test underscore variants
+        let detected = registry.detect("docker logs lodestar_beacon");
+        assert!(detected.is_some());
+        assert_eq!(detected.unwrap().info().name, "Lodestar");
+
+        // Test log file patterns
+        let detected = registry.detect("tail -f /var/log/nethermind.log");
+        assert!(detected.is_some());
+        assert_eq!(detected.unwrap().info().name, "Nethermind");
+    }
+
+    #[test]
     fn test_list_by_category() {
         let mut registry = ProgramRegistry::new();
         register_all(&mut registry);
