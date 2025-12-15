@@ -12,26 +12,8 @@ use super::super::common;
 fn k9s_rules() -> Vec<Rule> {
     let mut rules = common::log_level_rules();
 
-    // Kubernetes log level format: level=info
-    rules.extend([
-        Rule::new(r#"level=error"#)
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r#"level=warn"#)
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r#"level=info"#)
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r#"level=debug"#)
-            .unwrap()
-            .semantic(SemanticColor::Debug)
-            .build(),
-    ]);
+    // Structured log levels (level=error, level=warn, etc.)
+    rules.extend(common::structured_log_level_rules());
 
     // Kubernetes resource names
     rules.extend([

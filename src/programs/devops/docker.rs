@@ -12,21 +12,8 @@ use super::super::common;
 fn docker_rules() -> Vec<Rule> {
     let mut rules = common::log_level_rules();
 
-    // Container status
-    rules.extend([
-        Rule::new(r"\b(running|Running|RUNNING)\b")
-            .unwrap()
-            .semantic(SemanticColor::Success)
-            .build(),
-        Rule::new(r"\b(exited|Exited|EXITED|stopped|Stopped)\b")
-            .unwrap()
-            .semantic(SemanticColor::Failure)
-            .build(),
-        Rule::new(r"\b(created|Created|restarting|Restarting)\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-    ]);
+    // Container status (running, exited, created, restarting, paused, dead)
+    rules.extend(common::container_status_rules());
 
     // Container/image IDs (64-char and 12-char)
     rules.extend(common::hex_id_rules().into_iter().take(2));

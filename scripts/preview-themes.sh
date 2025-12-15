@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Preview phos themes
+# Uses release build - debug is ~6x slower due to regex compilation overhead
 set -e
-cargo build --quiet 2>/dev/null || cargo build
-P="./target/debug/phos"
+cargo build --release --quiet 2>/dev/null || cargo build --release
+P="./target/release/phos"
 
 S="INFO slot=12345 Synced | WARN timeout | ERROR 0x4f6a8b2c1d"
 
