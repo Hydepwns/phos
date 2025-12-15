@@ -444,7 +444,7 @@ pub fn structured_log_level_rules() -> Vec<Rule> {
     ]
 }
 
-/// Bracketed log levels ([ERROR], [WARN], [INFO]).
+/// Bracketed log levels (`[ERROR]`, `[WARN]`, `[INFO]`).
 /// Common in databases and Java applications.
 pub fn bracketed_log_level_rules() -> Vec<Rule> {
     vec![

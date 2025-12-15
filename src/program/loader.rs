@@ -10,7 +10,9 @@ use super::{Program, ProgramRegistry};
 /// Result of loading a user program - includes file path for error reporting.
 #[derive(Debug)]
 pub struct LoadResult {
+    /// Path to the config file that failed to load.
     pub path: PathBuf,
+    /// The error that occurred during loading.
     pub error: ConfigError,
 }
 

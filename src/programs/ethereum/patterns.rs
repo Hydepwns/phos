@@ -108,7 +108,7 @@ pub fn erigon_log_levels() -> Vec<Rule> {
     ]
 }
 
-/// Elixir Logger-style log levels ([error], [warning], [info], [debug])
+/// Elixir Logger-style log levels (`[error]`, `[warning]`, `[info]`, `[debug]`).
 pub fn elixir_log_levels() -> Vec<Rule> {
     vec![
         Rule::new(r"\[error\]").unwrap().semantic(SemanticColor::Error).bold().build(),

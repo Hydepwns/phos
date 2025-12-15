@@ -1,7 +1,7 @@
 //! phoscat - Minimal pipe-only log colorizer
 //!
-//! Usage: command | phoscat <program>
-//!        PHOS_PROGRAM=docker command | phoscat
+//! Usage: `command | phoscat <program>`
+//!        `PHOS_PROGRAM=docker command | phoscat`
 
 use anyhow::{Context, Result};
 use phos::{programs, Colorizer, Theme};
