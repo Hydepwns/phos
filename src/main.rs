@@ -11,6 +11,7 @@ mod commands;
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
+use phos::alert::AlertManagerBuilder;
 use phos::programs;
 use phos::{Colorizer, Config, StatsCollector, Theme};
 use std::sync::Arc;
@@ -68,6 +69,22 @@ pub struct Cli {
     /// Show log statistics after processing
     #[arg(long)]
     stats: bool,
+
+    /// Webhook URL for alerts (auto-detects Discord/Telegram)
+    #[arg(long, value_name = "URL")]
+    alert: Option<String>,
+
+    /// Alert conditions: error, error-threshold:N, peer-drop:N, sync-stall
+    #[arg(long = "alert-on", value_name = "CONDITION")]
+    alert_on: Vec<String>,
+
+    /// Telegram chat ID (required for Telegram webhooks)
+    #[arg(long, value_name = "CHAT_ID")]
+    telegram_chat_id: Option<String>,
+
+    /// Alert cooldown in seconds (default: 60)
+    #[arg(long, default_value = "60")]
+    alert_cooldown: u64,
 
     /// Subcommand or command to run
     #[command(subcommand)]
@@ -248,16 +265,58 @@ fn main() -> Result<()> {
         .with_color_enabled(color_enabled);
     let mut stats = cli.stats.then(StatsCollector::new);
 
+    // Set up alert manager if --alert is provided
+    let program_name = cli.program.as_ref().or(cli.client.as_ref()).cloned();
+    let mut alert_manager = if let Some(ref url) = cli.alert {
+        let mut builder = AlertManagerBuilder::new()
+            .url(url)
+            .cooldown_secs(cli.alert_cooldown);
+
+        if let Some(ref chat_id) = cli.telegram_chat_id {
+            builder = builder.chat_id(chat_id);
+        }
+
+        if let Some(ref name) = program_name {
+            builder = builder.program(name);
+        }
+
+        // Add conditions from CLI
+        if !cli.alert_on.is_empty() {
+            match builder.conditions(&cli.alert_on) {
+                Ok(b) => builder = b,
+                Err(e) => {
+                    eprintln!("phos: invalid alert condition: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        builder.build()
+    } else {
+        None
+    };
+
+    // If alert is enabled, we need stats for tracking
+    if alert_manager.is_some() && stats.is_none() {
+        stats = Some(StatsCollector::new());
+    }
+
     if is_pipe {
         // Read from stdin
-        if let Some(ref mut stats) = stats {
-            colorizer.process_stdio_with_stats(stats)?;
-        } else {
-            colorizer.process_stdio()?;
+        match (&mut stats, &mut alert_manager) {
+            (Some(stats), Some(alerts)) => {
+                colorizer.process_stdio_with_alerts(stats, alerts)?;
+            }
+            (Some(stats), None) => {
+                colorizer.process_stdio_with_stats(stats)?;
+            }
+            _ => {
+                colorizer.process_stdio()?;
+            }
         }
     } else if !cli.args.is_empty() {
         // Run the command
-        commands::run_command(&mut colorizer, &cli.args, stats.as_mut())?;
+        commands::run_command(&mut colorizer, &cli.args, stats.as_mut(), alert_manager.as_mut())?;
     } else {
         // No input - show help
         eprintln!("Usage: phos -p <program> -- <command>");

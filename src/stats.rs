@@ -70,6 +70,10 @@ pub struct Stats {
     pub top_errors: HashMap<String, usize>,
     /// Maximum errors to track
     max_errors: usize,
+    /// Last observed peer count (for alerting)
+    pub last_peer_count: Option<usize>,
+    /// Last observed slot number (for alerting)
+    pub last_slot: Option<u64>,
 }
 
 /// Counts of log levels found in the log stream.
@@ -127,6 +131,10 @@ pub struct StatsPatterns {
     timestamp_syslog: Regex,
     /// Extracts error message content after "error:", "failed:", etc.
     error_message: Regex,
+    /// Extracts peer count from log lines (peer=N, peers=N, Peers N)
+    peer_count: Regex,
+    /// Extracts slot number from log lines (slot=N, slot: N)
+    slot: Regex,
 }
 
 impl Default for StatsPatterns {
@@ -140,6 +148,10 @@ impl Default for StatsPatterns {
             timestamp_iso: Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}").unwrap(),
             timestamp_syslog: Regex::new(r"[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}").unwrap(),
             error_message: Regex::new(r#"(?i)(?:error|err|failed|failure)[:\s]+["']?([^"'\n]{1,100})"#).unwrap(),
+            // Matches: peer=N, peers=N, Peers N, peers: N
+            peer_count: Regex::new(r"(?i)\bpeers?[=:\s]+(\d+)").unwrap(),
+            // Matches: slot=N, slot: N, slot N
+            slot: Regex::new(r"(?i)\bslot[=:\s]+(\d+)").unwrap(),
         }
     }
 }
@@ -170,6 +182,32 @@ impl Stats {
 
         // Extract timestamp using ISO 8601 first, falling back to syslog format
         self.extract_timestamp(line, patterns);
+
+        // Extract peer count and slot for alerting
+        self.extract_peer_count(line, patterns);
+        self.extract_slot(line, patterns);
+    }
+
+    /// Extract peer count from a line.
+    fn extract_peer_count(&mut self, line: &str, patterns: &StatsPatterns) {
+        if let Some(caps) = patterns.peer_count.captures(line) {
+            if let Some(m) = caps.get(1) {
+                if let Ok(count) = m.as_str().parse::<usize>() {
+                    self.last_peer_count = Some(count);
+                }
+            }
+        }
+    }
+
+    /// Extract slot number from a line.
+    fn extract_slot(&mut self, line: &str, patterns: &StatsPatterns) {
+        if let Some(caps) = patterns.slot.captures(line) {
+            if let Some(m) = caps.get(1) {
+                if let Ok(slot) = m.as_str().parse::<u64>() {
+                    self.last_slot = Some(slot);
+                }
+            }
+        }
     }
 
     /// Detect and count log level from a line.
@@ -377,6 +415,21 @@ impl StatsCollector {
     /// Print the summary.
     pub fn print_summary(&self) {
         self.stats.print_summary();
+    }
+
+    /// Get the current error count (for alerting).
+    pub fn error_count(&self) -> usize {
+        self.stats.log_levels.error
+    }
+
+    /// Get the last observed peer count (for alerting).
+    pub fn peer_count(&self) -> Option<usize> {
+        self.stats.last_peer_count
+    }
+
+    /// Get the last observed slot (for alerting).
+    pub fn slot(&self) -> Option<u64> {
+        self.stats.last_slot
     }
 }
 

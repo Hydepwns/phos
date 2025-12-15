@@ -286,6 +286,46 @@ impl Colorizer {
 
         Ok(())
     }
+
+    /// Process stdin with both statistics collection and alerting.
+    pub fn process_stdio_with_alerts(
+        &mut self,
+        stats: &mut crate::stats::StatsCollector,
+        alert_manager: &mut crate::alert::AlertManager,
+    ) -> io::Result<()> {
+        let stdin = io::stdin();
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
+
+        for line in stdin.lock().lines() {
+            let line = line?;
+            match self.colorize_opt_with_match_info(&line) {
+                Some((colored, had_match)) => {
+                    stats.process_line(&line, had_match);
+
+                    // Check alert conditions
+                    alert_manager.check_line(
+                        &line,
+                        stats.error_count(),
+                        stats.peer_count(),
+                        stats.slot(),
+                    );
+
+                    writeln!(stdout, "{colored}")?;
+                }
+                None => {
+                    // Skip rule matched - count but don't output
+                    stats.process_line(&line, true);
+                    stats.record_skipped();
+                }
+            }
+        }
+
+        // Reset block state for next stream
+        self.reset();
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]

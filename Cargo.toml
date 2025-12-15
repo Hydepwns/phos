@@ -35,6 +35,10 @@ dirs = "5.0"
 thiserror = "1.0"
 anyhow = "1.0"
 
+# Async HTTP for webhooks
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.4"
