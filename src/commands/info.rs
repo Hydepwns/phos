@@ -42,9 +42,9 @@ pub fn show_info(registry: &ProgramRegistry, name: &str, format: OutputFormat) -
             };
 
             let output = ProgramInfoJson {
-                id: info.id.clone(),
-                name: info.name.clone(),
-                description: info.description.clone(),
+                id: info.id.to_string(),
+                name: info.name.to_string(),
+                description: info.description.to_string(),
                 category: info.category.to_string(),
                 rules: program.rules().len(),
                 layer: meta.map(|m| format!("{:?}", m.layer)),

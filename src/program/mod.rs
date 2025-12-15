@@ -3,6 +3,7 @@
 //! This module provides the `Program` trait for defining colorization rules,
 //! and the `ProgramRegistry` for managing and discovering programs.
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -16,25 +17,47 @@ pub mod config;
 pub mod loader;
 
 /// Information about a program.
+///
+/// Uses `Cow<'static, str>` for zero-copy static strings in built-in programs,
+/// while still supporting owned strings for user-defined programs.
 #[derive(Debug, Clone)]
 pub struct ProgramInfo {
     /// Unique identifier (e.g., "ethereum.lodestar", "devops.docker")
-    pub id: String,
+    pub id: Cow<'static, str>,
     /// Display name (e.g., "Lodestar", "Docker")
-    pub name: String,
+    pub name: Cow<'static, str>,
     /// Description of what this program colorizes
-    pub description: String,
+    pub description: Cow<'static, str>,
     /// Category for grouping programs
     pub category: Category,
 }
 
 impl ProgramInfo {
-    /// Create a new ProgramInfo.
+    /// Create a new ProgramInfo with owned strings.
+    ///
+    /// Use this for user-defined programs loaded from configuration files.
     pub fn new(id: &str, name: &str, description: &str, category: Category) -> Self {
         Self {
-            id: id.to_string(),
-            name: name.to_string(),
-            description: description.to_string(),
+            id: Cow::Owned(id.to_string()),
+            name: Cow::Owned(name.to_string()),
+            description: Cow::Owned(description.to_string()),
+            category,
+        }
+    }
+
+    /// Create a new ProgramInfo with static strings (zero allocation).
+    ///
+    /// Use this for built-in programs where all strings are compile-time constants.
+    pub fn new_static(
+        id: &'static str,
+        name: &'static str,
+        description: &'static str,
+        category: Category,
+    ) -> Self {
+        Self {
+            id: Cow::Borrowed(id),
+            name: Cow::Borrowed(name),
+            description: Cow::Borrowed(description),
             category,
         }
     }
@@ -73,16 +96,18 @@ pub struct SimpleProgram {
 }
 
 impl SimpleProgram {
-    /// Create a new simple program with the given info and rules.
+    /// Create a new simple program with static strings (zero allocation).
+    ///
+    /// Use this for built-in programs where all strings are compile-time constants.
     pub fn new(
-        id: &str,
-        name: &str,
-        description: &str,
+        id: &'static str,
+        name: &'static str,
+        description: &'static str,
         category: Category,
         rules: Vec<Rule>,
     ) -> Self {
         Self {
-            info: ProgramInfo::new(id, name, description, category),
+            info: ProgramInfo::new_static(id, name, description, category),
             rules: rules.into(),
             detect_patterns: Vec::new(),
             domain_colors: HashMap::new(),
@@ -155,7 +180,7 @@ impl ProgramRegistry {
             }
         }
 
-        let id = program.info().id.clone();
+        let id = program.info().id.to_string();
         self.programs.insert(id, program);
     }
 

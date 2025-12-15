@@ -40,9 +40,9 @@ pub fn list_programs(
                 .map(|info| {
                     let program = registry.get(&info.id);
                     ProgramJson {
-                        id: info.id.clone(),
-                        name: info.name.clone(),
-                        description: info.description.clone(),
+                        id: info.id.to_string(),
+                        name: info.name.to_string(),
+                        description: info.description.to_string(),
                         category: info.category.to_string(),
                         rules: program.map(|p| p.rules().len()).unwrap_or(0),
                     }
