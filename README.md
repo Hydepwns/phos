@@ -8,7 +8,7 @@ Inspired by [grc](https://github.com/garabik/grc) by Radovan Garabik.
 ## Features
 
 - **Fast**: ~2MB binary, instant startup
-- **98 programs built-in**: Ethereum, DevOps, Dev, Network, Data, System, CI/CD, Messaging, Monitoring
+- **99 programs built-in**: Ethereum, DevOps, Dev, Network, Data, System, CI/CD, Messaging, Monitoring
 - **Theme system**: 13 themes including Dracula, Nord, Catppuccin
 - **Auto-detection**: Detects program from command
 - **Extensible**: Add custom programs via YAML configs
@@ -90,6 +90,25 @@ docker logs myapp | phos -p docker --stats
 phos -p cargo --stats -- cargo test
 ```
 
+## phoscat (Pipe-only Binary)
+
+For pure pipe workflows, `phoscat` is a minimal binary with faster startup:
+
+```bash
+# Basic usage
+docker logs myapp | phoscat docker
+cargo test 2>&1 | phoscat cargo
+kubectl get pods | phoscat kubectl
+
+# With environment variables
+export PHOS_PROGRAM=docker
+export PHOS_THEME=dracula
+docker logs myapp | phoscat
+
+# One-liner with env
+PHOS_PROGRAM=geth journalctl -u geth | phoscat
+```
+
 ## Commands
 
 ```bash
@@ -130,6 +149,12 @@ phos config validate myapp.yaml      # Validate specific file
 # Generate man pages
 phos man                             # Print man page to stdout
 phos man -o ./man                    # Generate all man pages to directory
+
+# Preview themes
+phos preview                         # Preview all themes with sample output
+phos preview -t dracula              # Preview specific theme
+phos preview -q                      # Compact output
+phos preview -c                      # Category-centric view
 ```
 
 ## Built-in Programs
@@ -142,6 +167,8 @@ phos man -o ./man                    # Generate all man pages to directory
 | Execution | Geth, Nethermind, Besu, Erigon, Reth |
 | Full Node | Mana |
 | Middleware | Charon, MEV-Boost |
+
+See [ETHEREUM.md](ETHEREUM.md) for eth-docker integration, usage examples, and tooling guides.
 
 ### DevOps (8)
 

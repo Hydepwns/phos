@@ -81,10 +81,14 @@
 - [ ] Neovim plugin (lua)
 
 ### Ethereum Tooling
-- [ ] eth-docker integration guide
+- [x] eth-docker integration guide (see ETHEREUM.md)
 - [ ] DAppNode package
 - [ ] Sedge integration
 - [ ] Stereum integration
+
+### Other Blockchains
+- [ ] Solana validator/RPC node support
+- [ ] Tron node support
 
 ---
 
@@ -99,8 +103,8 @@
 ### Analysis
 - [x] `--stats` mode for log statistics
 - [ ] Error rate over time
-- [ ] Peer connection tracking
-- [ ] Sync progress parsing
+- [x] Peer connection tracking
+- [x] Sync progress parsing
 
 ### Real-time Features
 - [ ] `--alert` mode with webhook notifications

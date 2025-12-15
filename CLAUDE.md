@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-phos is a universal log colorizer with built-in support for 98 programs across multiple domains:
+phos is a universal log colorizer with built-in support for 99 programs across multiple domains:
 
 - **Ethereum**: Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda, Geth, Nethermind, Besu, Erigon, Reth, Mana, Charon, MEV-Boost (15)
 - **System**: systemd/journalctl, syslog, fail2ban, dmesg, cron, auditd, iptables/nftables, ls, df, du, stat, mount, ps, free, top, uptime, lsof, lsmod, lspci, vmstat, iostat, env, blkid, fdisk, lsblk, dnf (26)
@@ -28,14 +28,18 @@ cargo test test_name           # Run specific test
 cargo clippy                   # Lint
 cargo fmt                      # Format code
 
-# Run the CLI
-cargo run -- -p docker -- docker logs -f mycontainer
-cargo run -- -c lodestar -- docker logs -f lodestar  # -c for Ethereum clients
-cargo run -- list              # List all programs
-cargo run -- list-clients      # List Ethereum clients only
-cargo run -- themes            # List all 13 themes
-echo "ERROR slot=12345" | cargo run -- -c lodestar
-echo "error: build failed" | cargo run -- -p cargo
+# Run the CLI (use --bin phos since there are two binaries)
+cargo run --bin phos -- -p docker -- docker logs -f mycontainer
+cargo run --bin phos -- -c lodestar -- docker logs -f lodestar  # -c for Ethereum clients
+cargo run --bin phos -- list              # List all programs
+cargo run --bin phos -- list-clients      # List Ethereum clients only
+cargo run --bin phos -- themes            # List all 13 themes
+cargo run --bin phos -- preview           # Preview all themes
+echo "ERROR slot=12345" | cargo run --bin phos -- -c lodestar
+echo "error: build failed" | cargo run --bin phos -- -p cargo
+
+# Run the pipe-only binary
+echo "Container started" | cargo run --bin phoscat -- docker
 ```
 
 ## Architecture
@@ -49,16 +53,26 @@ src/
   rule.rs            # Rule struct, RuleBuilder, CountMode
   theme.rs           # Theme system (13 built-in themes)
   config.rs          # YAML/JSON configuration loading
-  clients/
-    mod.rs           # Client enum, Layer enum, ethereum_patterns module
   program/
     mod.rs           # Program trait, ProgramRegistry, SimpleProgram
     config.rs        # User program config parsing (YAML/JSON)
     loader.rs        # Config directory discovery, user program loading
   programs/
     mod.rs           # default_registry(), program registration
-    common.rs        # Shared rule builders (log levels, IPs, timestamps, HTTP)
+    common/          # Shared rule builders
+      mod.rs         # Re-exports all common rules
+      log_levels.rs  # ERROR, WARN, INFO, DEBUG, TRACE patterns
+      network.rs     # IP addresses, ports, URLs
+      time.rs        # Timestamps (ISO8601, syslog, etc.)
+      identifiers.rs # UUIDs, hashes, paths
+      metrics.rs     # Durations, percentages, bytes
+      containers.rs  # Docker/container patterns
+      database.rs    # SQL, connection patterns
+      development.rs # Build errors, warnings
     ethereum/        # Ethereum client programs (15)
+      mod.rs         # EthereumProgram, register_all()
+      clients.rs     # ClientMeta for all 15 clients
+      patterns.rs    # Shared Ethereum patterns (slots, epochs, hashes)
     devops/          # Docker, kubectl, Terraform, k9s, Helm, Ansible, docker-compose, AWS (8)
     system/          # System utilities (26)
       mod.rs         # Registration
@@ -78,10 +92,10 @@ src/
     network/         # Network tools (21)
       mod.rs         # Registration
       tools.rs       # ping, curl, dig, traceroute, nmap
-      servers.rs     # nginx, caddy, apache, haproxy, traefik
+      servers/       # Web servers (nginx, caddy, apache, haproxy, traefik)
       sockets.rs     # netstat, ss, sockstat
       interfaces.rs  # ifconfig, ip, iwconfig, arp
-      diagnostics.rs # mtr, tcpdump, whois, ntpdate
+      diagnostics/   # mtr, tcpdump, whois, ntpdate
     data/            # PostgreSQL, Redis, MySQL, MongoDB, Elasticsearch (5)
     monitoring/      # Prometheus, Grafana, Datadog, SigNoz (4)
     messaging/       # Kafka, RabbitMQ (2)
@@ -99,7 +113,7 @@ USER INPUT (phos -c lodestar -- docker logs)
     - Detect stdin pipe vs command execution
          |
          v
-    RULE RESOLUTION (clients/mod.rs + config.rs)
+    RULE RESOLUTION (programs/ethereum/ + config.rs)
     - Load client-specific rules OR config file
     - Auto-detect client from command if not specified
          |
@@ -134,8 +148,10 @@ ProgramRegistry            // Holds all registered programs, detect(), get(), li
 SimpleProgram              // Convenience struct implementing Program trait
 ProgramInfo { id, name, description, category }
 
-// Ethereum (legacy, still supported)
-Client { Lighthouse, Prysm, Geth, Lodestar, Mana, ... } // 15 total
+// Ethereum
+EthereumProgram            // Implements Program trait with Ethereum-specific metadata
+ClientMeta { name, description, layer, language, website, detect_patterns, brand_color }
+Layer { Consensus, Execution, Full, Middleware }
 ```
 
 ## Key Design Decisions
@@ -146,13 +162,16 @@ Client { Lighthouse, Prysm, Geth, Lodestar, Mana, ... } // 15 total
 
 3. **Compiled Regex**: All patterns compiled once at rule creation. Never in hot paths.
 
-4. **Shared Rule Builders**: Common patterns in `programs/common.rs` reduce duplication:
-   - `log_level_rules()` - ERROR, WARN, INFO, DEBUG, TRACE
-   - `ip_rules()` - IPv4, IPv6 addresses
-   - `timestamp_rules()` - ISO8601, syslog, etc.
-   - `metric_rules()` - durations, percentages, bytes
+4. **Shared Rule Builders**: Common patterns in `programs/common/` reduce duplication:
+   - `log_levels.rs` - ERROR, WARN, INFO, DEBUG, TRACE
+   - `network.rs` - IPv4, IPv6 addresses, ports, URLs
+   - `time.rs` - ISO8601, syslog timestamps, etc.
+   - `metrics.rs` - durations, percentages, bytes
+   - `identifiers.rs` - UUIDs, hashes, paths
+   - `containers.rs` - Docker container patterns
+   - `database.rs` - SQL, connection patterns
 
-5. **Ethereum Pattern Helpers**: In `clients/mod.rs::ethereum_patterns`:
+5. **Ethereum Pattern Helpers**: In `programs/ethereum/patterns.rs`:
    - `rust_log_levels()`, `lighthouse_log_levels()`, `prysm_log_levels()`, etc.
    - `consensus_patterns()`, `execution_patterns()`, `mev_patterns()`
 
@@ -201,15 +220,26 @@ rules:
     bold: true
 ```
 
-## Adding a New Ethereum Client (Legacy)
+## Adding a New Ethereum Client
 
-In `src/clients/mod.rs`:
-1. Add variant to `Client` enum
-2. Add to `Client::all()` vector
-3. Implement `Client::info()` match arm
-4. Create `client_rules()` function using `ethereum_patterns` helpers
-5. Add parse case in `Client::parse()`
-6. Add brand color in `src/colors.rs` `brands::color()`
+In `src/programs/ethereum/clients.rs`:
+1. Add a new `ClientMeta` const with name, description, layer, language, website, detect_patterns, brand_color
+2. Add to `ALL_CLIENTS` array
+3. Create a `<client>_rules()` function using pattern helpers from `patterns.rs`
+4. Add match arm in `rules_for()` and `meta_for()` functions
+
+Example:
+```rust
+pub const HELIOS: ClientMeta = ClientMeta {
+    name: "Helios",
+    description: "Ethereum light client in Rust",
+    layer: Layer::Consensus,
+    language: "Rust",
+    website: "https://github.com/a16z/helios",
+    detect_patterns: &["helios", "helios-bn", "helios.log"],
+    brand_color: "#FF6600",
+};
+```
 
 ## Adding a New Theme
 
