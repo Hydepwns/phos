@@ -44,7 +44,8 @@ pub struct Config {
 }
 
 /// Rule configuration from file.
-#[derive(Debug, Deserialize)]
+/// Shared between CLI config files and user-defined program configs.
+#[derive(Debug, Clone, Deserialize)]
 pub struct RuleConfig {
     /// Regex pattern
     pub regex: String,

@@ -33,25 +33,14 @@ fn mysql_rules() -> Vec<Rule> {
     );
 
     // Log levels
-    rules.extend([
-        Rule::new(r"\[ERROR\]")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\[Warning\]")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r"\[Note\]")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
+    rules.extend(common::bracketed_log_level_rules());
+    // MySQL-specific [System] level
+    rules.push(
         Rule::new(r"\[System\]")
             .unwrap()
             .semantic(SemanticColor::Key)
             .build(),
-    ]);
+    );
 
     // InnoDB specific
     rules.extend([

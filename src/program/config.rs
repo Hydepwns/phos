@@ -10,6 +10,7 @@ use thiserror::Error;
 
 use crate::category::{Category, ParseCategoryError};
 use crate::colors::{Color, ColorSpec};
+use crate::config::RuleConfig;
 use crate::rule::Rule;
 
 use super::{Program, ProgramInfo};
@@ -146,29 +147,6 @@ pub struct ProgramConfig {
 
 fn default_category() -> String {
     "custom".to_string()
-}
-
-/// Rule configuration from file.
-#[derive(Debug, Deserialize)]
-pub struct RuleConfig {
-    /// Regex pattern
-    pub regex: String,
-
-    /// Colors to apply (can be semantic, domain, named, or hex)
-    #[serde(default)]
-    pub colors: Vec<String>,
-
-    /// Whether to apply bold
-    #[serde(default)]
-    pub bold: bool,
-
-    /// Skip the entire line if this rule matches
-    #[serde(default)]
-    pub skip: bool,
-
-    /// Replacement pattern (uses ${1}, ${2} for backreferences)
-    #[serde(default)]
-    pub replace: Option<String>,
 }
 
 impl ProgramConfig {

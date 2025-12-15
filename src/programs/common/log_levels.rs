@@ -158,6 +158,76 @@ pub fn database_log_level_rules() -> Vec<Rule> {
     ]
 }
 
+/// JSON structured log levels ("level": "error", etc.).
+/// Common in Caddy, Traefik, and modern JSON-logging applications.
+pub fn json_log_level_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r#""level"\s*:\s*"(error|fatal)""#)
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r#""level"\s*:\s*"warn(ing)?""#)
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r#""level"\s*:\s*"info""#)
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r#""level"\s*:\s*"debug""#)
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+        Rule::new(r#""level"\s*:\s*"trace""#)
+            .unwrap()
+            .semantic(SemanticColor::Trace)
+            .build(),
+    ]
+}
+
+/// Syslog-style bracketed log levels ([emerg], [alert], [crit], etc.).
+/// Common in nginx and other traditional Unix services.
+pub fn syslog_bracketed_log_level_rules() -> Vec<Rule> {
+    vec![
+        Rule::new(r"\[emerg\]")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\[alert\]")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\[crit\]")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .bold()
+            .build(),
+        Rule::new(r"\[error\]")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .build(),
+        Rule::new(r"\[warn\]")
+            .unwrap()
+            .semantic(SemanticColor::Warn)
+            .build(),
+        Rule::new(r"\[notice\]")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\[info\]")
+            .unwrap()
+            .semantic(SemanticColor::Info)
+            .build(),
+        Rule::new(r"\[debug\]")
+            .unwrap()
+            .semantic(SemanticColor::Debug)
+            .build(),
+    ]
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,5 +254,17 @@ mod tests {
     fn test_database_log_level_rules_compile() {
         let rules = database_log_level_rules();
         assert_eq!(rules.len(), 5);
+    }
+
+    #[test]
+    fn test_json_log_level_rules_compile() {
+        let rules = json_log_level_rules();
+        assert_eq!(rules.len(), 5);
+    }
+
+    #[test]
+    fn test_syslog_bracketed_log_level_rules_compile() {
+        let rules = syslog_bracketed_log_level_rules();
+        assert_eq!(rules.len(), 8);
     }
 }

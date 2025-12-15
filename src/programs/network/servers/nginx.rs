@@ -28,44 +28,8 @@ fn nginx_rules() -> Vec<Rule> {
             .build(),
     );
 
-    // Error log levels
-    rules.extend([
-        Rule::new(r"\[emerg\]")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\[alert\]")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\[crit\]")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\[error\]")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .build(),
-        Rule::new(r"\[warn\]")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r"\[notice\]")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\[info\]")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\[debug\]")
-            .unwrap()
-            .semantic(SemanticColor::Debug)
-            .build(),
-    ]);
+    // Error log levels (syslog-style)
+    rules.extend(common::syslog_bracketed_log_level_rules());
 
     // Error log timestamp format
     rules.push(

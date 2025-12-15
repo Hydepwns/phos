@@ -14,29 +14,13 @@ fn prometheus_rules() -> Vec<Rule> {
 
     // Structured key=value log format
     // ts=2024-12-05T00:12:36.123Z level=info component=tsdb msg="compaction"
-    rules.extend([
+    rules.push(
         Rule::new(r"\bts=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z")
             .unwrap()
             .semantic(SemanticColor::Timestamp)
             .build(),
-        Rule::new(r"\blevel=error\b")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\blevel=warn\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r"\blevel=info\b")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\blevel=debug\b")
-            .unwrap()
-            .semantic(SemanticColor::Debug)
-            .build(),
-    ]);
+    );
+    rules.extend(common::structured_log_level_rules());
 
     // Component names
     rules.push(

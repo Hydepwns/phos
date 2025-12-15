@@ -21,25 +21,7 @@ fn grafana_rules() -> Vec<Rule> {
     );
 
     // Log levels
-    rules.extend([
-        Rule::new(r"\blevel=error\b")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\blevel=warn\b")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r"\blevel=info\b")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\blevel=debug\b")
-            .unwrap()
-            .semantic(SemanticColor::Debug)
-            .build(),
-    ]);
+    rules.extend(common::structured_log_level_rules());
 
     // Logger components
     rules.push(

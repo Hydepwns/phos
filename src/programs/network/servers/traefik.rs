@@ -11,25 +11,8 @@ use crate::rule::Rule;
 fn traefik_rules() -> Vec<Rule> {
     let mut rules = common::log_level_rules();
 
-    // JSON structured fields
-    rules.extend([
-        Rule::new(r#""level"\s*:\s*"error""#)
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .build(),
-        Rule::new(r#""level"\s*:\s*"warn""#)
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r#""level"\s*:\s*"info""#)
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r#""level"\s*:\s*"debug""#)
-            .unwrap()
-            .semantic(SemanticColor::Debug)
-            .build(),
-    ]);
+    // JSON structured log levels
+    rules.extend(common::json_log_level_rules());
 
     // HTTP status and methods
     rules.push(common::http_method_rule());

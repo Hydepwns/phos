@@ -35,6 +35,7 @@
 //! ### Middleware
 //! - Charon (Obol DVT), MEV-Boost
 
+pub mod alert;
 pub mod category;
 pub mod colorizer;
 pub mod colors;
@@ -46,10 +47,11 @@ pub mod shell;
 pub mod stats;
 pub mod theme;
 
+pub use alert::{AlertCondition, AlertManager, AlertManagerBuilder, AlertSeverity};
 pub use category::{Category, ParseCategoryError};
 pub use colorizer::Colorizer;
 pub use colors::{parse_hex_rgb, Color, ColorSpec, SemanticColor};
-pub use config::Config;
+pub use config::{Config, RuleConfig};
 pub use program::{Program, ProgramInfo, ProgramRegistry};
 pub use rule::Rule;
 pub use stats::{Stats, StatsCollector};

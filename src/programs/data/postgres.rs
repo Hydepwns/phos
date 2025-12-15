@@ -29,54 +29,16 @@ fn postgres_rules() -> Vec<Rule> {
     );
 
     // Log levels (PostgreSQL style)
-    rules.extend([
-        Rule::new(r"\bPANIC:")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\bFATAL:")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
-        Rule::new(r"\bERROR:")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .build(),
-        Rule::new(r"\bWARNING:")
-            .unwrap()
-            .semantic(SemanticColor::Warn)
-            .build(),
-        Rule::new(r"\bNOTICE:")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\bLOG:")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-        Rule::new(r"\bDEBUG\d?:")
-            .unwrap()
-            .semantic(SemanticColor::Debug)
-            .build(),
-        Rule::new(r"\bINFO:")
-            .unwrap()
-            .semantic(SemanticColor::Info)
-            .build(),
-    ]);
+    rules.extend(common::database_log_level_rules());
 
     // SQL-related keywords
-    rules.extend([
-        Rule::new(r"\b(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE)\b")
-            .unwrap()
-            .semantic(SemanticColor::Key)
-            .build(),
+    rules.extend(common::sql_keyword_rules());
+    rules.push(
         Rule::new(r"\bstatement:\s*")
             .unwrap()
             .semantic(SemanticColor::Label)
             .build(),
-    ]);
+    );
 
     // Connection info
     rules.extend([
