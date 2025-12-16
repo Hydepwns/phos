@@ -26,7 +26,119 @@
 use std::collections::HashMap;
 use std::io::{self, Write};
 
+use clap::ValueEnum;
+use once_cell::sync::Lazy;
 use regex::Regex;
+use serde::Serialize;
+
+use crate::programs::common::log_levels::ERROR_LEVEL_PATTERN;
+
+// ---------------------------------------------------------------------------
+// Export Format
+// ---------------------------------------------------------------------------
+
+/// Export format for statistics output.
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum StatsExportFormat {
+    /// Human-readable summary (default)
+    #[default]
+    Human,
+    /// JSON format for scripting and monitoring
+    Json,
+    /// Prometheus metrics format
+    Prometheus,
+}
+
+// ---------------------------------------------------------------------------
+// JSON Export Structures
+// ---------------------------------------------------------------------------
+
+/// JSON representation of statistics.
+#[derive(Debug, Clone, Serialize)]
+pub struct StatsJson {
+    /// phos version
+    pub version: String,
+    /// Program name (if specified)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub program: Option<String>,
+    /// Processing statistics
+    pub processing: ProcessingJson,
+    /// Time range of log entries
+    pub time_range: TimeRangeJson,
+    /// Log level counts
+    pub log_levels: LogLevelsJson,
+    /// Error rate as percentage
+    pub error_rate: f64,
+    /// Top error messages
+    pub top_errors: Vec<ErrorJson>,
+    /// Ethereum-specific metrics
+    pub ethereum: EthereumJson,
+}
+
+/// Processing statistics for JSON export.
+#[derive(Debug, Clone, Serialize)]
+pub struct ProcessingJson {
+    pub total_lines: usize,
+    pub matched_lines: usize,
+    pub skipped_lines: usize,
+    pub match_percentage: f64,
+}
+
+/// Time range for JSON export.
+#[derive(Debug, Clone, Serialize)]
+pub struct TimeRangeJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub first: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last: Option<String>,
+}
+
+/// Log level counts for JSON export.
+#[derive(Debug, Clone, Serialize)]
+pub struct LogLevelsJson {
+    pub error: usize,
+    pub warn: usize,
+    pub info: usize,
+    pub debug: usize,
+    pub trace: usize,
+}
+
+/// Error message entry for JSON export.
+#[derive(Debug, Clone, Serialize)]
+pub struct ErrorJson {
+    pub message: String,
+    pub count: usize,
+}
+
+/// Ethereum-specific metrics for JSON export.
+#[derive(Debug, Clone, Serialize)]
+pub struct EthereumJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_slot: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_peer_count: Option<usize>,
+}
+
+// ---------------------------------------------------------------------------
+// Shared Patterns (compiled once, reused globally)
+// ---------------------------------------------------------------------------
+
+/// Global instance of stats patterns, compiled once at first use.
+/// This avoids recompiling regex patterns for each StatsCollector instance.
+/// Uses ERROR_LEVEL_PATTERN from common::log_levels to avoid duplication.
+static STATS_PATTERNS: Lazy<StatsPatterns> = Lazy::new(|| StatsPatterns {
+    error: ERROR_LEVEL_PATTERN.clone(),
+    warn: Regex::new(r"(?i)\b(WARN|WARNING)\b").unwrap(),
+    info: Regex::new(r"(?i)\b(INFO|NOTICE)\b").unwrap(),
+    debug: Regex::new(r"(?i)\bDEBUG\b").unwrap(),
+    trace: Regex::new(r"(?i)\bTRACE\b").unwrap(),
+    timestamp_iso: Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}").unwrap(),
+    timestamp_syslog: Regex::new(r"[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}").unwrap(),
+    error_message: Regex::new(r#"(?i)(?:error|err|failed|failure)[:\s]+["']?([^"'\n]{1,100})"#)
+        .unwrap(),
+    peer_count: Regex::new(r"(?i)\bpeers?[=:\s]+(\d+)").unwrap(),
+    slot: Regex::new(r"(?i)\bslot[=:\s]+(\d+)").unwrap(),
+});
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -137,24 +249,7 @@ pub struct StatsPatterns {
     slot: Regex,
 }
 
-impl Default for StatsPatterns {
-    fn default() -> Self {
-        Self {
-            error: Regex::new(r"(?i)\b(ERROR|ERR|CRIT|CRITICAL|FATAL|PANIC)\b").unwrap(),
-            warn: Regex::new(r"(?i)\b(WARN|WARNING)\b").unwrap(),
-            info: Regex::new(r"(?i)\b(INFO|NOTICE)\b").unwrap(),
-            debug: Regex::new(r"(?i)\bDEBUG\b").unwrap(),
-            trace: Regex::new(r"(?i)\bTRACE\b").unwrap(),
-            timestamp_iso: Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}").unwrap(),
-            timestamp_syslog: Regex::new(r"[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}").unwrap(),
-            error_message: Regex::new(r#"(?i)(?:error|err|failed|failure)[:\s]+["']?([^"'\n]{1,100})"#).unwrap(),
-            // Matches: peer=N, peers=N, Peers N, peers: N
-            peer_count: Regex::new(r"(?i)\bpeers?[=:\s]+(\d+)").unwrap(),
-            // Matches: slot=N, slot: N, slot N
-            slot: Regex::new(r"(?i)\bslot[=:\s]+(\d+)").unwrap(),
-        }
-    }
-}
+// Note: StatsPatterns::default() removed - use STATS_PATTERNS static instead
 
 impl Stats {
     /// Create a new stats collector.
@@ -261,6 +356,13 @@ impl Stats {
         }
     }
 
+    /// Get top errors sorted by frequency (descending).
+    fn sorted_errors(&self) -> Vec<(&String, &usize)> {
+        let mut errors: Vec<_> = self.top_errors.iter().collect();
+        errors.sort_by(|a, b| b.1.cmp(a.1));
+        errors
+    }
+
     /// Print statistics summary to stderr.
     ///
     /// Output goes to stderr to keep stdout clean for piped log data.
@@ -319,10 +421,7 @@ impl Stats {
         if !self.top_errors.is_empty() {
             writeln!(stderr, "Top errors:").ok();
 
-            let mut errors: Vec<_> = self.top_errors.iter().collect();
-            errors.sort_by(|a, b| b.1.cmp(a.1));
-
-            errors
+            self.sorted_errors()
                 .iter()
                 .take(self.max_errors)
                 .for_each(|(msg, count)| {
@@ -343,6 +442,151 @@ impl Stats {
             )
             .ok();
         }
+    }
+
+    /// Export statistics as JSON.
+    pub fn to_json(&self, program: Option<&str>) -> StatsJson {
+        StatsJson {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            program: program.map(String::from),
+            processing: ProcessingJson {
+                total_lines: self.total_lines,
+                matched_lines: self.matched_lines,
+                skipped_lines: self.skipped_lines,
+                match_percentage: percentage(self.matched_lines, self.total_lines),
+            },
+            time_range: TimeRangeJson {
+                first: self.first_timestamp.clone(),
+                last: self.last_timestamp.clone(),
+            },
+            log_levels: LogLevelsJson {
+                error: self.log_levels.error,
+                warn: self.log_levels.warn,
+                info: self.log_levels.info,
+                debug: self.log_levels.debug,
+                trace: self.log_levels.trace,
+            },
+            error_rate: percentage(self.log_levels.error, self.total_lines),
+            top_errors: self
+                .sorted_errors()
+                .into_iter()
+                .take(self.max_errors)
+                .map(|(msg, count)| ErrorJson {
+                    message: msg.clone(),
+                    count: *count,
+                })
+                .collect(),
+            ethereum: EthereumJson {
+                last_slot: self.last_slot,
+                last_peer_count: self.last_peer_count,
+            },
+        }
+    }
+
+    /// Export statistics as Prometheus metrics format.
+    pub fn to_prometheus(&self, program: Option<&str>) -> String {
+        let program_label = program.unwrap_or("unknown");
+        let mut output = String::new();
+
+        // Line counts
+        output.push_str("# HELP phos_lines_processed_total Total lines processed\n");
+        output.push_str("# TYPE phos_lines_processed_total counter\n");
+        output.push_str(&format!(
+            "phos_lines_processed_total{{program=\"{program_label}\"}} {}\n",
+            self.total_lines
+        ));
+
+        output.push_str("# HELP phos_lines_matched_total Lines that matched colorization rules\n");
+        output.push_str("# TYPE phos_lines_matched_total counter\n");
+        output.push_str(&format!(
+            "phos_lines_matched_total{{program=\"{program_label}\"}} {}\n",
+            self.matched_lines
+        ));
+
+        // Log levels
+        output.push_str("# HELP phos_log_level_total Log entries by level\n");
+        output.push_str("# TYPE phos_log_level_total counter\n");
+        output.push_str(&format!(
+            "phos_log_level_total{{program=\"{program_label}\",level=\"error\"}} {}\n",
+            self.log_levels.error
+        ));
+        output.push_str(&format!(
+            "phos_log_level_total{{program=\"{program_label}\",level=\"warn\"}} {}\n",
+            self.log_levels.warn
+        ));
+        output.push_str(&format!(
+            "phos_log_level_total{{program=\"{program_label}\",level=\"info\"}} {}\n",
+            self.log_levels.info
+        ));
+        output.push_str(&format!(
+            "phos_log_level_total{{program=\"{program_label}\",level=\"debug\"}} {}\n",
+            self.log_levels.debug
+        ));
+        output.push_str(&format!(
+            "phos_log_level_total{{program=\"{program_label}\",level=\"trace\"}} {}\n",
+            self.log_levels.trace
+        ));
+
+        // Error rate
+        output.push_str("# HELP phos_error_rate Error rate as percentage\n");
+        output.push_str("# TYPE phos_error_rate gauge\n");
+        output.push_str(&format!(
+            "phos_error_rate{{program=\"{program_label}\"}} {:.2}\n",
+            percentage(self.log_levels.error, self.total_lines)
+        ));
+
+        // Ethereum-specific metrics (if available)
+        if let Some(slot) = self.last_slot {
+            output.push_str("# HELP phos_ethereum_slot Last observed slot number\n");
+            output.push_str("# TYPE phos_ethereum_slot gauge\n");
+            output.push_str(&format!(
+                "phos_ethereum_slot{{program=\"{program_label}\"}} {slot}\n"
+            ));
+        }
+
+        if let Some(peers) = self.last_peer_count {
+            output.push_str("# HELP phos_ethereum_peers Last observed peer count\n");
+            output.push_str("# TYPE phos_ethereum_peers gauge\n");
+            output.push_str(&format!(
+                "phos_ethereum_peers{{program=\"{program_label}\"}} {peers}\n"
+            ));
+        }
+
+        output
+    }
+
+    /// Format statistics as a compact single-line string for interval output.
+    ///
+    /// Format: `[HH:MM:SS] lines=N err=N warn=N info=N peers=N slot=N`
+    pub fn to_compact(&self) -> String {
+        use std::time::{SystemTime, UNIX_EPOCH};
+
+        // Get current time as HH:MM:SS
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_secs() % 86400) // Seconds since midnight
+            .unwrap_or(0);
+        let hours = now / 3600;
+        let minutes = (now % 3600) / 60;
+        let seconds = now % 60;
+
+        let mut parts = vec![
+            format!("[{hours:02}:{minutes:02}:{seconds:02}]"),
+            format!("lines={}", self.total_lines),
+            format!("err={}", self.log_levels.error),
+            format!("warn={}", self.log_levels.warn),
+            format!("info={}", self.log_levels.info),
+        ];
+
+        if let Some(peers) = self.last_peer_count {
+            parts.push(format!("peers={peers}"));
+        }
+
+        if let Some(slot) = self.last_slot {
+            parts.push(format!("slot={slot}"));
+        }
+
+        parts.join(" ")
     }
 
     /// Merge statistics from another Stats instance into this one.
@@ -378,9 +622,11 @@ impl Stats {
 }
 
 /// Stats collector that wraps around a colorizer.
+///
+/// Uses the global `STATS_PATTERNS` for regex matching, avoiding
+/// repeated compilation of patterns for each collector instance.
 pub struct StatsCollector {
     stats: Stats,
-    patterns: StatsPatterns,
 }
 
 impl StatsCollector {
@@ -388,13 +634,12 @@ impl StatsCollector {
     pub fn new() -> Self {
         Self {
             stats: Stats::new(),
-            patterns: StatsPatterns::default(),
         }
     }
 
     /// Process a line and return whether it had matches (for external colorizer to use).
     pub fn process_line(&mut self, line: &str, had_match: bool) {
-        self.stats.process_line(line, &self.patterns, had_match);
+        self.stats.process_line(line, &STATS_PATTERNS, had_match);
     }
 
     /// Record that a line was skipped by a skip rule.
@@ -430,6 +675,63 @@ impl StatsCollector {
     /// Get the last observed slot (for alerting).
     pub fn slot(&self) -> Option<u64> {
         self.stats.last_slot
+    }
+
+    /// Export statistics as JSON.
+    pub fn to_json(&self, program: Option<&str>) -> StatsJson {
+        self.stats.to_json(program)
+    }
+
+    /// Export statistics as Prometheus metrics format.
+    pub fn to_prometheus(&self, program: Option<&str>) -> String {
+        self.stats.to_prometheus(program)
+    }
+
+    /// Format statistics as a compact single-line string for interval output.
+    pub fn to_compact(&self) -> String {
+        self.stats.to_compact()
+    }
+
+    /// Export statistics in the specified format.
+    ///
+    /// Returns the formatted output as a string that can be written to
+    /// stderr (default), a file, or any other destination.
+    pub fn export(&self, format: StatsExportFormat, program: Option<&str>) -> String {
+        match format {
+            StatsExportFormat::Human => {
+                // Capture print_summary output - for human format, we still use print_summary
+                // This method returns empty string for human format as it writes directly
+                String::new()
+            }
+            StatsExportFormat::Json => {
+                serde_json::to_string_pretty(&self.to_json(program)).unwrap_or_default()
+            }
+            StatsExportFormat::Prometheus => self.to_prometheus(program),
+        }
+    }
+
+    /// Write statistics to the given writer in the specified format.
+    pub fn write_export<W: Write>(
+        &self,
+        writer: &mut W,
+        format: StatsExportFormat,
+        program: Option<&str>,
+    ) -> io::Result<()> {
+        match format {
+            StatsExportFormat::Human => {
+                // Human format writes to stderr via print_summary
+                self.stats.print_summary();
+                Ok(())
+            }
+            StatsExportFormat::Json => {
+                let json = serde_json::to_string_pretty(&self.to_json(program))
+                    .map_err(io::Error::other)?;
+                writeln!(writer, "{json}")
+            }
+            StatsExportFormat::Prometheus => {
+                write!(writer, "{}", self.to_prometheus(program))
+            }
+        }
     }
 }
 

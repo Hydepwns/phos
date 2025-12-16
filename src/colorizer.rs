@@ -165,10 +165,8 @@ impl Colorizer {
         }
 
         // Phase 1: Check skip rules first
-        for rule in self.rules.iter() {
-            if rule.skip && rule.is_match(line) {
-                return None; // Skip this line
-            }
+        if self.rules.iter().any(|rule| rule.skip && rule.is_match(line)) {
+            return None;
         }
 
         // Phase 2: Apply replacements
@@ -385,6 +383,97 @@ impl Colorizer {
                     stats.process_line(&line, true);
                     stats.record_skipped();
                 }
+            }
+        }
+
+        // Reset block state for next stream
+        self.reset();
+
+        Ok(())
+    }
+
+    /// Process stdin with statistics and periodic interval output.
+    ///
+    /// Outputs compact stats to stderr every `interval_secs` seconds.
+    pub fn process_stdio_with_stats_interval(
+        &mut self,
+        stats: &mut crate::stats::StatsCollector,
+        interval_secs: u64,
+    ) -> io::Result<()> {
+        use std::time::Instant;
+
+        let stdin = io::stdin();
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
+        let mut stderr = io::stderr();
+        let mut last_output = Instant::now();
+        let interval = std::time::Duration::from_secs(interval_secs);
+
+        for line in stdin.lock().lines() {
+            let line = line?;
+            match self.colorize_opt_with_match_info(&line) {
+                Some((colored, had_match)) => {
+                    stats.process_line(&line, had_match);
+                    writeln!(stdout, "{colored}")?;
+                }
+                None => {
+                    stats.process_line(&line, true);
+                    stats.record_skipped();
+                }
+            }
+
+            // Check if interval has elapsed
+            if interval_secs > 0 && last_output.elapsed() >= interval {
+                writeln!(stderr, "{}", stats.to_compact())?;
+                last_output = Instant::now();
+            }
+        }
+
+        // Reset block state for next stream
+        self.reset();
+
+        Ok(())
+    }
+
+    /// Process stdin with statistics, alerting, and periodic interval output.
+    pub fn process_stdio_with_alerts_interval(
+        &mut self,
+        stats: &mut crate::stats::StatsCollector,
+        alert_manager: &mut crate::alert::AlertManager,
+        interval_secs: u64,
+    ) -> io::Result<()> {
+        use std::time::Instant;
+
+        let stdin = io::stdin();
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
+        let mut stderr = io::stderr();
+        let mut last_output = Instant::now();
+        let interval = std::time::Duration::from_secs(interval_secs);
+
+        for line in stdin.lock().lines() {
+            let line = line?;
+            match self.colorize_opt_with_match_info(&line) {
+                Some((colored, had_match)) => {
+                    stats.process_line(&line, had_match);
+                    alert_manager.check_line(
+                        &line,
+                        stats.error_count(),
+                        stats.peer_count(),
+                        stats.slot(),
+                    );
+                    writeln!(stdout, "{colored}")?;
+                }
+                None => {
+                    stats.process_line(&line, true);
+                    stats.record_skipped();
+                }
+            }
+
+            // Check if interval has elapsed
+            if interval_secs > 0 && last_output.elapsed() >= interval {
+                writeln!(stderr, "{}", stats.to_compact())?;
+                last_output = Instant::now();
             }
         }
 
