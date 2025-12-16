@@ -26,7 +26,7 @@ fn bench_colorize_line_sizes(c: &mut Criterion) {
             let mut colorizer = Colorizer::new(rules.clone())
                 .with_theme(theme.clone())
                 .with_color_enabled(true);
-            b.iter(|| colorizer.colorize(black_box(line)))
+            b.iter(|| colorizer.colorize(black_box(line)));
         });
     }
     group.finish();
@@ -49,7 +49,7 @@ fn bench_rule_counts(c: &mut Criterion) {
             let mut colorizer = Colorizer::new(rules.clone())
                 .with_theme(theme.clone())
                 .with_color_enabled(true);
-            b.iter(|| colorizer.colorize(black_box(line)))
+            b.iter(|| colorizer.colorize(black_box(line)));
         });
     }
     group.finish();
@@ -68,7 +68,7 @@ fn bench_themes(c: &mut Criterion) {
             let mut colorizer = Colorizer::new(rules.clone())
                 .with_theme(theme.clone())
                 .with_color_enabled(true);
-            b.iter(|| colorizer.colorize(black_box(line)))
+            b.iter(|| colorizer.colorize(black_box(line)));
         });
     }
     group.finish();
@@ -90,7 +90,7 @@ fn bench_batch_processing(c: &mut Criterion) {
             for line in &lines {
                 black_box(colorizer.colorize(black_box(line)));
             }
-        })
+        });
     });
 }
 

@@ -44,9 +44,13 @@ use std::io::{self, BufRead, Write};
 use std::sync::Arc;
 
 use nu_ansi_term::Style;
+use smallvec::SmallVec;
 
 use crate::rule::{CountMode, Rule};
 use crate::theme::Theme;
+
+/// Type alias for match ranges - stack-allocated for typical cases (0-8 matches)
+type MatchRanges = SmallVec<[(usize, usize, usize); 8]>;
 
 /// Maximum line length to colorize. Lines longer than this are passed through
 /// unchanged to prevent performance issues with pathological regex patterns.
@@ -85,11 +89,15 @@ const MAX_LINE_LENGTH: usize = 10_000;
 pub struct Colorizer {
     /// Rules to apply in order (Arc to avoid cloning compiled regexes)
     rules: Arc<[Rule]>,
+    /// Pre-computed styles for each rule (parallel to rules)
+    rule_styles: Arc<[Style]>,
+    /// Pre-computed indices of rules that can produce colored output
+    colorizable_indices: Arc<[usize]>,
     /// Theme for semantic color resolution
     theme: Theme,
     /// Whether currently in block coloring mode
     in_block: bool,
-    /// Block coloring style (if in_block is true)
+    /// Block coloring style (if `in_block` is true)
     block_style: Option<Style>,
     /// Whether color output is enabled (false = pass-through mode)
     color_enabled: bool,
@@ -98,26 +106,60 @@ pub struct Colorizer {
 impl Colorizer {
     /// Create a new colorizer with the given rules.
     pub fn new(rules: impl Into<Arc<[Rule]>>) -> Self {
+        let rules: Arc<[Rule]> = rules.into();
+        let theme = Theme::default();
+        let rule_styles = Self::compute_styles(&rules, &theme);
+        let colorizable_indices = Self::compute_colorizable_indices(&rules);
+
         Self {
-            rules: rules.into(),
-            theme: Theme::default(),
+            rules,
+            rule_styles,
+            colorizable_indices,
+            theme,
             in_block: false,
             block_style: None,
             color_enabled: true,
         }
     }
 
-    /// Set the theme.
-    pub fn with_theme(mut self, theme: Theme) -> Self {
+    /// Set the theme (recomputes styles).
+    #[must_use] pub fn with_theme(mut self, theme: Theme) -> Self {
+        self.rule_styles = Self::compute_styles(&self.rules, &theme);
         self.theme = theme;
         self
+    }
+
+    /// Compute styles for all rules with a given theme.
+    fn compute_styles(rules: &[Rule], theme: &Theme) -> Arc<[Style]> {
+        rules
+            .iter()
+            .map(|rule| {
+                let base = rule
+                    .colors
+                    .iter()
+                    .filter_map(|color| theme.resolve_color(color).to_style().foreground)
+                    .fold(Style::new(), |style, fg| style.fg(fg));
+
+                if rule.bold { base.bold() } else { base }
+            })
+            .collect()
+    }
+
+    /// Pre-compute indices of rules that can produce colored output.
+    fn compute_colorizable_indices(rules: &[Rule]) -> Arc<[usize]> {
+        rules
+            .iter()
+            .enumerate()
+            .filter(|(_, rule)| !(rule.skip || rule.replace.is_some() && rule.colors.is_empty()))
+            .map(|(idx, _)| idx)
+            .collect()
     }
 
     /// Enable or disable color output.
     ///
     /// When disabled, the colorizer passes through text unchanged.
     /// Useful for piping to files or commands that don't support ANSI.
-    pub fn with_color_enabled(mut self, enabled: bool) -> Self {
+    #[must_use] pub fn with_color_enabled(mut self, enabled: bool) -> Self {
         self.color_enabled = enabled;
         self
     }
@@ -138,7 +180,7 @@ impl Colorizer {
     }
 
     /// Colorize a single line and return whether it had any matches.
-    /// Returns (colorized_string, had_matches).
+    /// Returns (`colorized_string`, `had_matches`).
     pub fn colorize_with_match_info(&mut self, line: &str) -> (String, bool) {
         match self.colorize_opt_with_match_info(line) {
             Some((output, had_match)) => (output, had_match),
@@ -147,157 +189,158 @@ impl Colorizer {
     }
 
     /// Colorize a single line, returning None if the line should be skipped.
-    /// Returns Some((colorized_string, had_matches)) or None if skipped.
+    /// Returns `Some((colorized_string`, `had_matches`)) or None if skipped.
     pub fn colorize_opt(&mut self, line: &str) -> Option<String> {
         self.colorize_opt_with_match_info(line).map(|(s, _)| s)
     }
 
     /// Colorize with skip support and match info.
-    /// Returns None if a skip rule matched, otherwise Some((output, had_matches)).
+    /// Returns None if a skip rule matched, otherwise Some((output, `had_matches`)).
     pub fn colorize_opt_with_match_info(&mut self, line: &str) -> Option<(String, bool)> {
-        if line.is_empty() {
-            return Some((String::new(), false));
+        // Handle edge cases
+        match line.len() {
+            0 => return Some((String::new(), false)),
+            n if n > MAX_LINE_LENGTH => return Some((line.to_string(), false)),
+            _ => {}
         }
 
-        // Skip colorization for extremely long lines to prevent performance issues
-        if line.len() > MAX_LINE_LENGTH {
-            return Some((line.to_string(), false));
-        }
-
-        // Phase 1: Check skip rules first
-        if self.rules.iter().any(|rule| rule.skip && rule.is_match(line)) {
+        // Phase 1: Check skip rules
+        let should_skip = self.rules.iter().any(|rule| rule.skip && rule.is_match(line));
+        if should_skip {
             return None;
         }
 
-        // Phase 2: Apply replacements
-        let line: Cow<str> = self.rules.iter().fold(Cow::Borrowed(line), |line, rule| {
-            if let Some(ref replacement) = rule.replace {
-                if rule.is_match(&line) {
-                    Cow::Owned(rule.regex.replace_all(&line, replacement).into_owned())
-                } else {
-                    line
+        // Phase 2: Apply replacements functionally (avoid clone when no replacement)
+        let line: Cow<str> = self.rules.iter().fold(Cow::Borrowed(line), |acc, rule| {
+            match &rule.replace {
+                Some(replacement) if rule.is_match(&acc) => {
+                    Cow::Owned(rule.regex.replace_all(&acc, replacement).into_owned())
                 }
-            } else {
-                line
+                _ => acc,
             }
         });
 
-        // Phase 3: Colorization
-        // Track which parts of the line have been colored
-        let mut colored_ranges: Vec<(usize, usize, Style)> = Vec::new();
+        // Phase 3: Update block mode state (side effect isolated here)
+        self.update_block_state(&line);
 
-        for rule in self.rules.iter() {
-            // Skip rules that are only for skip/replace (no colors)
-            if rule.skip || rule.replace.is_some() && rule.colors.is_empty() {
-                continue;
-            }
-
-            // Handle block mode
-            if rule.count_mode == CountMode::Block && rule.is_match(&line) {
-                self.in_block = true;
-                self.block_style = Some(self.rule_to_style(rule));
-            } else if rule.count_mode == CountMode::Unblock && rule.is_match(&line) {
-                self.in_block = false;
-                self.block_style = None;
-            }
-
-            // Find matches
-            let matches: Vec<_> = rule.find_iter(&line).collect();
-
-            for m in matches {
-                let start = m.start();
-                let end = m.end();
-
-                // Check if this range overlaps with existing colored ranges
-                let overlaps = colored_ranges
-                    .iter()
-                    .any(|(s, e, _)| start < *e && end > *s);
-
-                if !overlaps {
-                    let style = self.rule_to_style(rule);
-                    colored_ranges.push((start, end, style));
-
-                    // If CountMode::Once, only color first match
-                    if rule.count_mode == CountMode::Once {
-                        break;
-                    }
-                }
-
-                // If CountMode::Stop, don't process more rules
-                if rule.count_mode == CountMode::Stop {
-                    break;
-                }
-            }
-        }
-
+        // Phase 4: Collect colored ranges functionally
+        let colored_ranges = self.collect_colored_ranges(&line);
         let had_matches = !colored_ranges.is_empty();
 
-        // If colors disabled, return plain text but still report matches for stats
+        // Phase 5: Build output
         if !self.color_enabled {
             return Some((line.into_owned(), had_matches));
         }
 
-        // Sort ranges by start position
-        colored_ranges.sort_by_key(|(start, _, _)| *start);
+        let mut sorted_ranges = colored_ranges;
+        sorted_ranges.sort_by_key(|(start, _, _)| *start);
 
-        // Build the output string
-        Some((self.build_colored_output(&line, &colored_ranges), had_matches))
+        Some((self.build_colored_output(&line, &sorted_ranges), had_matches))
     }
 
-    /// Convert a rule to a Style.
-    fn rule_to_style(&self, rule: &Rule) -> Style {
-        let base_style = rule
-            .colors
+    /// Update block mode state based on rules (isolated side effect).
+    fn update_block_state(&mut self, line: &str) {
+        // Find first matching block/unblock rule (early exit for common case)
+        let block_match = self
+            .rules
             .iter()
-            .filter_map(|color| {
-                self.theme
-                    .resolve_color(color)
-                    .to_style()
-                    .foreground
-            })
-            .fold(Style::new(), |style, fg| style.fg(fg));
+            .enumerate()
+            .filter(|(_, rule)| matches!(rule.count_mode, CountMode::Block | CountMode::Unblock))
+            .find(|(_, rule)| rule.is_match(line));
 
-        if rule.bold {
-            base_style.bold()
-        } else {
-            base_style
+        // Apply update if found
+        if let Some((idx, rule)) = block_match {
+            match rule.count_mode {
+                CountMode::Block => {
+                    self.in_block = true;
+                    // Use pre-computed style
+                    self.block_style = Some(self.rule_styles[idx]);
+                }
+                CountMode::Unblock => {
+                    self.in_block = false;
+                    self.block_style = None;
+                }
+                _ => {}
+            }
         }
     }
 
+    /// Collect non-overlapping colored ranges from all rules.
+    /// Returns (start, end, `style_index`) tuples using stack allocation for typical cases.
+    fn collect_colored_ranges(&self, line: &str) -> MatchRanges {
+        let mut ranges: MatchRanges = SmallVec::new();
+
+        // Process only pre-computed colorizable rules (skip filtering per-line)
+        for &idx in self.colorizable_indices.iter() {
+            let rule = &self.rules[idx];
+            let limit = match rule.count_mode {
+                CountMode::Once => 1,
+                _ => usize::MAX,
+            };
+
+            // Find matches and add non-overlapping ones
+            for m in rule.find_iter(line).take(limit) {
+                let (start, end) = (m.start(), m.end());
+
+                // Check overlap with existing ranges
+                let overlaps = ranges.iter().any(|(s, e, _)| start < *e && end > *s);
+                if !overlaps {
+                    ranges.push((start, end, idx));
+                }
+            }
+        }
+
+        ranges
+    }
+
     /// Build the final colored output string.
-    fn build_colored_output(&self, line: &str, ranges: &[(usize, usize, Style)]) -> String {
+    fn build_colored_output(&self, line: &str, ranges: &[(usize, usize, usize)]) -> String {
+        use std::fmt::Write;
+
         if ranges.is_empty() {
             return self.style_segment(line);
         }
 
-        let (result, last_end) = ranges.iter().fold(
-            (String::with_capacity(line.len() * 2), 0usize),
-            |(mut result, last_end), (start, end, style)| {
-                // Add uncolored text before this range
-                if *start > last_end {
-                    result.push_str(&self.style_segment(&line[last_end..*start]));
-                }
-                // Add colored text
-                result.push_str(&style.paint(&line[*start..*end]).to_string());
-                (result, *end)
-            },
-        );
+        // Pre-allocate result buffer (line length + estimated ANSI overhead)
+        let mut result = String::with_capacity(line.len() + ranges.len() * 20);
 
-        // Add remaining uncolored text
-        if last_end < line.len() {
-            format!("{result}{}", self.style_segment(&line[last_end..]))
-        } else {
-            result
+        // Process each range with fold to track position
+        let last_end = ranges.iter().fold(0usize, |last_end, &(start, end, style_idx)| {
+            // Write uncolored gap
+            self.write_segment(&mut result, &line[last_end..start]);
+            // Write colored section (look up style by index)
+            let _ = write!(result, "{}", self.rule_styles[style_idx].paint(&line[start..end]));
+            end
+        });
+
+        // Write trailing uncolored text
+        self.write_segment(&mut result, &line[last_end..]);
+
+        result
+    }
+
+    /// Write a segment to a buffer, applying block style if in block mode.
+    fn write_segment(&self, buf: &mut String, text: &str) {
+        use std::fmt::Write;
+        match (&self.block_style, self.in_block) {
+            (Some(style), true) => {
+                let _ = write!(buf, "{}", style.paint(text));
+            }
+            _ => buf.push_str(text),
         }
+    }
+
+    /// Format a text segment, applying block style if in block mode.
+    fn format_segment(&self, text: &str) -> String {
+        self.block_style
+            .as_ref()
+            .filter(|_| self.in_block)
+            .map_or_else(|| text.to_string(), |style| style.paint(text).to_string())
     }
 
     /// Style a text segment, applying block style if in block mode.
     fn style_segment(&self, text: &str) -> String {
-        self.block_style
-            .as_ref()
-            .filter(|_| self.in_block)
-            .map(|style| style.paint(text).to_string())
-            .unwrap_or_else(|| text.to_string())
+        self.format_segment(text)
     }
 
     /// Process stdin and write colorized output to stdout.
@@ -333,16 +376,13 @@ impl Colorizer {
 
         for line in stdin.lock().lines() {
             let line = line?;
-            match self.colorize_opt_with_match_info(&line) {
-                Some((colored, had_match)) => {
-                    stats.process_line(&line, had_match);
-                    writeln!(stdout, "{colored}")?;
-                }
-                None => {
-                    // Skip rule matched - count but don't output
-                    stats.process_line(&line, true);
-                    stats.record_skipped();
-                }
+            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
+                stats.process_line(&line, had_match);
+                writeln!(stdout, "{colored}")?;
+            } else {
+                // Skip rule matched - count but don't output
+                stats.process_line(&line, true);
+                stats.record_skipped();
             }
         }
 
@@ -364,25 +404,22 @@ impl Colorizer {
 
         for line in stdin.lock().lines() {
             let line = line?;
-            match self.colorize_opt_with_match_info(&line) {
-                Some((colored, had_match)) => {
-                    stats.process_line(&line, had_match);
+            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
+                stats.process_line(&line, had_match);
 
-                    // Check alert conditions
-                    alert_manager.check_line(
-                        &line,
-                        stats.error_count(),
-                        stats.peer_count(),
-                        stats.slot(),
-                    );
+                // Check alert conditions
+                alert_manager.check_line(
+                    &line,
+                    stats.error_count(),
+                    stats.peer_count(),
+                    stats.slot(),
+                );
 
-                    writeln!(stdout, "{colored}")?;
-                }
-                None => {
-                    // Skip rule matched - count but don't output
-                    stats.process_line(&line, true);
-                    stats.record_skipped();
-                }
+                writeln!(stdout, "{colored}")?;
+            } else {
+                // Skip rule matched - count but don't output
+                stats.process_line(&line, true);
+                stats.record_skipped();
             }
         }
 
@@ -411,15 +448,12 @@ impl Colorizer {
 
         for line in stdin.lock().lines() {
             let line = line?;
-            match self.colorize_opt_with_match_info(&line) {
-                Some((colored, had_match)) => {
-                    stats.process_line(&line, had_match);
-                    writeln!(stdout, "{colored}")?;
-                }
-                None => {
-                    stats.process_line(&line, true);
-                    stats.record_skipped();
-                }
+            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
+                stats.process_line(&line, had_match);
+                writeln!(stdout, "{colored}")?;
+            } else {
+                stats.process_line(&line, true);
+                stats.record_skipped();
             }
 
             // Check if interval has elapsed
@@ -453,21 +487,18 @@ impl Colorizer {
 
         for line in stdin.lock().lines() {
             let line = line?;
-            match self.colorize_opt_with_match_info(&line) {
-                Some((colored, had_match)) => {
-                    stats.process_line(&line, had_match);
-                    alert_manager.check_line(
-                        &line,
-                        stats.error_count(),
-                        stats.peer_count(),
-                        stats.slot(),
-                    );
-                    writeln!(stdout, "{colored}")?;
-                }
-                None => {
-                    stats.process_line(&line, true);
-                    stats.record_skipped();
-                }
+            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
+                stats.process_line(&line, had_match);
+                alert_manager.check_line(
+                    &line,
+                    stats.error_count(),
+                    stats.peer_count(),
+                    stats.slot(),
+                );
+                writeln!(stdout, "{colored}")?;
+            } else {
+                stats.process_line(&line, true);
+                stats.record_skipped();
             }
 
             // Check if interval has elapsed
