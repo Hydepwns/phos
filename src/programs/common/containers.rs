@@ -4,7 +4,7 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// Container lifecycle states (Docker, Podman).
-pub fn container_status_rules() -> Vec<Rule> {
+#[must_use] pub fn container_status_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(running|Running|RUNNING|Up)\b")
             .unwrap()
@@ -26,7 +26,7 @@ pub fn container_status_rules() -> Vec<Rule> {
 }
 
 /// Kubernetes pod and resource states.
-pub fn k8s_status_rules() -> Vec<Rule> {
+#[must_use] pub fn k8s_status_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(Running|Succeeded|Bound|Available|Ready)\b")
             .unwrap()
@@ -49,7 +49,7 @@ pub fn k8s_status_rules() -> Vec<Rule> {
 }
 
 /// Kubernetes resource types.
-pub fn k8s_resource_rules() -> Vec<Rule> {
+#[must_use] pub fn k8s_resource_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(pod|deployment|service|configmap|secret|namespace|node|replicaset|daemonset|statefulset|job|cronjob|ingress|pvc|pv)\b")
             .unwrap()

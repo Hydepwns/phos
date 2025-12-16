@@ -4,7 +4,7 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// SQL keywords for database logs.
-pub fn sql_keyword_rules() -> Vec<Rule> {
+#[must_use] pub fn sql_keyword_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(SELECT|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|TRUNCATE)\b")
             .unwrap()
@@ -22,7 +22,7 @@ pub fn sql_keyword_rules() -> Vec<Rule> {
 }
 
 /// Database connection events.
-pub fn db_connection_rules() -> Vec<Rule> {
+#[must_use] pub fn db_connection_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(connected|connection established|authenticated|authorized)\b")
             .unwrap()
