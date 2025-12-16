@@ -1,0 +1,17 @@
+# Custom theme example
+# Place at: ~/.config/phos/themes/mytheme.yaml
+
+name: mytheme
+description: My custom theme with warm colors
+
+# Define a color palette - semantic colors are derived automatically
+palette:
+  red: "#E06C75"       # Error color
+  orange: "#D19A66"    # Warning color
+  green: "#98C379"     # Success/string color
+  cyan: "#56B6C2"      # Key/identifier color
+  blue: "#61AFEF"      # Info color
+  purple: "#C678DD"    # Number/metric color
+  gray: "#5C6370"      # Debug/timestamp color
+  dim: "#4B5263"       # Trace color
+  foreground: "#ABB2BF" # Default text color

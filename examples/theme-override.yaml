@@ -1,0 +1,20 @@
+# Custom theme with specific color overrides
+# Place at: ~/.config/phos/themes/myoverrides.yaml
+
+name: myoverrides
+description: Override specific semantic colors
+
+# Override only the colors you want to change
+# Other colors will use theme defaults
+colors:
+  error: "#FF0000"      # Bright red for errors
+  warn: "#FFA500"       # Orange for warnings
+  info: "#00BFFF"       # Deep sky blue for info
+  debug: "#808080"      # Gray for debug
+  trace: "#696969"      # Dim gray for trace
+  number: "#9370DB"     # Medium purple for numbers
+  string: "#32CD32"     # Lime green for strings
+  timestamp: "#708090"  # Slate gray for timestamps
+  identifier: "#20B2AA" # Light sea green for identifiers
+  success: "#00FF00"    # Bright green for success
+  failure: "#DC143C"    # Crimson for failure

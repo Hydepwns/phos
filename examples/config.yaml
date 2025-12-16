@@ -1,0 +1,28 @@
+# phos global configuration
+# Place at: ~/.config/phos/config.yaml (Linux) or ~/Library/Application Support/phos/config.yaml (macOS)
+
+# Default theme (dracula, nord, catppuccin, gruvbox, etc.)
+theme: dracula
+
+# Always show statistics after processing
+stats: false
+
+# Stats export format: human, json, prometheus
+# stats_export: human
+
+# Print stats every N seconds during streaming (0 = end only)
+stats_interval: 0
+
+# Force color output even when not a TTY
+color: false
+
+# Alerting configuration (optional)
+# alerts:
+#   url: "https://discord.com/api/webhooks/xxx/yyy"
+#   telegram_chat_id: "-1001234567890"  # Required for Telegram
+#   cooldown: 60  # Seconds between alerts
+#   conditions:
+#     - error
+#     - "error-threshold:10"
+#     - "peer-drop:5"
+#     - sync-stall

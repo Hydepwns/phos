@@ -1,0 +1,55 @@
+# Custom program example
+# Place at: ~/.config/phos/programs/myapp.yaml
+
+name: MyApp
+description: My application log format
+category: custom
+
+# Auto-detection patterns (regex)
+detect:
+  - myapp
+  - "docker.*myapp"
+  - myapp.log
+
+# Colorization rules (applied in order)
+rules:
+  # Log levels
+  - regex: '\[ERROR\]|\bERROR\b'
+    colors: [error]
+    bold: true
+
+  - regex: '\[WARN\]|\bWARN(?:ING)?\b'
+    colors: [warn]
+
+  - regex: '\[INFO\]|\bINFO\b'
+    colors: [info]
+
+  - regex: '\[DEBUG\]|\bDEBUG\b'
+    colors: [debug]
+
+  # Request IDs (UUID format)
+  - regex: 'request_id=([a-f0-9-]{36})'
+    colors: [identifier]
+
+  # Timestamps
+  - regex: '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
+    colors: [timestamp]
+
+  # Response times
+  - regex: '\d+(\.\d+)?ms'
+    colors: [metric]
+
+  # HTTP status codes
+  - regex: '\b(2\d{2})\b'
+    colors: [success]  # 2xx
+
+  - regex: '\b(4\d{2}|5\d{2})\b'
+    colors: [failure]  # 4xx, 5xx
+
+  # IP addresses
+  - regex: '\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}'
+    colors: [identifier]
+
+  # Generic numbers
+  - regex: '\b\d+\b'
+    colors: [number]
