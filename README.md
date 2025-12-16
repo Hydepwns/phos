@@ -16,6 +16,9 @@ cargo install phoscat
 # Arch Linux (AUR)
 yay -S phos
 
+# Nix
+nix run github:Hydepwns/phos
+
 # From source
 cargo install --git https://github.com/Hydepwns/phos
 ```

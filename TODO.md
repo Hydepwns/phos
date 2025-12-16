@@ -55,11 +55,11 @@
 ## Phase 2: Distribution (Priority: MEDIUM)
 
 ### Package Managers
-- [ ] crates.io publish
+- [x] crates.io publish (`cargo install phoscat`)
 - [x] Homebrew tap (`brew install Hydepwns/phos/phos`)
 - [ ] Homebrew core (submit after community feedback/30+ stars)
-- [ ] AUR package (Arch Linux)
-- [ ] Nix flake
+- [x] AUR package (`yay -S phos`)
+- [x] Nix flake (`nix run github:Hydepwns/phos`)
 - [x] Docker image (2.89MB scratch-based)
 
 ### Pre-built Binaries
