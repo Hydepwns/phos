@@ -145,7 +145,12 @@ Rule { regex, colors: Vec<Color>, count_mode, bold }
 Color::Named("red") | Color::Hex("#FF5555") | Color::Semantic(SemanticColor::Error)
 SemanticColor { Error, Warn, Info, Slot, Epoch, Hash, Address, ... }
 Theme { name, colors: HashMap<SemanticColor, Color> }
-Colorizer { rules, theme }
+Colorizer {
+    rules: Arc<[Rule]>,
+    rule_styles: Arc<[Style]>,           // Pre-computed ANSI styles (one per rule)
+    colorizable_indices: Arc<[usize]>,   // Indices of rules that produce visible output
+    theme, in_block, block_style, color_enabled
+}
 
 // Program system
 Program                    // Trait: info(), rules(), detect_patterns(), domain_colors()
@@ -189,6 +194,8 @@ Stats                      // Raw statistics data (total_lines, log_levels, top_
 5. **Ethereum Pattern Helpers**: In `programs/ethereum/patterns.rs`:
    - `rust_log_levels()`, `lighthouse_log_levels()`, `prysm_log_levels()`, etc.
    - `consensus_patterns()`, `execution_patterns()`, `mev_patterns()`
+
+6. **Functional Colorization**: The colorizer uses functional patterns (fold, filter, find) with `Cow<str>` for efficient string handling. Styles are pre-computed at construction time to avoid per-line overhead.
 
 ## Ethereum Domain Knowledge
 
@@ -350,6 +357,9 @@ Dec 15 10:30:45 hostname systemd[1]: Started My Service.
 - **Regex**: Avoid catastrophic backtracking. Test with long strings.
 - **Rule ordering**: Most common matches first (log levels before rare patterns)
 - **Memory**: Stream processing, don't load entire files
+- **Pre-computation**: Styles and colorizable indices are computed once at Colorizer construction, not per-line
+- **SmallVec**: Match ranges use stack allocation via `SmallVec<[(usize, usize, usize); 8]>` to avoid heap for typical cases
+- **Style indices**: Rules reference pre-computed styles by index rather than cloning Style objects per match
 
 ## Code Style
 

@@ -157,8 +157,12 @@ println!("{}", colorizer.colorize("container abc123 started"));
 | Metric | Value |
 |--------|-------|
 | Binary | 4.6 MB |
-| Throughput | >300k lines/sec |
+| Throughput | >370k lines/sec |
 | Memory | ~2 MB |
+
+## Acknowledgments
+
+Inspired by [grc](https://github.com/garabik/grc) (Generic Colouriser) by Radovan Garabik.
 
 ## License
 
