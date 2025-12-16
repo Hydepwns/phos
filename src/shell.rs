@@ -87,6 +87,9 @@ __phos_wrap() {
     phos -p "$prog" -- "$prog" "$@"
 }
 
+# Short alias for phos
+alias p='phos'
+
 "#,
     );
 
@@ -120,6 +123,9 @@ fn generate_zsh(registry: &ProgramRegistry) -> String {
 # Skip if PHOS_NO_ALIASES is set
 [[ -n "${PHOS_NO_ALIASES:-}" ]] && return
 
+# Short alias for phos
+alias p='phos'
+
 "#,
     );
 
@@ -152,6 +158,9 @@ not isatty stdout; and return
 
 # Skip if PHOS_NO_ALIASES is set
 set -q PHOS_NO_ALIASES; and return
+
+# Short alias for phos
+alias p='phos'
 
 "#,
     );
@@ -204,6 +213,7 @@ mod tests {
         let script = generate_bash(&registry);
 
         assert!(script.contains("__phos_wrap"));
+        assert!(script.contains("alias p='phos'"));
         assert!(script.contains("docker"));
         assert!(script.contains("kubectl"));
     }

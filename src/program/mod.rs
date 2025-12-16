@@ -380,6 +380,34 @@ impl ProgramRegistry {
     pub fn is_empty(&self) -> bool {
         self.programs.is_empty()
     }
+
+    /// Detect a program from log content.
+    ///
+    /// Tries each program's rules against the sample lines and returns
+    /// the program with the most rule matches. This is useful for auto-detecting
+    /// the program when reading from stdin.
+    pub fn detect_from_lines(&self, lines: &[&str]) -> Option<Arc<dyn Program>> {
+        if lines.is_empty() {
+            return None;
+        }
+
+        self.programs
+            .values()
+            .filter(|p| !p.rules().is_empty())
+            .filter_map(|program| {
+                let rules = program.rules();
+                let match_count = lines
+                    .iter()
+                    .filter(|line| rules.iter().any(|rule| rule.is_match(line)))
+                    .count();
+
+                // Only consider if we have meaningful matches (at least 20% of lines)
+                (match_count > 0 && match_count * 5 >= lines.len())
+                    .then(|| (match_count, Arc::clone(program)))
+            })
+            .max_by_key(|(count, _)| *count)
+            .map(|(_, program)| program)
+    }
 }
 
 #[cfg(test)]

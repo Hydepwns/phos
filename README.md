@@ -27,6 +27,37 @@ phos -- docker logs mycontainer              # Auto-detect program
 phos -c lodestar -t dracula -- docker logs   # Ethereum client + theme
 ```
 
+## Shell Integration
+
+Add to your shell config for automatic colorization of common commands:
+
+```bash
+# bash (~/.bashrc)
+eval "$(phos shell-init bash)"
+
+# zsh (~/.zshrc)
+eval "$(phos shell-init zsh)"
+
+# fish (~/.config/fish/config.fish)
+phos shell-init fish | source
+```
+
+This gives you:
+- `p` alias for phos (e.g., `p -p docker -- docker logs`)
+- Auto-wrapped commands: git, cargo, npm, docker, kubectl, terraform, etc.
+- Disable with `export PHOS_NO_ALIASES=1`
+
+## Pipe with Auto-Detect
+
+```bash
+# phoscat auto-detects the program from log content
+docker logs mycontainer | phoscat
+cargo build 2>&1 | phoscat
+
+# Or specify explicitly
+docker logs mycontainer | phoscat docker
+```
+
 ## Commands
 
 ```bash
@@ -35,7 +66,6 @@ phos list -c ethereum        # List by category
 phos themes                  # List 13 themes
 phos info docker             # Program details
 phos preview                 # Preview themes
-eval "$(phos shell-init bash)"  # Shell integration
 ```
 
 ## Programs (99)
