@@ -36,9 +36,13 @@
 - [x] `--help` is comprehensive and pretty
 - [x] Shell completions (bash, zsh, fish) - `phos completions <shell>`
 - [x] Man page generation - `phos man`
+- [x] Shell integration with `p` alias - `phos shell-init <shell>`
+- [x] Global configuration (~/.config/phos/config.yaml)
+- [x] User-defined themes (~/.config/phos/themes/)
 
 ### Binaries
 - [x] phoscat pipe-only binary (`command | phoscat <program>`)
+- [x] phoscat auto-detect mode (buffers lines, detects program)
 - [ ] Performance comparison: phos vs phoscat startup time
 
 ### Performance
@@ -102,14 +106,16 @@
 
 ### Analysis
 - [x] `--stats` mode for log statistics
+- [x] `--stats-export` (JSON, Prometheus formats)
+- [x] `--stats-interval` for periodic stats output
 - [ ] Error rate over time
 - [x] Peer connection tracking
 - [x] Sync progress parsing
 
 ### Real-time Features
-- [ ] `--alert` mode with webhook notifications
-- [ ] Discord webhook integration
-- [ ] Telegram bot
+- [x] `--alert` mode with webhook notifications
+- [x] Discord webhook integration
+- [x] Telegram webhook integration
 - [ ] PagerDuty integration
 
 ### Web Dashboard
