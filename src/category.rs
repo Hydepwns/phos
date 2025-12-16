@@ -32,7 +32,7 @@ pub enum Category {
 
 impl Category {
     /// Returns the string representation used in program IDs.
-    pub fn as_str(&self) -> &'static str {
+    #[must_use] pub fn as_str(&self) -> &'static str {
         match self {
             Category::Ethereum => "ethereum",
             Category::DevOps => "devops",
@@ -48,7 +48,7 @@ impl Category {
     }
 
     /// Returns a human-readable description of the category.
-    pub fn description(&self) -> &'static str {
+    #[must_use] pub fn description(&self) -> &'static str {
         match self {
             Category::Ethereum => "Ethereum consensus and execution clients",
             Category::DevOps => "Container orchestration and cloud tools",
@@ -64,7 +64,7 @@ impl Category {
     }
 
     /// Returns a display name for the category.
-    pub fn display_name(&self) -> &'static str {
+    #[must_use] pub fn display_name(&self) -> &'static str {
         match self {
             Category::Ethereum => "Ethereum",
             Category::DevOps => "DevOps",
@@ -80,7 +80,7 @@ impl Category {
     }
 
     /// Returns all category variants.
-    pub fn all() -> &'static [Category] {
+    #[must_use] pub fn all() -> &'static [Category] {
         &[
             Category::Ethereum,
             Category::DevOps,
@@ -114,7 +114,7 @@ impl fmt::Display for ParseCategoryError {
             self.0,
             Category::all()
                 .iter()
-                .map(|c| c.as_str())
+                .map(Category::as_str)
                 .collect::<Vec<_>>()
                 .join(", ")
         )

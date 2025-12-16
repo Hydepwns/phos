@@ -1,5 +1,7 @@
 //! Configuration directory discovery and loading.
 
+#![allow(clippy::format_push_string)]
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -18,7 +20,7 @@ pub struct LoadResult {
 
 impl LoadResult {
     /// Format the error with file context.
-    pub fn format(&self) -> String {
+    #[must_use] pub fn format(&self) -> String {
         let path_str = self.path.display().to_string();
         match &self.error {
             ConfigError::YamlError(e) => {
@@ -49,22 +51,22 @@ impl LoadResult {
 
 /// Get the user configuration directory.
 /// Returns ~/.config/phos on Unix, or appropriate equivalent on other platforms.
-pub fn config_dir() -> Option<PathBuf> {
+#[must_use] pub fn config_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|p| p.join("phos"))
 }
 
 /// Get the programs directory.
-pub fn programs_dir() -> Option<PathBuf> {
+#[must_use] pub fn programs_dir() -> Option<PathBuf> {
     config_dir().map(|p| p.join("programs"))
 }
 
 /// Get the themes directory.
-pub fn themes_dir() -> Option<PathBuf> {
+#[must_use] pub fn themes_dir() -> Option<PathBuf> {
     config_dir().map(|p| p.join("themes"))
 }
 
 /// Get the global configuration file path.
-pub fn global_config_path() -> Option<PathBuf> {
+#[must_use] pub fn global_config_path() -> Option<PathBuf> {
     config_dir().map(|p| p.join("config.yaml"))
 }
 
@@ -130,7 +132,7 @@ pub fn validate_program_file(path: &Path) -> Result<String, LoadResult> {
 }
 
 /// List all config files in the programs directory.
-pub fn list_program_files() -> Vec<PathBuf> {
+#[must_use] pub fn list_program_files() -> Vec<PathBuf> {
     let programs_path = match programs_dir() {
         Some(p) if p.exists() => p,
         _ => return Vec::new(),

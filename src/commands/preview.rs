@@ -91,19 +91,19 @@ const QUICK_SAMPLE: &str = "INFO slot=12345 Synced | WARN timeout | ERROR 0x4f6a
 /// Preview themes with colorized sample output.
 pub fn preview_themes(
     registry: &ProgramRegistry,
-    theme_filter: Option<String>,
+    theme_filter: Option<&str>,
     quick: bool,
     categories: bool,
 ) -> Result<()> {
-    let themes: Vec<String> = if let Some(ref name) = theme_filter {
+    let themes: Vec<String> = if let Some(name) = theme_filter {
         if Theme::builtin(name).is_none() {
             anyhow::bail!("Unknown theme: {name}. Run 'phos themes' to see available themes.");
         }
-        vec![name.clone()]
+        vec![name.to_string()]
     } else {
         Theme::list_builtin()
             .iter()
-            .map(|s| s.to_string())
+            .map(ToString::to_string)
             .collect()
     };
 
@@ -111,7 +111,7 @@ pub fn preview_themes(
         // Category-centric view: for each category, show samples across themes
         for sample in PREVIEW_SAMPLES {
             let program = registry.get(sample.program_id);
-            let rules = program.map(|p| p.rules()).unwrap_or_else(|| Arc::from([]));
+            let rules = program.map_or_else(|| Arc::from([]), |p| p.rules());
 
             println!("\n{}", sample.label);
             println!("{}", "-".repeat(sample.label.len()));
@@ -147,7 +147,7 @@ pub fn preview_themes(
 
             for sample in PREVIEW_SAMPLES {
                 let program = registry.get(sample.program_id);
-                let rules = program.map(|p| p.rules()).unwrap_or_else(|| Arc::from([]));
+                let rules = program.map_or_else(|| Arc::from([]), |p| p.rules());
                 let mut colorizer = Colorizer::new(rules.clone())
                     .with_theme(theme.clone())
                     .with_color_enabled(true);

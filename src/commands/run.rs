@@ -22,8 +22,8 @@ pub fn run_command(
         .spawn()
         .context(format!("Failed to run: {cmd}"))?;
 
-    let stdout = child.stdout.take().expect("stdout");
-    let stderr = child.stderr.take().expect("stderr");
+    let stdout = child.stdout.take().context("Failed to capture stdout pipe")?;
+    let stderr = child.stderr.take().context("Failed to capture stderr pipe")?;
 
     let stdout_reader = BufReader::new(stdout);
     let stderr_reader = BufReader::new(stderr);

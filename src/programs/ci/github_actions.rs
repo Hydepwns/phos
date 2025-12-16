@@ -169,7 +169,7 @@ fn github_actions_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn github_actions_program() -> Arc<dyn Program> {
+#[must_use] pub fn github_actions_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "ci.github-actions",

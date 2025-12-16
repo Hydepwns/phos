@@ -150,7 +150,7 @@ fn prometheus_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn prometheus_program() -> Arc<dyn Program> {
+#[must_use] pub fn prometheus_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "monitoring.prometheus",

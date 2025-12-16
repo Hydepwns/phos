@@ -1,6 +1,6 @@
 //! Message queue and streaming programs.
 //!
-//! Provides Program implementations for Kafka, RabbitMQ, etc.
+//! Provides Program implementations for Kafka, `RabbitMQ`, etc.
 
 mod kafka;
 mod rabbitmq;

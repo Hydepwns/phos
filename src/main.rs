@@ -1,3 +1,8 @@
+// Pedantic lints allowed for consistency with lib.rs
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
+
 //! phos - Universal log colorizer
 //!
 //! Usage:
@@ -242,7 +247,7 @@ fn main() -> Result<()> {
                 theme,
                 quick,
                 categories,
-            } => commands::preview_themes(&registry, theme, quick, categories),
+            } => commands::preview_themes(&registry, theme.as_deref(), quick, categories),
         };
     }
 
@@ -257,7 +262,7 @@ fn main() -> Result<()> {
     let theme = Theme::get(theme_name).unwrap_or_else(Theme::default_dark);
 
     // Get rules - check program first, then config, then auto-detect
-    let rules = if let Some(ref program_name) = cli.program.as_ref().or(cli.client.as_ref()) {
+    let rules = if let Some(program_name) = cli.program.as_ref().or(cli.client.as_ref()) {
         // Look up program in registry
         if let Some(program) = registry.get(program_name) {
             program.rules()
@@ -307,10 +312,9 @@ fn main() -> Result<()> {
     let program_name = cli.program.as_ref().or(cli.client.as_ref()).cloned();
     let alert_url = cli.alert.as_ref().or(global_config.alerts.url.as_ref());
     let mut alert_manager = if let Some(url) = alert_url {
-        let cooldown = if cli.alert_cooldown != 60 {
-            cli.alert_cooldown
-        } else {
-            global_config.alerts.cooldown
+        let cooldown = match cli.alert_cooldown {
+            60 => global_config.alerts.cooldown,
+            custom => custom,
         };
         let mut builder = AlertManagerBuilder::new()
             .url(url)
@@ -330,10 +334,10 @@ fn main() -> Result<()> {
         }
 
         // Add conditions from CLI first, then global config
-        let conditions = if !cli.alert_on.is_empty() {
-            &cli.alert_on
-        } else {
+        let conditions = if cli.alert_on.is_empty() {
             &global_config.alerts.conditions
+        } else {
+            &cli.alert_on
         };
         if !conditions.is_empty() {
             match builder.conditions(conditions) {

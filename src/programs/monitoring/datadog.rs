@@ -107,7 +107,7 @@ fn datadog_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn datadog_program() -> Arc<dyn Program> {
+#[must_use] pub fn datadog_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "monitoring.datadog",

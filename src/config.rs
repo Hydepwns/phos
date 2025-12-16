@@ -190,9 +190,8 @@ impl GlobalConfig {
     /// Returns None if the config file doesn't exist.
     /// Returns Err if the file exists but is invalid.
     pub fn load() -> Result<Option<Self>, ConfigError> {
-        let config_path = match crate::program::loader::global_config_path() {
-            Some(p) => p,
-            None => return Ok(None),
+        let Some(config_path) = crate::program::loader::global_config_path() else {
+            return Ok(None);
         };
 
         if !config_path.exists() {
@@ -238,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_parse_yaml() {
-        let yaml = r#"
+        let yaml = r"
 name: test
 description: Test config
 rules:
@@ -246,7 +245,7 @@ rules:
     colors: [error, bold]
   - regex: '\d+'
     colors: [number]
-"#;
+";
         let config: Config = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(config.name, "test");
         assert_eq!(config.rules.len(), 2);

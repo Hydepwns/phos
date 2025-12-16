@@ -1,3 +1,15 @@
+// Pedantic lints we've chosen to allow:
+// - missing_panics_doc: Many functions use .expect() for internal invariants
+// - missing_errors_doc: Error types are self-documenting
+// - too_many_lines: Some complex functions benefit from being cohesive
+// - cast_precision_loss/cast_sign_loss/cast_possible_wrap: Safe in context
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::too_many_lines)]
+#![allow(clippy::cast_precision_loss)]
+#![allow(clippy::cast_sign_loss)]
+#![allow(clippy::cast_possible_wrap)]
+
 //! # phos - High-performance universal log colorizer
 //!
 //! A fast, portable log colorizer with support for 99+ programs across 9 categories.

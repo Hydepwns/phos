@@ -4,6 +4,7 @@ use anyhow::Result;
 use phos::Theme;
 
 /// List all available built-in themes.
+#[allow(clippy::unnecessary_wraps)]
 pub fn list_themes() -> Result<()> {
     println!("Available themes:\n");
     Theme::list_builtin()

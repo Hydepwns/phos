@@ -31,20 +31,17 @@ pub fn handle_config_action(action: ConfigAction) -> Result<()> {
             println!(
                 "  Config directory:   {}",
                 loader::config_dir()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "(unavailable)".to_string())
+                    .map_or_else(|| "(unavailable)".to_string(), |p| p.display().to_string())
             );
             println!(
                 "  Programs directory: {}",
                 loader::programs_dir()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "(unavailable)".to_string())
+                    .map_or_else(|| "(unavailable)".to_string(), |p| p.display().to_string())
             );
             println!(
                 "  Themes directory:   {}",
                 loader::themes_dir()
-                    .map(|p| p.display().to_string())
-                    .unwrap_or_else(|| "(unavailable)".to_string())
+                    .map_or_else(|| "(unavailable)".to_string(), |p| p.display().to_string())
             );
 
             // Show if directories exist
@@ -129,8 +126,10 @@ pub fn handle_config_action(action: ConfigAction) -> Result<()> {
 
             // Create example program config
             let example_path = programs_dir.join("example.yaml");
-            if !example_path.exists() {
-                let example_content = r#"# Example phos program configuration
+            if example_path.exists() {
+                println!("Example config already exists: {}", example_path.display());
+            } else {
+                let example_content = r"# Example phos program configuration
 # Rename this file and customize for your application
 
 name: MyApp
@@ -178,14 +177,12 @@ rules:
   # Numbers
   - regex: '\b\d+(\.\d+)?\b'
     colors: [number]
-"#;
+";
                 std::fs::write(&example_path, example_content)?;
                 println!("Created example config: {}", example_path.display());
                 println!();
                 println!("Edit this file and rename it to match your application.");
                 println!("Run 'phos config validate' to check your configuration.");
-            } else {
-                println!("Example config already exists: {}", example_path.display());
             }
 
             Ok(())

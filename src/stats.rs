@@ -1,4 +1,6 @@
 //! Log statistics collection and reporting.
+
+#![allow(clippy::format_push_string)]
 //!
 //! This module provides statistics collection for log streams processed by phos.
 //! Statistics are collected alongside colorization and displayed after processing.
@@ -27,7 +29,6 @@ use std::collections::HashMap;
 use std::io::{self, Write};
 
 use clap::ValueEnum;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::Serialize;
 
@@ -124,9 +125,9 @@ pub struct EthereumJson {
 // ---------------------------------------------------------------------------
 
 /// Global instance of stats patterns, compiled once at first use.
-/// This avoids recompiling regex patterns for each StatsCollector instance.
-/// Uses ERROR_LEVEL_PATTERN from common::log_levels to avoid duplication.
-static STATS_PATTERNS: Lazy<StatsPatterns> = Lazy::new(|| StatsPatterns {
+/// This avoids recompiling regex patterns for each `StatsCollector` instance.
+/// Uses `ERROR_LEVEL_PATTERN` from `common::log_levels` to avoid duplication.
+static STATS_PATTERNS: std::sync::LazyLock<StatsPatterns> = std::sync::LazyLock::new(|| StatsPatterns {
     error: ERROR_LEVEL_PATTERN.clone(),
     warn: Regex::new(r"(?i)\b(WARN|WARNING)\b").unwrap(),
     info: Regex::new(r"(?i)\b(INFO|NOTICE)\b").unwrap(),
@@ -203,7 +204,7 @@ pub struct LogLevelCounts {
 
 impl LogLevelCounts {
     /// Total of all log levels.
-    pub fn total(&self) -> usize {
+    #[must_use] pub fn total(&self) -> usize {
         self.error + self.warn + self.info + self.debug + self.trace
     }
 
@@ -253,7 +254,7 @@ pub struct StatsPatterns {
 
 impl Stats {
     /// Create a new stats collector.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             max_errors: 10,
             ..Default::default()
@@ -323,7 +324,7 @@ impl Stats {
     }
 
     /// Extract error message content for tracking top errors.
-    /// Collects up to 2x max_errors to ensure we have enough after deduplication.
+    /// Collects up to 2x `max_errors` to ensure we have enough after deduplication.
     fn extract_error_message(&mut self, line: &str, patterns: &StatsPatterns) {
         let msg = patterns
             .error_message
@@ -484,7 +485,7 @@ impl Stats {
     }
 
     /// Export statistics as Prometheus metrics format.
-    pub fn to_prometheus(&self, program: Option<&str>) -> String {
+    #[must_use] pub fn to_prometheus(&self, program: Option<&str>) -> String {
         let program_label = program.unwrap_or("unknown");
         let mut output = String::new();
 
@@ -558,7 +559,7 @@ impl Stats {
     /// Format statistics as a compact single-line string for interval output.
     ///
     /// Format: `[HH:MM:SS] lines=N err=N warn=N info=N peers=N slot=N`
-    pub fn to_compact(&self) -> String {
+    #[must_use] pub fn to_compact(&self) -> String {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         // Get current time as HH:MM:SS
@@ -631,7 +632,7 @@ pub struct StatsCollector {
 
 impl StatsCollector {
     /// Create a new stats collector.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             stats: Stats::new(),
         }
@@ -648,7 +649,7 @@ impl StatsCollector {
     }
 
     /// Get the collected stats.
-    pub fn stats(&self) -> &Stats {
+    #[must_use] pub fn stats(&self) -> &Stats {
         &self.stats
     }
 
@@ -663,32 +664,32 @@ impl StatsCollector {
     }
 
     /// Get the current error count (for alerting).
-    pub fn error_count(&self) -> usize {
+    #[must_use] pub fn error_count(&self) -> usize {
         self.stats.log_levels.error
     }
 
     /// Get the last observed peer count (for alerting).
-    pub fn peer_count(&self) -> Option<usize> {
+    #[must_use] pub fn peer_count(&self) -> Option<usize> {
         self.stats.last_peer_count
     }
 
     /// Get the last observed slot (for alerting).
-    pub fn slot(&self) -> Option<u64> {
+    #[must_use] pub fn slot(&self) -> Option<u64> {
         self.stats.last_slot
     }
 
     /// Export statistics as JSON.
-    pub fn to_json(&self, program: Option<&str>) -> StatsJson {
+    #[must_use] pub fn to_json(&self, program: Option<&str>) -> StatsJson {
         self.stats.to_json(program)
     }
 
     /// Export statistics as Prometheus metrics format.
-    pub fn to_prometheus(&self, program: Option<&str>) -> String {
+    #[must_use] pub fn to_prometheus(&self, program: Option<&str>) -> String {
         self.stats.to_prometheus(program)
     }
 
     /// Format statistics as a compact single-line string for interval output.
-    pub fn to_compact(&self) -> String {
+    #[must_use] pub fn to_compact(&self) -> String {
         self.stats.to_compact()
     }
 
@@ -696,7 +697,7 @@ impl StatsCollector {
     ///
     /// Returns the formatted output as a string that can be written to
     /// stderr (default), a file, or any other destination.
-    pub fn export(&self, format: StatsExportFormat, program: Option<&str>) -> String {
+    #[must_use] pub fn export(&self, format: StatsExportFormat, program: Option<&str>) -> String {
         match format {
             StatsExportFormat::Human => {
                 // Capture print_summary output - for human format, we still use print_summary

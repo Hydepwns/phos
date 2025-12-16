@@ -1,4 +1,4 @@
-//! SigNoz observability platform colorization.
+//! `SigNoz` observability platform colorization.
 
 use std::sync::Arc;
 
@@ -90,7 +90,7 @@ fn signoz_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn signoz_program() -> Arc<dyn Program> {
+#[must_use] pub fn signoz_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "monitoring.signoz",

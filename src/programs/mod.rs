@@ -29,7 +29,7 @@ pub fn register_all(registry: &mut ProgramRegistry) {
 }
 
 /// Create a registry with all built-in programs.
-pub fn default_registry() -> ProgramRegistry {
+#[must_use] pub fn default_registry() -> ProgramRegistry {
     let mut registry = ProgramRegistry::new();
     register_all(&mut registry);
     registry
@@ -150,8 +150,7 @@ mod tests {
                 let stripped = strip_ansi(&result);
                 assert!(
                     stripped.contains(&sample_log[..sample_log.len().min(20)]),
-                    "Program {} changed log content unexpectedly",
-                    program_name
+                    "Program {program_name} changed log content unexpectedly"
                 );
             }
         }
@@ -177,8 +176,7 @@ mod tests {
             let programs = registry.list_by_category(category);
             assert!(
                 !programs.is_empty(),
-                "Category {:?} has no programs",
-                category
+                "Category {category:?} has no programs"
             );
         }
     }
@@ -198,10 +196,9 @@ mod tests {
         for (command, expected) in test_cases {
             if let Some(detected) = registry.detect(command) {
                 assert_eq!(
-                    detected.info().id.split('.').last().unwrap(),
+                    detected.info().id.split('.').next_back().unwrap(),
                     expected,
-                    "Detection failed for command: {}",
-                    command
+                    "Detection failed for command: {command}"
                 );
             }
         }

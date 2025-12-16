@@ -1,4 +1,4 @@
-//! MongoDB database colorization.
+//! `MongoDB` database colorization.
 
 use std::sync::Arc;
 
@@ -119,7 +119,7 @@ fn mongodb_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn mongodb_program() -> Arc<dyn Program> {
+#[must_use] pub fn mongodb_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "data.mongodb",

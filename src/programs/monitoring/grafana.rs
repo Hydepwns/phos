@@ -107,7 +107,7 @@ fn grafana_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn grafana_program() -> Arc<dyn Program> {
+#[must_use] pub fn grafana_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "monitoring.grafana",

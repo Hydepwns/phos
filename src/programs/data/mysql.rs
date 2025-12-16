@@ -101,7 +101,7 @@ fn mysql_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn mysql_program() -> Arc<dyn Program> {
+#[must_use] pub fn mysql_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "data.mysql",

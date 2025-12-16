@@ -153,7 +153,7 @@ pub struct Palette {
 impl Palette {
     /// Convert palette to a theme using standard semantic mappings.
     const fn to_colors(self) -> [(SemanticColor, &'static str); 16] {
-        use SemanticColor::*;
+        use SemanticColor::{Error, Warn, Info, Debug, Trace, Number, String, Boolean, Success, Failure, Timestamp, Key, Value, Identifier, Label, Metric};
         [
             (Error, self.red),
             (Warn, self.orange),
@@ -323,7 +323,7 @@ static BUILTIN_THEMES: &[ThemeDef] = &[
 
 impl Theme {
     /// Create a new empty theme.
-    pub fn new(name: &str) -> Self {
+    #[must_use] pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
             description: String::new(),
@@ -332,7 +332,7 @@ impl Theme {
     }
 
     /// Create a theme from a palette of color mappings.
-    pub fn from_palette(name: &str, desc: &str, colors: &[(SemanticColor, &str)]) -> Self {
+    #[must_use] pub fn from_palette(name: &str, desc: &str, colors: &[(SemanticColor, &str)]) -> Self {
         Self {
             name: name.to_string(),
             description: desc.to_string(),
@@ -346,12 +346,12 @@ impl Theme {
     }
 
     /// Resolve a semantic color to its actual color.
-    pub fn resolve(&self, semantic: SemanticColor) -> Option<&Color> {
+    #[must_use] pub fn resolve(&self, semantic: SemanticColor) -> Option<&Color> {
         self.colors.get(&semantic)
     }
 
     /// Resolve a color, handling semantic colors.
-    pub fn resolve_color(&self, color: &Color) -> Color {
+    #[must_use] pub fn resolve_color(&self, color: &Color) -> Color {
         match color {
             Color::Semantic(s) => self.resolve(*s).cloned().unwrap_or_else(|| color.clone()),
             _ => color.clone(),
@@ -362,7 +362,7 @@ impl Theme {
     ///
     /// Returns a list of missing semantic colors. An empty list means the theme
     /// is complete and will properly colorize all semantic color references.
-    pub fn validate(&self) -> Vec<SemanticColor> {
+    #[must_use] pub fn validate(&self) -> Vec<SemanticColor> {
         SemanticColor::ALL
             .iter()
             .copied()
@@ -371,7 +371,7 @@ impl Theme {
     }
 
     /// Get a built-in theme by name.
-    pub fn builtin(name: &str) -> Option<Self> {
+    #[must_use] pub fn builtin(name: &str) -> Option<Self> {
         let name_lower = name.to_lowercase();
         BUILTIN_THEMES
             .iter()
@@ -383,7 +383,7 @@ impl Theme {
     }
 
     /// List available built-in themes.
-    pub fn list_builtin() -> Vec<&'static str> {
+    #[must_use] pub fn list_builtin() -> Vec<&'static str> {
         BUILTIN_THEMES.iter().map(|def| def.name).collect()
     }
 
@@ -436,7 +436,7 @@ impl Theme {
     }
 
     /// Create a theme from a configuration.
-    pub fn from_config(config: ThemeConfig) -> Self {
+    #[must_use] pub fn from_config(config: ThemeConfig) -> Self {
         // Build base colors from palette if provided
         let palette_colors: HashMap<SemanticColor, Color> = config
             .palette
@@ -490,7 +490,7 @@ impl Theme {
     /// Load a user theme by name from the themes directory.
     ///
     /// Searches `~/.config/phos/themes/` for a file matching the theme name.
-    pub fn load_user_theme(name: &str) -> Option<Self> {
+    #[must_use] pub fn load_user_theme(name: &str) -> Option<Self> {
         let themes_dir = crate::program::loader::themes_dir()?;
         if !themes_dir.exists() {
             return None;
@@ -508,72 +508,72 @@ impl Theme {
     }
 
     /// Get a theme by name, checking user themes first, then built-in.
-    pub fn get(name: &str) -> Option<Self> {
+    #[must_use] pub fn get(name: &str) -> Option<Self> {
         Self::load_user_theme(name).or_else(|| Self::builtin(name))
     }
 
     /// Default dark theme.
-    pub fn default_dark() -> Self {
+    #[must_use] pub fn default_dark() -> Self {
         Self::builtin("default-dark").expect("default-dark theme must exist")
     }
 
     /// Dracula theme.
-    pub fn dracula() -> Self {
+    #[must_use] pub fn dracula() -> Self {
         Self::builtin("dracula").expect("dracula theme must exist")
     }
 
     /// Nord theme.
-    pub fn nord() -> Self {
+    #[must_use] pub fn nord() -> Self {
         Self::builtin("nord").expect("nord theme must exist")
     }
 
     /// Catppuccin Mocha theme.
-    pub fn catppuccin() -> Self {
+    #[must_use] pub fn catppuccin() -> Self {
         Self::builtin("catppuccin").expect("catppuccin theme must exist")
     }
 
     /// Synthwave84 retro-futuristic theme.
-    pub fn synthwave84() -> Self {
+    #[must_use] pub fn synthwave84() -> Self {
         Self::builtin("synthwave84").expect("synthwave84 theme must exist")
     }
 
     /// Gruvbox dark theme.
-    pub fn gruvbox() -> Self {
+    #[must_use] pub fn gruvbox() -> Self {
         Self::builtin("gruvbox").expect("gruvbox theme must exist")
     }
 
     /// Monokai classic theme.
-    pub fn monokai() -> Self {
+    #[must_use] pub fn monokai() -> Self {
         Self::builtin("monokai").expect("monokai theme must exist")
     }
 
     /// Solarized dark theme.
-    pub fn solarized() -> Self {
+    #[must_use] pub fn solarized() -> Self {
         Self::builtin("solarized").expect("solarized theme must exist")
     }
 
     /// Matrix green monochrome theme.
-    pub fn matrix() -> Self {
+    #[must_use] pub fn matrix() -> Self {
         Self::builtin("matrix").expect("matrix theme must exist")
     }
 
     /// Phosphor amber monochrome theme.
-    pub fn phosphor() -> Self {
+    #[must_use] pub fn phosphor() -> Self {
         Self::builtin("phosphor").expect("phosphor theme must exist")
     }
 
     /// Tokyo Night theme.
-    pub fn tokyo_night() -> Self {
+    #[must_use] pub fn tokyo_night() -> Self {
         Self::builtin("tokyo-night").expect("tokyo-night theme must exist")
     }
 
     /// Horizon theme.
-    pub fn horizon() -> Self {
+    #[must_use] pub fn horizon() -> Self {
         Self::builtin("horizon").expect("horizon theme must exist")
     }
 
     /// High contrast theme.
-    pub fn high_contrast() -> Self {
+    #[must_use] pub fn high_contrast() -> Self {
         Self::builtin("high-contrast").expect("high-contrast theme must exist")
     }
 }

@@ -216,7 +216,7 @@ mod colors_command {
         assert!(stdout.contains("Ethereum Client Brand Colors"));
         assert!(stdout.contains("lighthouse"));
         assert!(stdout.contains("geth"));
-        assert!(stdout.contains("#")); // Hex color codes
+        assert!(stdout.contains('#')); // Hex color codes
     }
 }
 
@@ -524,13 +524,13 @@ mod config_file {
         let config_path = tmp_dir.join("phos_test_config.yaml");
 
         // Config format requires name and description fields
-        let config_content = r#"
+        let config_content = r"
 name: test
 description: Test configuration
 rules:
   - regex: '\bTEST\b'
     colors: [error]
-"#;
+";
         fs::write(&config_path, config_content).expect("Failed to write test config");
 
         let input = "TEST pattern here";

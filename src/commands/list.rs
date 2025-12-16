@@ -29,8 +29,7 @@ pub fn list_programs(
     format: OutputFormat,
 ) -> Result<()> {
     let categories: Vec<Category> = category
-        .map(|c| vec![c.parse::<Category>().expect("Invalid category")])
-        .unwrap_or_else(|| registry.categories());
+        .map_or_else(|| registry.categories(), |c| vec![c.parse::<Category>().expect("Invalid category")]);
 
     match format {
         OutputFormat::Json => {
@@ -44,7 +43,7 @@ pub fn list_programs(
                         name: info.name.to_string(),
                         description: info.description.to_string(),
                         category: info.category.to_string(),
-                        rules: program.map(|p| p.rules().len()).unwrap_or(0),
+                        rules: program.map_or(0, |p| p.rules().len()),
                     }
                 })
                 .collect();
@@ -58,20 +57,20 @@ pub fn list_programs(
         OutputFormat::Table => {
             println!("Available programs ({} total):\n", registry.len());
 
-            categories
+            for (cat, programs) in categories
                 .iter()
                 .filter_map(|cat| {
                     let programs = registry.list_by_category(*cat);
                     (!programs.is_empty()).then_some((*cat, programs))
                 })
-                .for_each(|(cat, programs)| {
-                    println!("{}:", cat.display_name());
-                    programs.iter().for_each(|info| {
-                        let name = info.id.split('.').next_back().unwrap_or(&info.id);
-                        println!("  {:12} - {}", name, info.description);
-                    });
-                    println!();
-                });
+            {
+                println!("{}:", cat.display_name());
+                for info in &programs {
+                    let name = info.id.split('.').next_back().unwrap_or(&info.id);
+                    println!("  {:12} - {}", name, info.description);
+                }
+                println!();
+            }
 
             // Also show Ethereum layer info if showing ethereum category
             if category == Some("ethereum") {

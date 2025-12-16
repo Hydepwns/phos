@@ -1,5 +1,7 @@
 //! YAML/JSON configuration loading for user-defined programs.
 
+#![allow(clippy::format_push_string)]
+
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
@@ -57,7 +59,7 @@ impl ConfigError {
     }
 
     /// Add line number to a file error.
-    pub fn with_line(self, line: usize) -> Self {
+    #[must_use] pub fn with_line(self, line: usize) -> Self {
         match self {
             Self::FileError { file, message, suggestion, .. } => Self::FileError {
                 file,
@@ -70,6 +72,7 @@ impl ConfigError {
     }
 
     /// Add suggestion to a file error.
+    #[must_use]
     pub fn with_suggestion(self, suggestion: impl Into<String>) -> Self {
         match self {
             Self::FileError { file, message, line, .. } => Self::FileError {
@@ -83,7 +86,7 @@ impl ConfigError {
     }
 
     /// Format a detailed error message for display.
-    pub fn detailed_message(&self) -> String {
+    #[must_use] pub fn detailed_message(&self) -> String {
         match self {
             Self::FileError { file, message, line, suggestion } => {
                 let mut msg = file.to_string();
@@ -168,7 +171,7 @@ impl ProgramConfig {
     }
 
     /// Get the program ID.
-    pub fn program_id(&self) -> String {
+    #[must_use] pub fn program_id(&self) -> String {
         self.id.clone().unwrap_or_else(|| {
             format!("{}.{}", self.category, self.name.to_lowercase().replace(' ', "_"))
         })

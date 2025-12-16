@@ -907,7 +907,7 @@ mod common_patterns {
 
     #[test]
     fn test_empty_lines_unchanged() {
-        let lines = vec!["".to_string(), "   ".to_string()];
+        let lines = vec![String::new(), "   ".to_string()];
 
         let colored = colorize_with_program("dev.cargo", &lines);
 

@@ -1,4 +1,4 @@
-//! RabbitMQ message broker colorization.
+//! `RabbitMQ` message broker colorization.
 
 use std::sync::Arc;
 
@@ -167,7 +167,7 @@ fn rabbitmq_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn rabbitmq_program() -> Arc<dyn Program> {
+#[must_use] pub fn rabbitmq_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "messaging.rabbitmq",

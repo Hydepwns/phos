@@ -1,4 +1,4 @@
-//! HAProxy load balancer colorization.
+//! `HAProxy` load balancer colorization.
 
 use std::sync::Arc;
 

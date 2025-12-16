@@ -15,9 +15,7 @@ fn main() {
         .output()
         .ok()
         .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown".to_string());
+        .and_then(|o| String::from_utf8(o.stdout).ok()).map_or_else(|| "unknown".to_string(), |s| s.trim().to_string());
 
     // Check if working directory is dirty
     let is_dirty = Command::new("git")
@@ -25,8 +23,7 @@ fn main() {
         .output()
         .ok()
         .filter(|o| o.status.success())
-        .map(|o| !o.stdout.is_empty())
-        .unwrap_or(false);
+        .is_some_and(|o| !o.stdout.is_empty());
 
     let dirty_suffix = if is_dirty { "-dirty" } else { "" };
 
@@ -44,7 +41,5 @@ fn chrono_lite_date() -> String {
         .output()
         .ok()
         .filter(|o| o.status.success())
-        .and_then(|o| String::from_utf8(o.stdout).ok())
-        .map(|s| s.trim().to_string())
-        .unwrap_or_else(|| "unknown".to_string())
+        .and_then(|o| String::from_utf8(o.stdout).ok()).map_or_else(|| "unknown".to_string(), |s| s.trim().to_string())
 }

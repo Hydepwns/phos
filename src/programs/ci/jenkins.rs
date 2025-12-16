@@ -174,7 +174,7 @@ fn jenkins_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn jenkins_program() -> Arc<dyn Program> {
+#[must_use] pub fn jenkins_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "ci.jenkins",

@@ -2,6 +2,8 @@
 //!
 //! Generates shell scripts that wrap supported commands with phos.
 
+#![allow(clippy::format_push_string)]
+
 use crate::ProgramRegistry;
 
 /// Programs suitable for shell aliasing (direct command wrappers).
@@ -43,7 +45,7 @@ pub enum ShellType {
 
 impl ShellType {
     /// Parse shell type from string.
-    pub fn parse(s: &str) -> Option<Self> {
+    #[must_use] pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "bash" => Some(Self::Bash),
             "zsh" => Some(Self::Zsh),
@@ -53,13 +55,13 @@ impl ShellType {
     }
 
     /// Get list of supported shell names.
-    pub fn supported() -> &'static [&'static str] {
+    #[must_use] pub fn supported() -> &'static [&'static str] {
         &["bash", "zsh", "fish"]
     }
 }
 
 /// Generate shell integration script.
-pub fn generate_script(shell: ShellType, registry: &ProgramRegistry) -> String {
+#[must_use] pub fn generate_script(shell: ShellType, registry: &ProgramRegistry) -> String {
     match shell {
         ShellType::Bash => generate_bash(registry),
         ShellType::Zsh => generate_zsh(registry),
@@ -100,10 +102,10 @@ alias p='phos'
         .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
         .for_each(|(program, cmd)| {
             script.push_str(&format!(
-                r#"if command -v {cmd} &>/dev/null && ! alias {cmd} &>/dev/null 2>&1; then
+                r"if command -v {cmd} &>/dev/null && ! alias {cmd} &>/dev/null 2>&1; then
     alias {cmd}='__phos_wrap {program}'
 fi
-"#
+"
             ));
         });
 
@@ -149,7 +151,7 @@ fi
 /// Generate fish shell integration script.
 fn generate_fish(registry: &ProgramRegistry) -> String {
     let mut script = String::from(
-        r#"# phos shell integration for fish
+        r"# phos shell integration for fish
 # Add to ~/.config/fish/config.fish: phos shell-init fish | source
 
 # Skip if not interactive or no TTY
@@ -162,7 +164,7 @@ set -q PHOS_NO_ALIASES; and return
 # Short alias for phos
 alias p='phos'
 
-"#,
+",
     );
 
     // Generate functions for each program
@@ -172,12 +174,12 @@ alias p='phos'
         .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
         .for_each(|(program, cmd)| {
             script.push_str(&format!(
-                r#"if type -q {cmd}; and not functions -q {cmd}
+                r"if type -q {cmd}; and not functions -q {cmd}
     function {cmd} --wraps={cmd} --description 'phos-wrapped {cmd}'
         phos -p {program} -- (command -v {cmd}) $argv
     end
 end
-"#
+"
             ));
         });
 
@@ -185,7 +187,7 @@ end
 }
 
 /// List all programs that would be aliased.
-pub fn list_aliasable(registry: &ProgramRegistry) -> Vec<(&'static str, &'static [&'static str])> {
+#[must_use] pub fn list_aliasable(registry: &ProgramRegistry) -> Vec<(&'static str, &'static [&'static str])> {
     ALIASABLE_PROGRAMS
         .iter()
         .filter(|(program, _)| registry.get(program).is_some())

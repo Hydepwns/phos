@@ -26,57 +26,51 @@ fn main() -> Result<()> {
     let registry = programs::default_registry();
 
     // Determine rules - explicit program or auto-detect
-    let rules = match program_name {
-        Some(name) => registry.get(&name).map(|p| p.rules()).unwrap_or_else(|| {
-            eprintln!("Unknown program: {name}");
-            eprintln!("Run 'phos list' to see available programs.");
-            std::process::exit(1);
-        }),
-        None => {
-            // Auto-detect: buffer initial lines
-            let stdin = io::stdin();
-            let stdout = io::stdout();
-            let mut stdout = stdout.lock();
-            let mut buffer: Vec<String> = Vec::with_capacity(AUTO_DETECT_LINES);
+    let rules = if let Some(name) = program_name { registry.get(&name).map_or_else(|| {
+        eprintln!("Unknown program: {name}");
+        eprintln!("Run 'phos list' to see available programs.");
+        std::process::exit(1);
+    }, |p| p.rules()) } else {
+        // Auto-detect: buffer initial lines
+        let stdin = io::stdin();
+        let stdout = io::stdout();
+        let mut stdout = stdout.lock();
+        let mut buffer: Vec<String> = Vec::with_capacity(AUTO_DETECT_LINES);
 
-            for line in stdin.lock().lines().take(AUTO_DETECT_LINES) {
-                buffer.push(line.context("Failed to read stdin")?);
-            }
-
-            // Try to detect program from buffered content
-            let line_refs: Vec<&str> = buffer.iter().map(|s| s.as_str()).collect();
-            let detected = registry.detect_from_lines(&line_refs);
-
-            let rules = match detected {
-                Some(program) => {
-                    eprintln!("phoscat: auto-detected program: {}", program.info().id);
-                    program.rules()
-                }
-                None => {
-                    // Fall back to generic log coloring
-                    eprintln!("phoscat: no program detected, using generic coloring");
-                    registry.get("cargo").map(|p| p.rules()).unwrap_or_default()
-                }
-            };
-
-            // Create colorizer and process buffered lines
-            let color_enabled = atty::is(atty::Stream::Stdout);
-            let mut colorizer = Colorizer::new(rules.clone())
-                .with_theme(theme.clone())
-                .with_color_enabled(color_enabled);
-
-            for line in &buffer {
-                writeln!(stdout, "{}", colorizer.colorize(line))?;
-            }
-
-            // Continue processing rest of stdin
-            for line in stdin.lock().lines() {
-                let line = line.context("Failed to read stdin")?;
-                writeln!(stdout, "{}", colorizer.colorize(&line))?;
-            }
-
-            return Ok(());
+        for line in stdin.lock().lines().take(AUTO_DETECT_LINES) {
+            buffer.push(line.context("Failed to read stdin")?);
         }
+
+        // Try to detect program from buffered content
+        let line_refs: Vec<&str> = buffer.iter().map(String::as_str).collect();
+        let detected = registry.detect_from_lines(&line_refs);
+
+        let rules = if let Some(program) = detected {
+            eprintln!("phoscat: auto-detected program: {}", program.info().id);
+            program.rules()
+        } else {
+            // Fall back to generic log coloring
+            eprintln!("phoscat: no program detected, using generic coloring");
+            registry.get("cargo").map(|p| p.rules()).unwrap_or_default()
+        };
+
+        // Create colorizer and process buffered lines
+        let color_enabled = atty::is(atty::Stream::Stdout);
+        let mut colorizer = Colorizer::new(rules.clone())
+            .with_theme(theme.clone())
+            .with_color_enabled(color_enabled);
+
+        for line in &buffer {
+            writeln!(stdout, "{}", colorizer.colorize(line))?;
+        }
+
+        // Continue processing rest of stdin
+        for line in stdin.lock().lines() {
+            let line = line.context("Failed to read stdin")?;
+            writeln!(stdout, "{}", colorizer.colorize(&line))?;
+        }
+
+        return Ok(());
     };
 
     // Explicit program: colorize stdin to stdout

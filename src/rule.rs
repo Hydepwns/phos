@@ -123,7 +123,7 @@ pub struct RuleBuilder {
 
 impl Rule {
     /// Create a new rule from a regex pattern.
-    /// Returns a RuleBuilder for fluent configuration.
+    /// Returns a `RuleBuilder` for fluent configuration.
     #[allow(clippy::new_ret_no_self)]
     pub fn new(pattern: &str) -> Result<RuleBuilder, regex::Error> {
         let regex = Regex::new(pattern)?;
@@ -138,7 +138,7 @@ impl Rule {
     }
 
     /// Check if the rule matches the given text.
-    pub fn is_match(&self, text: &str) -> bool {
+    #[must_use] pub fn is_match(&self, text: &str) -> bool {
         self.regex.is_match(text)
     }
 
@@ -150,43 +150,43 @@ impl Rule {
 
 impl RuleBuilder {
     /// Set a semantic color.
-    pub fn semantic(mut self, color: SemanticColor) -> Self {
+    #[must_use] pub fn semantic(mut self, color: SemanticColor) -> Self {
         self.colors.push(Color::Semantic(color));
         self
     }
 
     /// Set a named color.
-    pub fn named(mut self, name: &str) -> Self {
+    #[must_use] pub fn named(mut self, name: &str) -> Self {
         self.colors.push(Color::Named(name.to_string()));
         self
     }
 
     /// Set a hex color.
-    pub fn hex(mut self, hex: &str) -> Self {
+    #[must_use] pub fn hex(mut self, hex: &str) -> Self {
         self.colors.push(Color::Hex(hex.to_string()));
         self
     }
 
     /// Add a color directly.
-    pub fn color(mut self, color: Color) -> Self {
+    #[must_use] pub fn color(mut self, color: Color) -> Self {
         self.colors.push(color);
         self
     }
 
     /// Set bold styling.
-    pub fn bold(mut self) -> Self {
+    #[must_use] pub fn bold(mut self) -> Self {
         self.bold = true;
         self
     }
 
     /// Set the count mode.
-    pub fn count(mut self, mode: CountMode) -> Self {
+    #[must_use] pub fn count(mut self, mode: CountMode) -> Self {
         self.count_mode = mode;
         self
     }
 
     /// Set skip mode - skip the entire line if this rule matches.
-    pub fn skip(mut self) -> Self {
+    #[must_use] pub fn skip(mut self) -> Self {
         self.skip = true;
         self
     }
@@ -194,13 +194,13 @@ impl RuleBuilder {
     /// Set a replacement pattern.
     /// Uses `${1}`, `${2}`, etc. for backreferences to capture groups.
     /// Named groups use `${name}` syntax.
-    pub fn replace(mut self, pattern: &str) -> Self {
+    #[must_use] pub fn replace(mut self, pattern: &str) -> Self {
         self.replace = Some(pattern.to_string());
         self
     }
 
     /// Build the rule.
-    pub fn build(self) -> Rule {
+    #[must_use] pub fn build(self) -> Rule {
         Rule {
             regex: self.regex,
             colors: self.colors,

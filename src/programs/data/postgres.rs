@@ -1,4 +1,4 @@
-//! PostgreSQL database colorization.
+//! `PostgreSQL` database colorization.
 
 use std::sync::Arc;
 
@@ -106,7 +106,7 @@ fn postgres_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn postgres_program() -> Arc<dyn Program> {
+#[must_use] pub fn postgres_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "data.postgres",
