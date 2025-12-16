@@ -91,21 +91,18 @@ __phos_wrap() {
     );
 
     // Generate aliases for each program
-    for (program, commands) in ALIASABLE_PROGRAMS {
-        // Check if program exists in registry
-        if registry.get(program).is_none() {
-            continue;
-        }
-
-        for cmd in *commands {
+    ALIASABLE_PROGRAMS
+        .iter()
+        .filter(|(program, _)| registry.get(program).is_some())
+        .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
+        .for_each(|(program, cmd)| {
             script.push_str(&format!(
                 r#"if command -v {cmd} &>/dev/null && ! alias {cmd} &>/dev/null 2>&1; then
     alias {cmd}='__phos_wrap {program}'
 fi
 "#
             ));
-        }
-    }
+        });
 
     script
 }
@@ -127,20 +124,18 @@ fn generate_zsh(registry: &ProgramRegistry) -> String {
     );
 
     // Generate functions for each program (zsh functions preserve completions better)
-    for (program, commands) in ALIASABLE_PROGRAMS {
-        if registry.get(program).is_none() {
-            continue;
-        }
-
-        for cmd in *commands {
+    ALIASABLE_PROGRAMS
+        .iter()
+        .filter(|(program, _)| registry.get(program).is_some())
+        .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
+        .for_each(|(program, cmd)| {
             script.push_str(&format!(
                 r#"if (( $+commands[{cmd}] )) && ! (( $+functions[{cmd}] )) && ! (( $+aliases[{cmd}] )); then
     {cmd}() {{ phos -p {program} -- $commands[{cmd}] "$@" }}
 fi
 "#
             ));
-        }
-    }
+        });
 
     script
 }
@@ -162,12 +157,11 @@ set -q PHOS_NO_ALIASES; and return
     );
 
     // Generate functions for each program
-    for (program, commands) in ALIASABLE_PROGRAMS {
-        if registry.get(program).is_none() {
-            continue;
-        }
-
-        for cmd in *commands {
+    ALIASABLE_PROGRAMS
+        .iter()
+        .filter(|(program, _)| registry.get(program).is_some())
+        .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
+        .for_each(|(program, cmd)| {
             script.push_str(&format!(
                 r#"if type -q {cmd}; and not functions -q {cmd}
     function {cmd} --wraps={cmd} --description 'phos-wrapped {cmd}'
@@ -176,8 +170,7 @@ set -q PHOS_NO_ALIASES; and return
 end
 "#
             ));
-        }
-    }
+        });
 
     script
 }

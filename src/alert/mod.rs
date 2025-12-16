@@ -243,10 +243,11 @@ impl AlertManagerBuilder {
 
     /// Add multiple conditions from CLI strings.
     pub fn conditions(mut self, condition_strs: &[String]) -> Result<Self, ParseConditionError> {
-        for s in condition_strs {
-            let condition: AlertCondition = s.parse()?;
-            self.conditions.push(condition);
-        }
+        let parsed: Result<Vec<AlertCondition>, _> = condition_strs
+            .iter()
+            .map(|s| s.parse())
+            .collect();
+        self.conditions.extend(parsed?);
         Ok(self)
     }
 

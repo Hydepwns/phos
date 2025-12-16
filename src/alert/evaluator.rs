@@ -2,11 +2,13 @@
 
 use super::condition::{AlertCondition, AlertSeverity};
 use super::formatter::AlertPayload;
+use crate::programs::common::log_levels::ERROR_LEVEL_PATTERN;
 use regex::Regex;
 
 /// State for evaluating alert conditions.
 pub struct ConditionEvaluator {
     /// Pattern for detecting ERROR log level.
+    /// Uses shared pattern from common::log_levels.
     error_pattern: Regex,
     /// Last known peer count for detecting drops.
     last_peer_count: Option<usize>,
@@ -22,7 +24,7 @@ impl ConditionEvaluator {
     /// Create a new condition evaluator.
     pub fn new() -> Self {
         Self {
-            error_pattern: Regex::new(r"(?i)\b(ERROR|ERR|CRIT|CRITICAL|FATAL|PANIC)\b").unwrap(),
+            error_pattern: ERROR_LEVEL_PATTERN.clone(),
             last_peer_count: None,
             last_slot: None,
             lines_since_slot_change: 0,
@@ -155,15 +157,16 @@ impl ConditionEvaluator {
     ) -> Option<AlertPayload> {
         // Fire after 100 lines with no slot change (rough heuristic)
         // In practice, would use time-based detection
-        if self.lines_since_slot_change > 100 && self.last_slot.is_some() {
-            self.lines_since_slot_change = 0; // Reset to avoid repeated alerts
-            let payload = AlertPayload::new("Sync Stall Detected", line)
-                .with_severity(AlertSeverity::Warning)
-                .with_field("last_slot", self.last_slot.unwrap().to_string());
-            Some(add_program(payload, program))
-        } else {
-            None
+        if self.lines_since_slot_change > 100 {
+            if let Some(last_slot) = self.last_slot {
+                self.lines_since_slot_change = 0; // Reset to avoid repeated alerts
+                let payload = AlertPayload::new("Sync Stall Detected", line)
+                    .with_severity(AlertSeverity::Warning)
+                    .with_field("last_slot", last_slot.to_string());
+                return Some(add_program(payload, program));
+            }
         }
+        None
     }
 
     fn evaluate_pattern(

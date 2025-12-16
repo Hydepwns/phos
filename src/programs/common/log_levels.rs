@@ -1,7 +1,24 @@
 //! Log level patterns for various formats.
 
+use once_cell::sync::Lazy;
+use regex::Regex;
+
 use crate::colors::SemanticColor;
 use crate::rule::Rule;
+
+// ---------------------------------------------------------------------------
+// Shared Error Detection Pattern
+// ---------------------------------------------------------------------------
+
+/// Raw pattern string for error-level log messages.
+/// Matches: ERROR, ERR, CRIT, CRITICAL, FATAL, PANIC (case-insensitive).
+pub const ERROR_LEVEL_PATTERN_STR: &str = r"(?i)\b(ERROR|ERR|CRIT|CRITICAL|FATAL|PANIC)\b";
+
+/// Compiled regex for detecting error-level log messages.
+/// Used by StatsCollector and AlertConditionEvaluator.
+pub static ERROR_LEVEL_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(ERROR_LEVEL_PATTERN_STR).expect("ERROR_LEVEL_PATTERN regex is valid")
+});
 
 /// Standard log level rules (ERROR, WARN, INFO, DEBUG, TRACE).
 /// Handles common case variations.
