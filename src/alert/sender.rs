@@ -51,7 +51,7 @@ impl WebhookSender {
     }
 
     /// Set the request timeout.
-    pub fn with_timeout(mut self, timeout: Duration) -> Self {
+    #[must_use] pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self.client = Client::builder()
             .timeout(timeout)
@@ -80,12 +80,12 @@ impl WebhookSender {
     }
 
     /// Get the webhook URL.
-    pub fn url(&self) -> &str {
+    #[must_use] pub fn url(&self) -> &str {
         &self.url
     }
 
     /// Get the webhook service type.
-    pub fn service(&self) -> &WebhookService {
+    #[must_use] pub fn service(&self) -> &WebhookService {
         &self.service
     }
 }

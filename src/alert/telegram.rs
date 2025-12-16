@@ -1,9 +1,11 @@
 //! Telegram Bot API webhook formatter.
 
+#![allow(clippy::format_push_string)]
+
 use super::formatter::{truncate, AlertPayload, WebhookFormatter, WebhookService};
 use serde_json::{json, Value};
 
-/// Telegram Bot API formatter with MarkdownV2.
+/// Telegram Bot API formatter with `MarkdownV2`.
 pub struct TelegramFormatter;
 
 impl WebhookFormatter for TelegramFormatter {
@@ -46,7 +48,7 @@ impl WebhookFormatter for TelegramFormatter {
     }
 }
 
-/// Escape special characters for Telegram MarkdownV2.
+/// Escape special characters for Telegram `MarkdownV2`.
 fn escape_markdown(s: &str) -> String {
     let special_chars = [
         '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!',

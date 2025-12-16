@@ -24,7 +24,7 @@ pub struct RateLimiter {
 
 impl RateLimiter {
     /// Create a new rate limiter with default settings.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             global_cooldown: Duration::from_secs(30),
             per_condition_cooldown: Duration::from_secs(60),
@@ -37,25 +37,25 @@ impl RateLimiter {
     }
 
     /// Set global cooldown between any alerts.
-    pub fn with_global_cooldown(mut self, cooldown: Duration) -> Self {
+    #[must_use] pub fn with_global_cooldown(mut self, cooldown: Duration) -> Self {
         self.global_cooldown = cooldown;
         self
     }
 
     /// Set per-condition cooldown.
-    pub fn with_per_condition_cooldown(mut self, cooldown: Duration) -> Self {
+    #[must_use] pub fn with_per_condition_cooldown(mut self, cooldown: Duration) -> Self {
         self.per_condition_cooldown = cooldown;
         self
     }
 
     /// Set maximum alerts per hour (0 = unlimited).
-    pub fn with_max_per_hour(mut self, max: usize) -> Self {
+    #[must_use] pub fn with_max_per_hour(mut self, max: usize) -> Self {
         self.max_per_hour = max;
         self
     }
 
     /// Check if an alert can be sent for the given condition.
-    pub fn can_alert(&self, condition: &str) -> RateLimitResult {
+    #[must_use] pub fn can_alert(&self, condition: &str) -> RateLimitResult {
         let now = Instant::now();
 
         // Check global cooldown
@@ -109,7 +109,7 @@ impl RateLimiter {
     }
 
     /// Get the current hourly alert count.
-    pub fn hourly_count(&self) -> usize {
+    #[must_use] pub fn hourly_count(&self) -> usize {
         self.hourly_count
     }
 
@@ -143,7 +143,7 @@ pub enum RateLimitResult {
 
 impl RateLimitResult {
     /// Returns true if the alert is allowed.
-    pub fn is_allowed(&self) -> bool {
+    #[must_use] pub fn is_allowed(&self) -> bool {
         matches!(self, Self::Allowed)
     }
 }
@@ -200,8 +200,8 @@ mod tests {
             .with_max_per_hour(3);
 
         for i in 0..3 {
-            assert!(limiter.can_alert(&format!("cond{}", i)).is_allowed());
-            limiter.record_alert(&format!("cond{}", i));
+            assert!(limiter.can_alert(&format!("cond{i}")).is_allowed());
+            limiter.record_alert(&format!("cond{i}"));
         }
 
         // 4th alert should be blocked
@@ -217,8 +217,8 @@ mod tests {
             .with_max_per_hour(0); // Unlimited
 
         for i in 0..100 {
-            assert!(limiter.can_alert(&format!("cond{}", i)).is_allowed());
-            limiter.record_alert(&format!("cond{}", i));
+            assert!(limiter.can_alert(&format!("cond{i}")).is_allowed());
+            limiter.record_alert(&format!("cond{i}"));
         }
     }
 
@@ -234,5 +234,114 @@ mod tests {
 
         assert_eq!(limiter.hourly_count(), 0);
         assert!(limiter.can_alert("error").is_allowed());
+    }
+
+    // =========================================================================
+    // EDGE CASE TESTS
+    // =========================================================================
+
+    #[test]
+    fn test_zero_cooldown() {
+        let mut limiter = RateLimiter::new()
+            .with_global_cooldown(Duration::ZERO)
+            .with_per_condition_cooldown(Duration::ZERO)
+            .with_max_per_hour(0);
+
+        // With zero cooldown and unlimited hourly, all alerts should be allowed
+        for _ in 0..10 {
+            assert!(limiter.can_alert("error").is_allowed());
+            limiter.record_alert("error");
+        }
+    }
+
+    #[test]
+    fn test_different_conditions_independent() {
+        let mut limiter = RateLimiter::new()
+            .with_global_cooldown(Duration::from_millis(10))
+            .with_per_condition_cooldown(Duration::from_millis(100))
+            .with_max_per_hour(0);
+
+        // Record first condition
+        limiter.record_alert("error");
+        sleep(Duration::from_millis(15)); // Past global cooldown
+
+        // Different condition should be allowed despite first condition's per-condition cooldown
+        assert!(limiter.can_alert("peer_drop").is_allowed());
+
+        // Same condition should be blocked
+        assert!(!limiter.can_alert("error").is_allowed());
+    }
+
+    #[test]
+    fn test_rate_limit_result_is_allowed() {
+        assert!(RateLimitResult::Allowed.is_allowed());
+
+        assert!(!RateLimitResult::GlobalCooldown {
+            remaining: Duration::from_secs(1)
+        }
+        .is_allowed());
+
+        assert!(!RateLimitResult::ConditionCooldown {
+            condition: "error".to_string(),
+            remaining: Duration::from_secs(1)
+        }
+        .is_allowed());
+
+        assert!(!RateLimitResult::HourlyLimitReached {
+            remaining: Duration::from_secs(1)
+        }
+        .is_allowed());
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let limiter = RateLimiter::default();
+        // Default should have reasonable values
+        assert!(limiter.can_alert("any").is_allowed());
+    }
+
+    #[test]
+    fn test_builder_pattern() {
+        let limiter = RateLimiter::new()
+            .with_global_cooldown(Duration::from_secs(10))
+            .with_per_condition_cooldown(Duration::from_secs(30))
+            .with_max_per_hour(100);
+
+        // Should compile and work
+        assert!(limiter.can_alert("test").is_allowed());
+    }
+
+    #[test]
+    fn test_hourly_count_getter() {
+        let mut limiter = RateLimiter::new()
+            .with_global_cooldown(Duration::ZERO)
+            .with_per_condition_cooldown(Duration::ZERO);
+
+        assert_eq!(limiter.hourly_count(), 0);
+
+        limiter.record_alert("a");
+        assert_eq!(limiter.hourly_count(), 1);
+
+        limiter.record_alert("b");
+        assert_eq!(limiter.hourly_count(), 2);
+    }
+
+    #[test]
+    fn test_condition_cooldown_remaining() {
+        let mut limiter = RateLimiter::new()
+            .with_global_cooldown(Duration::ZERO)
+            .with_per_condition_cooldown(Duration::from_millis(100));
+
+        limiter.record_alert("error");
+
+        let result = limiter.can_alert("error");
+        match result {
+            RateLimitResult::ConditionCooldown { remaining, .. } => {
+                // Remaining should be close to 100ms (minus time elapsed)
+                assert!(remaining.as_millis() > 0);
+                assert!(remaining.as_millis() <= 100);
+            }
+            _ => panic!("expected ConditionCooldown"),
+        }
     }
 }

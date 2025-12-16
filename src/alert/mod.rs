@@ -5,7 +5,7 @@
 //! # Supported Services
 //!
 //! - **Discord**: Rich embeds with color-coded severity
-//! - **Telegram**: MarkdownV2 formatted messages
+//! - **Telegram**: `MarkdownV2` formatted messages
 //! - **Generic**: Simple JSON POST
 //!
 //! # Usage
@@ -68,9 +68,8 @@ impl AlertManager {
         let url = url.into();
         let service = WebhookService::detect(&url);
         let formatter: Arc<dyn WebhookFormatter> = match service {
-            WebhookService::Discord => Arc::new(DiscordFormatter),
             WebhookService::Telegram { .. } => Arc::new(TelegramFormatter),
-            WebhookService::Generic => Arc::new(DiscordFormatter), // Use Discord format as default
+            WebhookService::Discord | WebhookService::Generic => Arc::new(DiscordFormatter),
         };
 
         let sender = WebhookSender::new(&url, service.clone(), formatter);
@@ -90,6 +89,7 @@ impl AlertManager {
     }
 
     /// Set the Telegram chat ID (required for Telegram webhooks).
+    #[must_use]
     pub fn with_chat_id(mut self, chat_id: impl Into<String>) -> Self {
         self.service = self.service.with_chat_id(chat_id);
 
@@ -101,24 +101,28 @@ impl AlertManager {
     }
 
     /// Add an alert condition.
+    #[must_use]
     pub fn with_condition(mut self, condition: AlertCondition) -> Self {
         self.conditions.push(condition);
         self
     }
 
     /// Add multiple alert conditions.
+    #[must_use]
     pub fn with_conditions(mut self, conditions: impl IntoIterator<Item = AlertCondition>) -> Self {
         self.conditions.extend(conditions);
         self
     }
 
     /// Set the program name for alerts.
+    #[must_use]
     pub fn with_program(mut self, program: impl Into<String>) -> Self {
         self.program = Some(program.into());
         self
     }
 
     /// Set the alert cooldown.
+    #[must_use]
     pub fn with_cooldown(mut self, cooldown: std::time::Duration) -> Self {
         self.rate_limiter = self
             .rate_limiter
@@ -166,18 +170,18 @@ impl AlertManager {
 
         // Send collected alerts
         for (payload, cond_type) in alerts_to_send {
-            self.send_alert(payload, &cond_type);
+            self.send_alert(&payload, &cond_type);
         }
     }
 
     /// Send an alert asynchronously.
-    fn send_alert(&mut self, payload: AlertPayload, condition_type: &str) {
+    fn send_alert(&mut self, payload: &AlertPayload, condition_type: &str) {
         // Record in rate limiter
         self.rate_limiter.record_alert(condition_type);
 
         // Send webhook asynchronously
         let sender = &self.sender;
-        let result = self.runtime.block_on(sender.send(&payload));
+        let result = self.runtime.block_on(sender.send(payload));
 
         if let Err(e) = result {
             eprintln!("phos: alert failed: {e}");
@@ -201,7 +205,7 @@ impl AlertManager {
     }
 }
 
-/// Builder for creating an AlertManager from CLI arguments.
+/// Builder for creating an `AlertManager` from CLI arguments.
 pub struct AlertManagerBuilder {
     url: Option<String>,
     chat_id: Option<String>,
@@ -212,7 +216,7 @@ pub struct AlertManagerBuilder {
 
 impl AlertManagerBuilder {
     /// Create a new builder.
-    pub fn new() -> Self {
+    #[must_use] pub fn new() -> Self {
         Self {
             url: None,
             chat_id: None,
@@ -223,12 +227,14 @@ impl AlertManagerBuilder {
     }
 
     /// Set the webhook URL.
+    #[must_use]
     pub fn url(mut self, url: impl Into<String>) -> Self {
         self.url = Some(url.into());
         self
     }
 
     /// Set the Telegram chat ID.
+    #[must_use]
     pub fn chat_id(mut self, chat_id: impl Into<String>) -> Self {
         self.chat_id = Some(chat_id.into());
         self
@@ -252,19 +258,20 @@ impl AlertManagerBuilder {
     }
 
     /// Set the program name.
+    #[must_use]
     pub fn program(mut self, program: impl Into<String>) -> Self {
         self.program = Some(program.into());
         self
     }
 
     /// Set the cooldown in seconds.
-    pub fn cooldown_secs(mut self, secs: u64) -> Self {
+    #[must_use] pub fn cooldown_secs(mut self, secs: u64) -> Self {
         self.cooldown = Some(std::time::Duration::from_secs(secs));
         self
     }
 
-    /// Build the AlertManager.
-    pub fn build(self) -> Option<AlertManager> {
+    /// Build the `AlertManager`.
+    #[must_use] pub fn build(self) -> Option<AlertManager> {
         let url = self.url?;
 
         let mut manager = AlertManager::new(url);
@@ -273,11 +280,11 @@ impl AlertManagerBuilder {
             manager = manager.with_chat_id(chat_id);
         }
 
-        if !self.conditions.is_empty() {
-            manager = manager.with_conditions(self.conditions);
-        } else {
+        if self.conditions.is_empty() {
             // Default to error condition if none specified
             manager = manager.with_condition(AlertCondition::Error);
+        } else {
+            manager = manager.with_conditions(self.conditions);
         }
 
         if let Some(program) = self.program {

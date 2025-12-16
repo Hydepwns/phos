@@ -73,7 +73,7 @@ impl AlertConfig {
     }
 
     /// Get a webhook by name.
-    pub fn get_webhook(&self, name: &str) -> Option<&WebhookConfig> {
+    #[must_use] pub fn get_webhook(&self, name: &str) -> Option<&WebhookConfig> {
         self.webhooks.iter().find(|w| w.name == name)
     }
 }
@@ -98,7 +98,7 @@ pub struct WebhookConfig {
 
 impl WebhookConfig {
     /// Get the webhook service type.
-    pub fn service(&self) -> WebhookService {
+    #[must_use] pub fn service(&self) -> WebhookService {
         match self.webhook_type.as_deref() {
             Some("discord") => WebhookService::Discord,
             Some("telegram") => WebhookService::Telegram {
@@ -125,10 +125,10 @@ pub struct ConditionConfig {
     #[serde(rename = "type")]
     pub condition_type: String,
 
-    /// Threshold count (for error_threshold).
+    /// Threshold count (for `error_threshold`).
     pub count: Option<usize>,
 
-    /// Threshold value (for peer_drop).
+    /// Threshold value (for `peer_drop`).
     pub threshold: Option<usize>,
 
     /// Pattern (for pattern type).
@@ -140,7 +140,7 @@ pub struct ConditionConfig {
 }
 
 impl ConditionConfig {
-    /// Parse into an AlertCondition.
+    /// Parse into an `AlertCondition`.
     pub fn to_condition(&self) -> Result<AlertCondition, ConfigError> {
         match self.condition_type.as_str() {
             "error" => Ok(AlertCondition::Error),
@@ -210,7 +210,7 @@ fn default_max_per_hour() -> usize {
 }
 
 /// Parse a duration string like "30s", "5m", "1h".
-pub fn parse_duration(s: &str) -> Option<std::time::Duration> {
+#[must_use] pub fn parse_duration(s: &str) -> Option<std::time::Duration> {
     let s = s.trim();
     if s.is_empty() {
         return None;

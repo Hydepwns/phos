@@ -8,7 +8,7 @@ use regex::Regex;
 /// State for evaluating alert conditions.
 pub struct ConditionEvaluator {
     /// Pattern for detecting ERROR log level.
-    /// Uses shared pattern from common::log_levels.
+    /// Uses shared pattern from `common::log_levels`.
     error_pattern: Regex,
     /// Last known peer count for detecting drops.
     last_peer_count: Option<usize>,
@@ -53,7 +53,7 @@ impl ConditionEvaluator {
                 self.evaluate_peer_drop(line, peer_count, *threshold, program)
             }
             AlertCondition::SyncStall => self.evaluate_sync_stall(line, slot, program),
-            AlertCondition::Pattern { regex } => self.evaluate_pattern(line, regex, program),
+            AlertCondition::Pattern { regex } => evaluate_pattern(line, regex, program),
         }
     }
 
@@ -65,15 +65,17 @@ impl ConditionEvaluator {
         }
 
         // Update slot tracking
-        if let Some(new_slot) = slot {
-            if self.last_slot != Some(new_slot) {
-                self.last_slot = Some(new_slot);
-                self.lines_since_slot_change = 0;
-            } else {
+        match (slot, self.last_slot) {
+            (Some(new_slot), Some(last)) if new_slot == last => {
                 self.lines_since_slot_change += 1;
             }
-        } else {
-            self.lines_since_slot_change += 1;
+            (Some(new_slot), _) => {
+                self.last_slot = Some(new_slot);
+                self.lines_since_slot_change = 0;
+            }
+            (None, _) => {
+                self.lines_since_slot_change += 1;
+            }
         }
     }
 
@@ -169,20 +171,20 @@ impl ConditionEvaluator {
         None
     }
 
-    fn evaluate_pattern(
-        &self,
-        line: &str,
-        regex: &Regex,
-        program: Option<&str>,
-    ) -> Option<AlertPayload> {
-        if regex.is_match(line) {
-            let payload = AlertPayload::new("Pattern Match", line)
-                .with_severity(AlertSeverity::Warning)
-                .with_field("pattern", regex.as_str().to_string());
-            Some(add_program(payload, program))
-        } else {
-            None
-        }
+}
+
+fn evaluate_pattern(
+    line: &str,
+    regex: &Regex,
+    program: Option<&str>,
+) -> Option<AlertPayload> {
+    if regex.is_match(line) {
+        let payload = AlertPayload::new("Pattern Match", line)
+            .with_severity(AlertSeverity::Warning)
+            .with_field("pattern", regex.as_str().to_string());
+        Some(add_program(payload, program))
+    } else {
+        None
     }
 }
 
@@ -308,6 +310,193 @@ mod tests {
 
         assert_eq!(evaluator.last_peer_count, None);
         assert_eq!(evaluator.last_slot, None);
+        assert!(!evaluator.error_fired);
+    }
+
+    // =========================================================================
+    // EDGE CASE TESTS
+    // =========================================================================
+
+    #[test]
+    fn test_error_fires_after_reset() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::Error;
+
+        // First error fires
+        let result = evaluator.evaluate(&condition, "ERROR: first", 0, None, None, None);
+        assert!(result.is_some());
+
+        // Second error blocked
+        let result = evaluator.evaluate(&condition, "ERROR: second", 1, None, None, None);
+        assert!(result.is_none());
+
+        // Reset and error fires again
+        evaluator.reset();
+        let result = evaluator.evaluate(&condition, "ERROR: third", 0, None, None, None);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_error_requires_pattern_match() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::Error;
+
+        // INFO line should not fire error condition
+        let result = evaluator.evaluate(&condition, "INFO: all good", 0, None, None, None);
+        assert!(result.is_none());
+
+        // WARN line should not fire error condition
+        let result = evaluator.evaluate(&condition, "WARN: be careful", 0, None, None, None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_error_threshold_fires_exactly_at_count() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::ErrorThreshold { count: 3 };
+
+        // Below threshold
+        let result = evaluator.evaluate(&condition, "ERROR: 1", 1, None, None, None);
+        assert!(result.is_none());
+
+        let result = evaluator.evaluate(&condition, "ERROR: 2", 2, None, None, None);
+        assert!(result.is_none());
+
+        // Exactly at threshold - should fire
+        let result = evaluator.evaluate(&condition, "ERROR: 3", 3, None, None, None);
+        assert!(result.is_some());
+
+        // Above threshold - should not fire again
+        let result = evaluator.evaluate(&condition, "ERROR: 4", 4, None, None, None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_error_threshold_zero() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::ErrorThreshold { count: 0 };
+
+        // Zero threshold fires on first error (count=0)
+        let result = evaluator.evaluate(&condition, "ERROR: first", 0, None, None, None);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_peer_drop_requires_crossing_threshold() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::PeerDrop { threshold: 10 };
+
+        // Start below threshold - should not alert (no crossing)
+        evaluator.update_state(Some(5), None);
+        let result = evaluator.evaluate(&condition, "peers=5", 0, Some(5), None, None);
+        assert!(result.is_none());
+
+        // Still below - no crossing
+        evaluator.update_state(Some(3), None);
+        let result = evaluator.evaluate(&condition, "peers=3", 0, Some(3), None, None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_peer_drop_no_alert_without_peer_count() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::PeerDrop { threshold: 10 };
+
+        // No peer count provided - should not fire
+        let result = evaluator.evaluate(&condition, "some log", 0, None, None, None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_sync_stall_requires_slot_history() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::SyncStall;
+
+        // No slot history - should not fire even after many lines
+        for _ in 0..150 {
+            evaluator.update_state(None, None);
+        }
+        let result = evaluator.evaluate(&condition, "some log", 0, None, None, None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_sync_stall_fires_after_threshold() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::SyncStall;
+
+        // Set initial slot
+        evaluator.update_state(None, Some(12345));
+
+        // Simulate many lines without slot change
+        for _ in 0..101 {
+            evaluator.update_state(None, Some(12345)); // Same slot
+        }
+
+        // Should fire now
+        let result = evaluator.evaluate(&condition, "some log", 0, None, Some(12345), None);
+        assert!(result.is_some());
+    }
+
+    #[test]
+    fn test_sync_stall_resets_after_firing() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::SyncStall;
+
+        // Set initial slot and exceed threshold
+        evaluator.update_state(None, Some(12345));
+        for _ in 0..101 {
+            evaluator.update_state(None, Some(12345));
+        }
+
+        // Fire once
+        let result = evaluator.evaluate(&condition, "stalled", 0, None, Some(12345), None);
+        assert!(result.is_some());
+
+        // Immediately after, should not fire (counter reset)
+        let result = evaluator.evaluate(&condition, "still stalled", 0, None, Some(12345), None);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_pattern_complex_regex() {
+        let mut evaluator = ConditionEvaluator::new();
+        let regex = Regex::new(r"error\[E\d{4}\]").unwrap(); // Rust compiler error pattern
+        let condition = AlertCondition::Pattern { regex };
+
+        assert!(evaluator
+            .evaluate(&condition, "error[E0382]: borrow of moved value", 0, None, None, None)
+            .is_some());
+
+        assert!(evaluator
+            .evaluate(&condition, "warning: unused variable", 0, None, None, None)
+            .is_none());
+    }
+
+    #[test]
+    fn test_evaluate_with_program() {
+        let mut evaluator = ConditionEvaluator::new();
+        let condition = AlertCondition::Error;
+
+        let result = evaluator.evaluate(
+            &condition,
+            "ERROR: test",
+            0,
+            None,
+            None,
+            Some("lighthouse"),
+        );
+
+        assert!(result.is_some());
+        let payload = result.unwrap();
+        assert_eq!(payload.program, Some("lighthouse".to_string()));
+    }
+
+    #[test]
+    fn test_default_impl() {
+        let evaluator = ConditionEvaluator::default();
+        assert!(evaluator.last_peer_count.is_none());
+        assert!(evaluator.last_slot.is_none());
         assert!(!evaluator.error_fired);
     }
 }

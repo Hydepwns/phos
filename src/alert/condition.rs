@@ -25,7 +25,7 @@ pub enum AlertCondition {
 
 impl AlertCondition {
     /// Returns a string identifier for this condition type.
-    pub fn condition_type(&self) -> &'static str {
+    #[must_use] pub fn condition_type(&self) -> &'static str {
         match self {
             Self::Error => "error",
             Self::ErrorThreshold { .. } => "error_threshold",
@@ -112,17 +112,17 @@ pub enum AlertSeverity {
 
 impl AlertSeverity {
     /// Discord embed color (decimal).
-    pub fn discord_color(&self) -> u32 {
+    #[must_use] pub fn discord_color(&self) -> u32 {
         match self {
-            Self::Critical => 0xFF0000, // Red
-            Self::Error => 0xFF5500,    // Orange-red
-            Self::Warning => 0xFFAA00,  // Yellow-orange
-            Self::Info => 0x55AAFF,     // Blue
+            Self::Critical => 0xFF_0000, // Red
+            Self::Error => 0xFF_5500,    // Orange-red
+            Self::Warning => 0xFF_AA00,  // Yellow-orange
+            Self::Info => 0x55_AAFF,     // Blue
         }
     }
 
     /// Display string for messages.
-    pub fn as_str(&self) -> &'static str {
+    #[must_use] pub fn as_str(&self) -> &'static str {
         match self {
             Self::Critical => "CRITICAL",
             Self::Error => "ERROR",
@@ -132,7 +132,7 @@ impl AlertSeverity {
     }
 
     /// Short tag for compact display.
-    pub fn tag(&self) -> &'static str {
+    #[must_use] pub fn tag(&self) -> &'static str {
         match self {
             Self::Critical => "[!!!]",
             Self::Error => "[ERR]",
@@ -225,5 +225,148 @@ mod tests {
         assert_eq!(AlertSeverity::Error.discord_color(), 0xFF5500);
         assert_eq!(AlertSeverity::Warning.discord_color(), 0xFFAA00);
         assert_eq!(AlertSeverity::Info.discord_color(), 0x55AAFF);
+    }
+
+    // =========================================================================
+    // EDGE CASE TESTS
+    // =========================================================================
+
+    #[test]
+    fn test_parse_with_whitespace() {
+        // Leading/trailing whitespace
+        let cond: AlertCondition = "  error  ".parse().unwrap();
+        assert!(matches!(cond, AlertCondition::Error));
+
+        let cond: AlertCondition = "  sync-stall  ".parse().unwrap();
+        assert!(matches!(cond, AlertCondition::SyncStall));
+    }
+
+    #[test]
+    fn test_parse_threshold_with_whitespace() {
+        // Whitespace around colon
+        let cond: AlertCondition = "error-threshold: 10".parse().unwrap();
+        match cond {
+            AlertCondition::ErrorThreshold { count } => assert_eq!(count, 10),
+            _ => panic!("expected ErrorThreshold"),
+        }
+
+        let cond: AlertCondition = "peer-drop : 5".parse().unwrap();
+        match cond {
+            AlertCondition::PeerDrop { threshold } => assert_eq!(threshold, 5),
+            _ => panic!("expected PeerDrop"),
+        }
+    }
+
+    #[test]
+    fn test_parse_mixed_case() {
+        let cond: AlertCondition = "Error".parse().unwrap();
+        assert!(matches!(cond, AlertCondition::Error));
+
+        let cond: AlertCondition = "SYNC-STALL".parse().unwrap();
+        assert!(matches!(cond, AlertCondition::SyncStall));
+
+        let cond: AlertCondition = "Error-Threshold:5".parse().unwrap();
+        assert!(matches!(cond, AlertCondition::ErrorThreshold { count: 5 }));
+    }
+
+    #[test]
+    fn test_parse_error_threshold_boundary_values() {
+        // Threshold of 1
+        let cond: AlertCondition = "error-threshold:1".parse().unwrap();
+        match cond {
+            AlertCondition::ErrorThreshold { count } => assert_eq!(count, 1),
+            _ => panic!("expected ErrorThreshold"),
+        }
+
+        // Large threshold
+        let cond: AlertCondition = "error-threshold:1000000".parse().unwrap();
+        match cond {
+            AlertCondition::ErrorThreshold { count } => assert_eq!(count, 1_000_000),
+            _ => panic!("expected ErrorThreshold"),
+        }
+    }
+
+    #[test]
+    fn test_parse_peer_drop_boundary_values() {
+        // Zero threshold
+        let cond: AlertCondition = "peer-drop:0".parse().unwrap();
+        match cond {
+            AlertCondition::PeerDrop { threshold } => assert_eq!(threshold, 0),
+            _ => panic!("expected PeerDrop"),
+        }
+    }
+
+    #[test]
+    fn test_parse_pattern_with_special_chars() {
+        // Regex with special characters
+        let cond: AlertCondition = r"pattern:\d+\.\d+\.\d+".parse().unwrap();
+        match cond {
+            AlertCondition::Pattern { regex } => {
+                assert!(regex.is_match("192.168.1.1"));
+                assert!(!regex.is_match("abc"));
+            }
+            _ => panic!("expected Pattern"),
+        }
+    }
+
+    #[test]
+    fn test_parse_pattern_case_insensitive_match() {
+        let cond: AlertCondition = "pattern:(?i)fatal".parse().unwrap();
+        match cond {
+            AlertCondition::Pattern { regex } => {
+                assert!(regex.is_match("FATAL"));
+                assert!(regex.is_match("fatal"));
+                assert!(regex.is_match("Fatal"));
+            }
+            _ => panic!("expected Pattern"),
+        }
+    }
+
+    #[test]
+    fn test_parse_error_messages() {
+        // Unknown type
+        let err = "unknown-condition".parse::<AlertCondition>();
+        assert!(err.is_err());
+        let err_msg = err.unwrap_err().to_string();
+        assert!(err_msg.contains("unknown"));
+
+        // Invalid number
+        let err = "error-threshold:abc".parse::<AlertCondition>();
+        assert!(err.is_err());
+
+        // Invalid regex
+        let err = "pattern:[invalid".parse::<AlertCondition>();
+        assert!(err.is_err());
+        let err_msg = err.unwrap_err().to_string();
+        assert!(err_msg.contains("regex"));
+    }
+
+    #[test]
+    fn test_condition_type_for_pattern() {
+        let regex = Regex::new("test").unwrap();
+        let cond = AlertCondition::Pattern { regex };
+        assert_eq!(cond.condition_type(), "pattern");
+    }
+
+    #[test]
+    fn test_severity_as_str() {
+        assert_eq!(AlertSeverity::Critical.as_str(), "CRITICAL");
+        assert_eq!(AlertSeverity::Error.as_str(), "ERROR");
+        assert_eq!(AlertSeverity::Warning.as_str(), "WARNING");
+        assert_eq!(AlertSeverity::Info.as_str(), "INFO");
+    }
+
+    #[test]
+    fn test_severity_tag() {
+        assert_eq!(AlertSeverity::Critical.tag(), "[!!!]");
+        assert_eq!(AlertSeverity::Error.tag(), "[ERR]");
+        assert_eq!(AlertSeverity::Warning.tag(), "[WRN]");
+        assert_eq!(AlertSeverity::Info.tag(), "[INF]");
+    }
+
+    #[test]
+    fn test_severity_default() {
+        let severity = AlertSeverity::default();
+        assert_eq!(severity, AlertSeverity::Warning);
     }
 }

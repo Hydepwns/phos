@@ -35,18 +35,20 @@ impl AlertPayload {
     }
 
     /// Set the severity level.
-    pub fn with_severity(mut self, severity: AlertSeverity) -> Self {
+    #[must_use] pub fn with_severity(mut self, severity: AlertSeverity) -> Self {
         self.severity = severity;
         self
     }
 
     /// Set the source program.
+    #[must_use]
     pub fn with_program(mut self, program: impl Into<String>) -> Self {
         self.program = Some(program.into());
         self
     }
 
     /// Add a context field.
+    #[must_use]
     pub fn with_field(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.fields.insert(key.into(), value.into());
         self
@@ -66,7 +68,7 @@ pub enum WebhookService {
 
 impl WebhookService {
     /// Auto-detect service type from URL.
-    pub fn detect(url: &str) -> Self {
+    #[must_use] pub fn detect(url: &str) -> Self {
         if url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks")
         {
             Self::Discord
@@ -80,6 +82,7 @@ impl WebhookService {
     }
 
     /// Set Telegram chat ID.
+    #[must_use]
     pub fn with_chat_id(self, chat_id: impl Into<String>) -> Self {
         match self {
             Self::Telegram { .. } => Self::Telegram {
@@ -102,7 +105,7 @@ pub trait WebhookFormatter: Send + Sync {
 }
 
 /// Get the current timestamp in ISO 8601 format.
-pub fn current_timestamp() -> String {
+#[must_use] pub fn current_timestamp() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let duration = SystemTime::now()
@@ -165,7 +168,7 @@ fn is_leap_year(year: i64) -> bool {
 }
 
 /// Truncate a string to a maximum length, respecting UTF-8 boundaries.
-pub fn truncate(s: &str, max: usize) -> &str {
+#[must_use] pub fn truncate(s: &str, max: usize) -> &str {
     if s.len() <= max {
         s
     } else {
@@ -233,8 +236,8 @@ mod tests {
     fn test_current_timestamp_format() {
         let ts = current_timestamp();
         // Should match ISO 8601 format
-        assert!(ts.contains("T"));
-        assert!(ts.ends_with("Z"));
+        assert!(ts.contains('T'));
+        assert!(ts.ends_with('Z'));
         assert_eq!(ts.len(), 20);
     }
 }
