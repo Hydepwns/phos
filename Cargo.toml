@@ -1,5 +1,5 @@
 [package]
-name = "phos"
+name = "phoscat"
 version = "0.2.0"
 edition = "2024"
 authors = ["DROO <droo@axol.io>"]
@@ -8,6 +8,10 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/Hydepwns/phos"
 keywords = ["ethereum", "logs", "colorizer", "terminal", "web3"]
 categories = ["command-line-utilities", "development-tools"]
+
+[lib]
+name = "phos"
+path = "src/lib.rs"
 
 [dependencies]
 # CLI
