@@ -37,7 +37,7 @@ fn k9s_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn k9s_program() -> Arc<dyn Program> {
+#[must_use] pub fn k9s_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.k9s",
