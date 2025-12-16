@@ -7,15 +7,17 @@ A fast, universal log colorizer. 99 programs built-in, 13 themes, webhook alerts
 ## Install
 
 ```bash
-# Homebrew
-brew tap Hydepwns/phos && brew install phos
+# Homebrew (macOS/Linux)
+brew install Hydepwns/phos/phos
 
-# Cargo
-cargo install --path .
+# Cargo (crates.io)
+cargo install phoscat
 
-# Binary (Linux/macOS)
-curl -sSL https://github.com/Hydepwns/phos/releases/latest/download/phos-$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/') -o phos
-chmod +x phos && sudo mv phos /usr/local/bin/
+# Arch Linux (AUR)
+yay -S phos
+
+# From source
+cargo install --git https://github.com/Hydepwns/phos
 ```
 
 ## Usage
