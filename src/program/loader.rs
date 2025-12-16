@@ -63,6 +63,11 @@ pub fn themes_dir() -> Option<PathBuf> {
     config_dir().map(|p| p.join("themes"))
 }
 
+/// Get the global configuration file path.
+pub fn global_config_path() -> Option<PathBuf> {
+    config_dir().map(|p| p.join("config.yaml"))
+}
+
 /// Load all user-defined programs from the config directory.
 /// Returns a list of load errors with file paths for detailed error reporting.
 pub fn load_user_programs(registry: &mut ProgramRegistry) -> Vec<LoadResult> {

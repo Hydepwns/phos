@@ -115,18 +115,121 @@ fn rule_from_config(config: &RuleConfig) -> Result<Rule, ConfigError> {
     }
 
     let should_bold = config.bold || config.colors.iter().any(|c| c == "bold");
+    let builder = if should_bold { builder.bold() } else { builder };
 
-    Ok(if should_bold {
-        builder.bold().build()
-    } else {
-        builder.build()
-    })
+    Ok(builder.build())
 }
 
 /// Parse a semantic color name.
 /// Non-semantic colors (domain colors, hex, ANSI) return None and are handled elsewhere.
 fn parse_semantic_color(name: &str) -> Option<SemanticColor> {
     SemanticColor::from_name(name)
+}
+
+// ---------------------------------------------------------------------------
+// Global Configuration
+// ---------------------------------------------------------------------------
+
+/// Global phos configuration from ~/.config/phos/config.yaml.
+///
+/// Settings in this file provide defaults that can be overridden by CLI flags.
+/// Resolution order: CLI > global config > built-in defaults.
+#[derive(Debug, Default, Deserialize)]
+pub struct GlobalConfig {
+    /// Default theme name
+    #[serde(default)]
+    pub theme: Option<String>,
+
+    /// Enable stats by default
+    #[serde(default)]
+    pub stats: bool,
+
+    /// Default stats export format (human, json, prometheus)
+    #[serde(default)]
+    pub stats_export: Option<String>,
+
+    /// Stats interval in seconds (0 = end only)
+    #[serde(default)]
+    pub stats_interval: u64,
+
+    /// Force color output
+    #[serde(default)]
+    pub color: bool,
+
+    /// Default alerting configuration
+    #[serde(default)]
+    pub alerts: AlertsConfig,
+}
+
+/// Alerting configuration section.
+#[derive(Debug, Default, Deserialize)]
+pub struct AlertsConfig {
+    /// Webhook URL
+    #[serde(default)]
+    pub url: Option<String>,
+
+    /// Telegram chat ID
+    #[serde(default)]
+    pub telegram_chat_id: Option<String>,
+
+    /// Cooldown between alerts in seconds
+    #[serde(default = "default_cooldown")]
+    pub cooldown: u64,
+
+    /// Alert conditions
+    #[serde(default)]
+    pub conditions: Vec<String>,
+}
+
+fn default_cooldown() -> u64 {
+    60
+}
+
+impl GlobalConfig {
+    /// Load global configuration from the default path.
+    /// Returns None if the config file doesn't exist.
+    /// Returns Err if the file exists but is invalid.
+    pub fn load() -> Result<Option<Self>, ConfigError> {
+        let config_path = match crate::program::loader::global_config_path() {
+            Some(p) => p,
+            None => return Ok(None),
+        };
+
+        if !config_path.exists() {
+            return Ok(None);
+        }
+
+        let content = fs::read_to_string(&config_path)?;
+        let extension = config_path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("yaml");
+
+        let config = match extension.to_lowercase().as_str() {
+            "yaml" | "yml" => serde_yaml::from_str(&content)?,
+            "json" => serde_json::from_str(&content)?,
+            _ => serde_yaml::from_str(&content)?, // Default to YAML
+        };
+
+        Ok(Some(config))
+    }
+
+    /// Load global configuration from a specific path.
+    pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
+        let path = path.as_ref();
+        let content = fs::read_to_string(path)?;
+
+        let extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("yaml");
+
+        match extension.to_lowercase().as_str() {
+            "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
+            "json" => Ok(serde_json::from_str(&content)?),
+            _ => Ok(serde_yaml::from_str(&content)?),
+        }
+    }
 }
 
 #[cfg(test)]
