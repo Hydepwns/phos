@@ -40,8 +40,62 @@
 //! ```
 
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
+
+use serde::Deserialize;
 
 use crate::colors::{Color, SemanticColor};
+
+/// Configuration for a user-defined theme.
+#[derive(Debug, Deserialize)]
+pub struct ThemeConfig {
+    /// Theme name
+    pub name: String,
+    /// Theme description
+    #[serde(default)]
+    pub description: String,
+    /// Color mappings (semantic name -> hex color)
+    #[serde(default)]
+    pub colors: HashMap<String, String>,
+    /// Optional base palette
+    #[serde(default)]
+    pub palette: Option<PaletteConfig>,
+}
+
+/// Palette configuration for user themes.
+#[derive(Debug, Deserialize)]
+pub struct PaletteConfig {
+    pub red: String,
+    pub orange: String,
+    pub green: String,
+    pub cyan: String,
+    pub blue: String,
+    pub purple: String,
+    #[serde(default = "default_gray")]
+    pub gray: String,
+    #[serde(default = "default_dim")]
+    pub dim: String,
+    #[serde(default = "default_fg")]
+    pub foreground: String,
+}
+
+fn default_gray() -> String { "#888888".to_string() }
+fn default_dim() -> String { "#666666".to_string() }
+fn default_fg() -> String { "#FFFFFF".to_string() }
+
+/// Error loading a theme configuration.
+#[derive(Debug, thiserror::Error)]
+pub enum ThemeLoadError {
+    #[error("Failed to read theme file: {0}")]
+    ReadError(#[from] std::io::Error),
+    #[error("Failed to parse YAML: {0}")]
+    YamlError(#[from] serde_yaml::Error),
+    #[error("Failed to parse JSON: {0}")]
+    JsonError(#[from] serde_json::Error),
+    #[error("Unknown file format: {0}")]
+    UnknownFormat(String),
+}
 
 /// A theme that maps semantic colors to actual colors.
 ///
@@ -331,6 +385,131 @@ impl Theme {
     /// List available built-in themes.
     pub fn list_builtin() -> Vec<&'static str> {
         BUILTIN_THEMES.iter().map(|def| def.name).collect()
+    }
+
+    /// Load a theme from a configuration file.
+    ///
+    /// Supports YAML and JSON formats. The file should contain a theme
+    /// configuration with name, description, and either direct color mappings
+    /// or a palette.
+    ///
+    /// # Examples
+    ///
+    /// YAML format with direct colors:
+    /// ```yaml
+    /// name: my-theme
+    /// description: My custom theme
+    /// colors:
+    ///   error: "#FF0000"
+    ///   warn: "#FFAA00"
+    ///   info: "#00AAFF"
+    /// ```
+    ///
+    /// YAML format with palette:
+    /// ```yaml
+    /// name: my-theme
+    /// description: My custom theme
+    /// palette:
+    ///   red: "#FF5555"
+    ///   orange: "#FFAA00"
+    ///   green: "#AAFFAA"
+    ///   cyan: "#88FFFF"
+    ///   blue: "#55AAFF"
+    ///   purple: "#FF88FF"
+    /// ```
+    pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, ThemeLoadError> {
+        let path = path.as_ref();
+        let content = fs::read_to_string(path)?;
+
+        let extension = path
+            .extension()
+            .and_then(|e| e.to_str())
+            .unwrap_or("");
+
+        let config: ThemeConfig = match extension.to_lowercase().as_str() {
+            "yaml" | "yml" => serde_yaml::from_str(&content)?,
+            "json" => serde_json::from_str(&content)?,
+            ext => return Err(ThemeLoadError::UnknownFormat(ext.to_string())),
+        };
+
+        Ok(Self::from_config(config))
+    }
+
+    /// Create a theme from a configuration.
+    pub fn from_config(config: ThemeConfig) -> Self {
+        // Build base colors from palette if provided
+        let palette_colors: HashMap<SemanticColor, Color> = config
+            .palette
+            .map(|palette| {
+                [
+                    (SemanticColor::Error, &palette.red),
+                    (SemanticColor::Warn, &palette.orange),
+                    (SemanticColor::Info, &palette.blue),
+                    (SemanticColor::Debug, &palette.gray),
+                    (SemanticColor::Trace, &palette.dim),
+                    (SemanticColor::Number, &palette.purple),
+                    (SemanticColor::String, &palette.green),
+                    (SemanticColor::Boolean, &palette.purple),
+                    (SemanticColor::Success, &palette.green),
+                    (SemanticColor::Failure, &palette.red),
+                    (SemanticColor::Timestamp, &palette.gray),
+                    (SemanticColor::Key, &palette.cyan),
+                    (SemanticColor::Value, &palette.foreground),
+                    (SemanticColor::Identifier, &palette.cyan),
+                    (SemanticColor::Label, &palette.cyan),
+                    (SemanticColor::Metric, &palette.purple),
+                ]
+                .into_iter()
+                .map(|(sem, hex)| (sem, Color::hex(hex)))
+                .collect()
+            })
+            .unwrap_or_default();
+
+        // Override with specific color mappings
+        let override_colors: HashMap<SemanticColor, Color> = config
+            .colors
+            .iter()
+            .filter_map(|(name, hex)| {
+                SemanticColor::from_name(name).map(|sem| (sem, Color::hex(hex)))
+            })
+            .collect();
+
+        // Merge: overrides take precedence over palette
+        let colors = palette_colors
+            .into_iter()
+            .chain(override_colors)
+            .collect();
+
+        Self {
+            name: config.name,
+            description: config.description,
+            colors,
+        }
+    }
+
+    /// Load a user theme by name from the themes directory.
+    ///
+    /// Searches `~/.config/phos/themes/` for a file matching the theme name.
+    pub fn load_user_theme(name: &str) -> Option<Self> {
+        let themes_dir = crate::program::loader::themes_dir()?;
+        if !themes_dir.exists() {
+            return None;
+        }
+
+        // Try common extensions
+        for ext in ["yaml", "yml", "json"] {
+            let path = themes_dir.join(format!("{name}.{ext}"));
+            if path.exists() {
+                return Self::load_from_file(&path).ok();
+            }
+        }
+
+        None
+    }
+
+    /// Get a theme by name, checking user themes first, then built-in.
+    pub fn get(name: &str) -> Option<Self> {
+        Self::load_user_theme(name).or_else(|| Self::builtin(name))
     }
 
     /// Default dark theme.
