@@ -22,7 +22,7 @@ phos is a universal log colorizer with built-in support for 99 programs across m
 
 ```bash
 cargo build                    # Debug build
-cargo build --release          # Optimized release (~1.9MB binary)
+cargo build --release          # Optimized release (~4.6MB phos, ~1.9MB phoscat)
 cargo test                     # Run all tests
 cargo test test_name           # Run specific test
 cargo clippy                   # Lint
