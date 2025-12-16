@@ -13,7 +13,7 @@ use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
 use phos::alert::AlertManagerBuilder;
 use phos::programs;
-use phos::{Colorizer, Config, StatsCollector, Theme};
+use phos::{Colorizer, Config, GlobalConfig, StatsCollector, StatsExportFormat, Theme};
 use std::sync::Arc;
 
 /// Version string with git hash
@@ -69,6 +69,18 @@ pub struct Cli {
     /// Show log statistics after processing
     #[arg(long)]
     stats: bool,
+
+    /// Export format for statistics (implies --stats)
+    #[arg(long, value_enum, value_name = "FORMAT")]
+    stats_export: Option<StatsExportFormat>,
+
+    /// Write statistics to file instead of stderr
+    #[arg(long, value_name = "PATH")]
+    stats_output: Option<String>,
+
+    /// Print statistics every N seconds during processing (0 = end only)
+    #[arg(long, value_name = "SECONDS", default_value = "0")]
+    stats_interval: u64,
 
     /// Webhook URL for alerts (auto-detects Discord/Telegram)
     #[arg(long, value_name = "URL")]
@@ -201,6 +213,15 @@ fn main() -> Result<()> {
         eprintln!("Warning: {}", err.format());
     }
 
+    // Load global configuration (~/.config/phos/config.yaml)
+    let global_config = match GlobalConfig::load() {
+        Ok(config) => config.unwrap_or_default(),
+        Err(e) => {
+            eprintln!("Warning: failed to load global config: {e}");
+            GlobalConfig::default()
+        }
+    };
+
     // Handle subcommands
     if let Some(cmd) = cli.command {
         return match cmd {
@@ -228,8 +249,12 @@ fn main() -> Result<()> {
     // Determine if we're reading from stdin or running a command
     let is_pipe = !atty::is(atty::Stream::Stdin);
 
-    // Get the theme
-    let theme = Theme::builtin(&cli.theme).unwrap_or_else(Theme::default_dark);
+    // Get the theme: CLI > global config > default
+    let theme_name = (cli.theme != "default-dark")
+        .then_some(&cli.theme)
+        .or(global_config.theme.as_ref())
+        .unwrap_or(&cli.theme);
+    let theme = Theme::get(theme_name).unwrap_or_else(Theme::default_dark);
 
     // Get rules - check program first, then config, then auto-detect
     let rules = if let Some(ref program_name) = cli.program.as_ref().or(cli.client.as_ref()) {
@@ -257,22 +282,46 @@ fn main() -> Result<()> {
         Arc::from([])
     };
 
-    // Enable colors if: --color flag set OR stdout is a TTY
-    let color_enabled = cli.color || atty::is(atty::Stream::Stdout);
+    // Enable colors if: --color flag set OR global config color OR stdout is a TTY
+    let color_enabled = cli.color || global_config.color || atty::is(atty::Stream::Stdout);
 
     let mut colorizer = Colorizer::new(rules)
         .with_theme(theme)
         .with_color_enabled(color_enabled);
-    let mut stats = cli.stats.then(StatsCollector::new);
 
-    // Set up alert manager if --alert is provided
+    // Merge stats settings: CLI > global config > default
+    // --stats-export and --stats-interval > 0 imply --stats
+    let stats_interval = if cli.stats_interval > 0 {
+        cli.stats_interval
+    } else {
+        global_config.stats_interval
+    };
+    let stats_enabled = cli.stats
+        || global_config.stats
+        || cli.stats_export.is_some()
+        || global_config.stats_export.is_some()
+        || stats_interval > 0;
+    let mut stats = stats_enabled.then(StatsCollector::new);
+
+    // Set up alert manager if --alert is provided (CLI or global config)
     let program_name = cli.program.as_ref().or(cli.client.as_ref()).cloned();
-    let mut alert_manager = if let Some(ref url) = cli.alert {
+    let alert_url = cli.alert.as_ref().or(global_config.alerts.url.as_ref());
+    let mut alert_manager = if let Some(url) = alert_url {
+        let cooldown = if cli.alert_cooldown != 60 {
+            cli.alert_cooldown
+        } else {
+            global_config.alerts.cooldown
+        };
         let mut builder = AlertManagerBuilder::new()
             .url(url)
-            .cooldown_secs(cli.alert_cooldown);
+            .cooldown_secs(cooldown);
 
-        if let Some(ref chat_id) = cli.telegram_chat_id {
+        // Chat ID: CLI > global config
+        let chat_id = cli
+            .telegram_chat_id
+            .as_ref()
+            .or(global_config.alerts.telegram_chat_id.as_ref());
+        if let Some(chat_id) = chat_id {
             builder = builder.chat_id(chat_id);
         }
 
@@ -280,9 +329,14 @@ fn main() -> Result<()> {
             builder = builder.program(name);
         }
 
-        // Add conditions from CLI
-        if !cli.alert_on.is_empty() {
-            match builder.conditions(&cli.alert_on) {
+        // Add conditions from CLI first, then global config
+        let conditions = if !cli.alert_on.is_empty() {
+            &cli.alert_on
+        } else {
+            &global_config.alerts.conditions
+        };
+        if !conditions.is_empty() {
+            match builder.conditions(conditions) {
                 Ok(b) => builder = b,
                 Err(e) => {
                     eprintln!("phos: invalid alert condition: {e}");
@@ -303,11 +357,17 @@ fn main() -> Result<()> {
 
     if is_pipe {
         // Read from stdin
-        match (&mut stats, &mut alert_manager) {
-            (Some(stats), Some(alerts)) => {
+        match (&mut stats, &mut alert_manager, stats_interval > 0) {
+            (Some(stats), Some(alerts), true) => {
+                colorizer.process_stdio_with_alerts_interval(stats, alerts, stats_interval)?;
+            }
+            (Some(stats), Some(alerts), false) => {
                 colorizer.process_stdio_with_alerts(stats, alerts)?;
             }
-            (Some(stats), None) => {
+            (Some(stats), None, true) => {
+                colorizer.process_stdio_with_stats_interval(stats, stats_interval)?;
+            }
+            (Some(stats), None, false) => {
                 colorizer.process_stdio_with_stats(stats)?;
             }
             _ => {
@@ -327,9 +387,32 @@ fn main() -> Result<()> {
         std::process::exit(1);
     }
 
-    // Print stats if enabled
-    if let Some(stats) = stats {
-        stats.print_summary();
+    // Output stats if enabled
+    if let Some(ref stats) = stats {
+        // Merge stats export format: CLI > global config > default
+        let format = cli.stats_export.unwrap_or_else(|| {
+            global_config
+                .stats_export
+                .as_deref()
+                .and_then(|s| match s {
+                    "json" => Some(StatsExportFormat::Json),
+                    "prometheus" => Some(StatsExportFormat::Prometheus),
+                    "human" => Some(StatsExportFormat::Human),
+                    _ => None,
+                })
+                .unwrap_or(StatsExportFormat::Human)
+        });
+        let program = program_name.as_deref();
+
+        if let Some(ref path) = cli.stats_output {
+            // Write to file
+            let mut file = std::fs::File::create(path)?;
+            stats.write_export(&mut file, format, program)?;
+        } else {
+            // Write to stderr
+            let mut stderr = std::io::stderr().lock();
+            stats.write_export(&mut stderr, format, program)?;
+        }
     }
 
     Ok(())

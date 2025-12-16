@@ -94,11 +94,11 @@ pub use alert::{AlertCondition, AlertManager, AlertManagerBuilder, AlertSeverity
 pub use category::{Category, ParseCategoryError};
 pub use colorizer::Colorizer;
 pub use colors::{parse_hex_rgb, Color, ColorSpec, SemanticColor};
-pub use config::{Config, RuleConfig};
+pub use config::{AlertsConfig, Config, GlobalConfig, RuleConfig};
 pub use program::{Program, ProgramInfo, ProgramRegistry};
 pub use rule::Rule;
-pub use stats::{Stats, StatsCollector};
-pub use theme::Theme;
+pub use stats::{Stats, StatsCollector, StatsExportFormat, StatsJson};
+pub use theme::{Theme, ThemeConfig, ThemeLoadError};
 
 /// Prelude for convenient imports.
 pub mod prelude {
