@@ -9,21 +9,23 @@ WORKDIR /app
 # Copy everything needed for the build
 COPY Cargo.toml Cargo.lock ./
 COPY src ./src
+COPY benches ./benches
 COPY .git ./.git
 
-# Build the release binary with version info
+# Build the release binaries
 RUN PHOS_GIT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "docker") \
     PHOS_BUILD_DATE=$(date -u +%Y-%m-%d) \
-    cargo build --release
+    cargo build --release --bin phos --bin phoscat
 
-# Strip the binary for smaller size
-RUN strip target/release/phos
+# Strip binaries for smaller size
+RUN strip target/release/phos target/release/phoscat
 
-# Final stage - scratch image (empty, just the binary)
+# Final stage - scratch image (empty, just the binaries)
 FROM scratch
 
-# Copy the static binary
+# Copy the static binaries
 COPY --from=builder /app/target/release/phos /phos
+COPY --from=builder /app/target/release/phoscat /phoscat
 
 # Set the entrypoint
 ENTRYPOINT ["/phos"]

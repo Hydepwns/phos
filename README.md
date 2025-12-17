@@ -19,6 +19,9 @@ yay -S phos
 # Nix
 nix run github:Hydepwns/phos
 
+# Docker
+docker run --rm -i mfdroo/phos
+
 # From source
 cargo install --git https://github.com/Hydepwns/phos
 ```

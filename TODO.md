@@ -60,7 +60,7 @@
 - [ ] Homebrew core (submit after community feedback/30+ stars)
 - [x] AUR package (`yay -S phos`)
 - [x] Nix flake (`nix run github:Hydepwns/phos`)
-- [x] Docker image (2.89MB scratch-based)
+- [x] Docker image (`docker run --rm -i mfdroo/phos`)
 
 ### Pre-built Binaries
 - [ ] Linux x86_64 (musl for static linking)

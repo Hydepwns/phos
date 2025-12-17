@@ -23,7 +23,6 @@ docs/
 
 # Test files
 tests/
-benches/
 
 # Config files not needed in image
 .claude/
