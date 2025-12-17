@@ -90,6 +90,7 @@
 //! let theme = Theme::nord();
 //! ```
 
+pub mod aggregator;
 pub mod alert;
 pub mod category;
 pub mod colorizer;

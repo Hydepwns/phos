@@ -44,7 +44,15 @@ anyhow = "1.0"
 
 # Async HTTP for webhooks
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "time", "macros", "io-util"] }
+
+# Aggregator dependencies (for phos-aggregator binary)
+bollard = "0.18"
+axum = { version = "0.8", features = ["ws"] }
+tower-http = { version = "0.6", features = ["fs", "cors"] }
+ansi-to-html = "0.2"
+async-stream = "0.3"
+futures = "0.3"
 
 [dev-dependencies]
 criterion = "0.5"
@@ -57,6 +65,10 @@ path = "src/main.rs"
 [[bin]]
 name = "phoscat"
 path = "src/bin/phoscat.rs"
+
+[[bin]]
+name = "phos-aggregator"
+path = "src/bin/phos-aggregator.rs"
 
 [[bench]]
 name = "colorize"
