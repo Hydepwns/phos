@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-phos is a universal log colorizer with built-in support for 99 programs across multiple domains:
+phos is a universal log colorizer with built-in support for 98 programs across multiple domains:
 
 - **Ethereum**: Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda, Geth, Nethermind, Besu, Erigon, Reth, Mana, Charon, MEV-Boost (15)
 - **System**: systemd/journalctl, syslog, fail2ban, dmesg, cron, auditd, iptables/nftables, ls, df, du, stat, mount, ps, free, top, uptime, lsof, lsmod, lspci, vmstat, iostat, env, blkid, fdisk, lsblk, dnf (26)
@@ -55,9 +55,15 @@ src/
   config.rs          # YAML/JSON configuration loading
   stats.rs           # Log statistics collection and reporting
   alert/             # Webhook alerting system
-    mod.rs           # AlertManager, AlertManagerBuilder
-    conditions.rs    # AlertCondition enum (Error, PeerDrop, SyncStall, etc.)
-    webhook.rs       # Discord/Telegram/generic webhook formatting
+    mod.rs           # AlertManager, AlertManagerBuilder, re-exports
+    condition.rs     # AlertCondition enum
+    config.rs        # Alert configuration types
+    discord.rs       # Discord webhook formatting
+    telegram.rs      # Telegram webhook formatting
+    formatter.rs     # Generic webhook formatting
+    sender.rs        # HTTP webhook delivery
+    evaluator.rs     # Condition evaluation logic
+    rate_limit.rs    # Rate limiting for alerts
   program/
     mod.rs           # Program trait, ProgramRegistry, SimpleProgram
     config.rs        # User program config parsing (YAML/JSON)
@@ -166,7 +172,7 @@ Layer { Consensus, Execution, Full, Middleware }
 // Alerting
 AlertManager               // Manages alert state, cooldowns, and webhook delivery
 AlertManagerBuilder        // Builder pattern for AlertManager configuration
-AlertCondition             // Enum: Error, ErrorThreshold(N), PeerDrop(N), SyncStall, Pattern(Regex)
+AlertCondition             // Enum: Error, ErrorThreshold { count }, PeerDrop { threshold }, SyncStall, Pattern { regex }
 WebhookType                // Enum: Discord, Telegram, Generic (auto-detected from URL)
 
 // Statistics

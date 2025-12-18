@@ -2,7 +2,7 @@
 
 > Greek: φως "light"
 
-A fast, universal log colorizer. 99 programs built-in, 13 themes, webhook alerts.
+A fast, universal log colorizer. 98 programs built-in, 13 themes, webhook alerts.
 
 ## Install
 
@@ -69,14 +69,14 @@ docker logs mycontainer | phoscat docker
 ## Commands
 
 ```bash
-phos list                    # List all 99 programs
+phos list                    # List all 98 programs
 phos list -c ethereum        # List by category
 phos themes                  # List 13 themes
 phos info docker             # Program details
 phos preview                 # Preview themes
 ```
 
-## Programs (99)
+## Programs (98)
 
 | Category | Count | Examples |
 |----------|-------|----------|
@@ -85,7 +85,7 @@ phos preview                 # Preview themes
 | Network | 21 | ping, curl, nginx, dig, tcpdump |
 | Dev | 15 | git, cargo, npm, go, make, gcc |
 | DevOps | 8 | docker, kubectl, terraform, helm, ansible |
-| Data | 5 | postgres, redis, mysql, mongodb |
+| Data | 5 | postgres, redis, mysql, mongodb, elasticsearch |
 | Monitoring | 4 | prometheus, grafana, datadog |
 | Messaging | 2 | kafka, rabbitmq |
 | CI/CD | 2 | github-actions, jenkins |
