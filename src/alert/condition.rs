@@ -25,7 +25,8 @@ pub enum AlertCondition {
 
 impl AlertCondition {
     /// Returns a string identifier for this condition type.
-    #[must_use] pub fn condition_type(&self) -> &'static str {
+    #[must_use]
+    pub fn condition_type(&self) -> &'static str {
         match self {
             Self::Error => "error",
             Self::ErrorThreshold { .. } => "error_threshold",
@@ -112,7 +113,8 @@ pub enum AlertSeverity {
 
 impl AlertSeverity {
     /// Discord embed color (decimal).
-    #[must_use] pub fn discord_color(&self) -> u32 {
+    #[must_use]
+    pub fn discord_color(&self) -> u32 {
         match self {
             Self::Critical => 0xFF_0000, // Red
             Self::Error => 0xFF_5500,    // Orange-red
@@ -122,7 +124,8 @@ impl AlertSeverity {
     }
 
     /// Display string for messages.
-    #[must_use] pub fn as_str(&self) -> &'static str {
+    #[must_use]
+    pub fn as_str(&self) -> &'static str {
         match self {
             Self::Critical => "CRITICAL",
             Self::Error => "ERROR",
@@ -132,7 +135,8 @@ impl AlertSeverity {
     }
 
     /// Short tag for compact display.
-    #[must_use] pub fn tag(&self) -> &'static str {
+    #[must_use]
+    pub fn tag(&self) -> &'static str {
         match self {
             Self::Critical => "[!!!]",
             Self::Error => "[ERR]",

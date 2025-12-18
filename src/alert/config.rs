@@ -26,8 +26,7 @@ pub enum ConfigError {
 }
 
 /// Alert configuration file structure.
-#[derive(Debug, Deserialize)]
-#[derive(Default)]
+#[derive(Debug, Deserialize, Default)]
 pub struct AlertConfig {
     /// Webhook definitions.
     #[serde(default)]
@@ -73,11 +72,11 @@ impl AlertConfig {
     }
 
     /// Get a webhook by name.
-    #[must_use] pub fn get_webhook(&self, name: &str) -> Option<&WebhookConfig> {
+    #[must_use]
+    pub fn get_webhook(&self, name: &str) -> Option<&WebhookConfig> {
         self.webhooks.iter().find(|w| w.name == name)
     }
 }
-
 
 /// Webhook configuration.
 #[derive(Debug, Deserialize)]
@@ -98,7 +97,8 @@ pub struct WebhookConfig {
 
 impl WebhookConfig {
     /// Get the webhook service type.
-    #[must_use] pub fn service(&self) -> WebhookService {
+    #[must_use]
+    pub fn service(&self) -> WebhookService {
         match self.webhook_type.as_deref() {
             Some("discord") => WebhookService::Discord,
             Some("telegram") => WebhookService::Telegram {
@@ -145,28 +145,29 @@ impl ConditionConfig {
         match self.condition_type.as_str() {
             "error" => Ok(AlertCondition::Error),
             "error_threshold" => {
-                let count = self
-                    .count
-                    .ok_or_else(|| ConfigError::InvalidCondition("error_threshold requires count".to_string()))?;
+                let count = self.count.ok_or_else(|| {
+                    ConfigError::InvalidCondition("error_threshold requires count".to_string())
+                })?;
                 Ok(AlertCondition::ErrorThreshold { count })
             }
             "peer_drop" => {
-                let threshold = self
-                    .threshold
-                    .ok_or_else(|| ConfigError::InvalidCondition("peer_drop requires threshold".to_string()))?;
+                let threshold = self.threshold.ok_or_else(|| {
+                    ConfigError::InvalidCondition("peer_drop requires threshold".to_string())
+                })?;
                 Ok(AlertCondition::PeerDrop { threshold })
             }
             "sync_stall" => Ok(AlertCondition::SyncStall),
             "pattern" => {
-                let pattern = self
-                    .pattern
-                    .as_ref()
-                    .ok_or_else(|| ConfigError::InvalidCondition("pattern requires pattern field".to_string()))?;
+                let pattern = self.pattern.as_ref().ok_or_else(|| {
+                    ConfigError::InvalidCondition("pattern requires pattern field".to_string())
+                })?;
                 let regex = regex::Regex::new(pattern)
                     .map_err(|e| ConfigError::InvalidCondition(format!("invalid regex: {e}")))?;
                 Ok(AlertCondition::Pattern { regex })
             }
-            other => Err(ConfigError::InvalidCondition(format!("unknown type: {other}"))),
+            other => Err(ConfigError::InvalidCondition(format!(
+                "unknown type: {other}"
+            ))),
         }
     }
 }
@@ -210,7 +211,8 @@ fn default_max_per_hour() -> usize {
 }
 
 /// Parse a duration string like "30s", "5m", "1h".
-#[must_use] pub fn parse_duration(s: &str) -> Option<std::time::Duration> {
+#[must_use]
+pub fn parse_duration(s: &str) -> Option<std::time::Duration> {
     let s = s.trim();
     if s.is_empty() {
         return None;
@@ -290,7 +292,10 @@ mod tests {
             pattern: None,
             webhooks: vec![],
         };
-        assert!(matches!(config.to_condition().unwrap(), AlertCondition::Error));
+        assert!(matches!(
+            config.to_condition().unwrap(),
+            AlertCondition::Error
+        ));
 
         let config = ConditionConfig {
             condition_type: "error_threshold".to_string(),

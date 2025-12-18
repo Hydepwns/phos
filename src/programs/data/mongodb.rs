@@ -119,7 +119,8 @@ fn mongodb_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn mongodb_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn mongodb_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "data.mongodb",

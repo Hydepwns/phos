@@ -59,9 +59,15 @@ impl ConfigError {
     }
 
     /// Add line number to a file error.
-    #[must_use] pub fn with_line(self, line: usize) -> Self {
+    #[must_use]
+    pub fn with_line(self, line: usize) -> Self {
         match self {
-            Self::FileError { file, message, suggestion, .. } => Self::FileError {
+            Self::FileError {
+                file,
+                message,
+                suggestion,
+                ..
+            } => Self::FileError {
                 file,
                 message,
                 line: Some(line),
@@ -75,7 +81,12 @@ impl ConfigError {
     #[must_use]
     pub fn with_suggestion(self, suggestion: impl Into<String>) -> Self {
         match self {
-            Self::FileError { file, message, line, .. } => Self::FileError {
+            Self::FileError {
+                file,
+                message,
+                line,
+                ..
+            } => Self::FileError {
                 file,
                 message,
                 line,
@@ -86,9 +97,15 @@ impl ConfigError {
     }
 
     /// Format a detailed error message for display.
-    #[must_use] pub fn detailed_message(&self) -> String {
+    #[must_use]
+    pub fn detailed_message(&self) -> String {
         match self {
-            Self::FileError { file, message, line, suggestion } => {
+            Self::FileError {
+                file,
+                message,
+                line,
+                suggestion,
+            } => {
                 let mut msg = file.to_string();
                 if let Some(l) = line {
                     msg.push_str(&format!(":{l}"));
@@ -107,10 +124,16 @@ impl ConfigError {
                 msg
             }
             Self::JsonError(e) => {
-                format!("JSON parse error at line {}, column {}: {e}", e.line(), e.column())
+                format!(
+                    "JSON parse error at line {}, column {}: {e}",
+                    e.line(),
+                    e.column()
+                )
             }
             Self::RegexError(e) => {
-                format!("Invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, ), etc.")
+                format!(
+                    "Invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, ), etc."
+                )
             }
             _ => self.to_string(),
         }
@@ -158,10 +181,7 @@ impl ProgramConfig {
         let path = path.as_ref();
         let content = fs::read_to_string(path)?;
 
-        let extension = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         match extension.to_lowercase().as_str() {
             "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
@@ -171,21 +191,21 @@ impl ProgramConfig {
     }
 
     /// Get the program ID.
-    #[must_use] pub fn program_id(&self) -> String {
+    #[must_use]
+    pub fn program_id(&self) -> String {
         self.id.clone().unwrap_or_else(|| {
-            format!("{}.{}", self.category, self.name.to_lowercase().replace(' ', "_"))
+            format!(
+                "{}.{}",
+                self.category,
+                self.name.to_lowercase().replace(' ', "_")
+            )
         })
     }
 
     /// Convert to a Program implementation.
     pub fn to_program(self) -> Result<Arc<dyn Program>, ConfigError> {
         let category: Category = self.category.parse()?;
-        let info = ProgramInfo::new(
-            &self.program_id(),
-            &self.name,
-            &self.description,
-            category,
-        );
+        let info = ProgramInfo::new(&self.program_id(), &self.name, &self.description, category);
 
         // Parse domain colors
         let domain_colors: HashMap<String, Color> = self

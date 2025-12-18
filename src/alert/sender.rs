@@ -51,7 +51,8 @@ impl WebhookSender {
     }
 
     /// Set the request timeout.
-    #[must_use] pub fn with_timeout(mut self, timeout: Duration) -> Self {
+    #[must_use]
+    pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
         self.client = Client::builder()
             .timeout(timeout)
@@ -80,12 +81,14 @@ impl WebhookSender {
     }
 
     /// Get the webhook URL.
-    #[must_use] pub fn url(&self) -> &str {
+    #[must_use]
+    pub fn url(&self) -> &str {
         &self.url
     }
 
     /// Get the webhook service type.
-    #[must_use] pub fn service(&self) -> &WebhookService {
+    #[must_use]
+    pub fn service(&self) -> &WebhookService {
         &self.service
     }
 }
@@ -107,10 +110,7 @@ impl BackgroundSender {
     ///
     /// Returns the sender handle. The background task will run until all
     /// sender handles are dropped.
-    pub fn spawn(
-        service: WebhookService,
-        formatter: Arc<dyn WebhookFormatter>,
-    ) -> Self {
+    pub fn spawn(service: WebhookService, formatter: Arc<dyn WebhookFormatter>) -> Self {
         let (tx, rx) = mpsc::unbounded_channel();
 
         tokio::spawn(async move {
@@ -186,12 +186,8 @@ mod tests {
     #[test]
     fn test_webhook_sender_timeout() {
         let formatter = Arc::new(DiscordFormatter);
-        let sender = WebhookSender::new(
-            "https://example.com",
-            WebhookService::Generic,
-            formatter,
-        )
-        .with_timeout(Duration::from_secs(10));
+        let sender = WebhookSender::new("https://example.com", WebhookService::Generic, formatter)
+            .with_timeout(Duration::from_secs(10));
 
         assert_eq!(sender.timeout, Duration::from_secs(10));
     }

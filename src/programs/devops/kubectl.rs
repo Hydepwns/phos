@@ -85,7 +85,8 @@ fn kubectl_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn kubectl_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn kubectl_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.kubectl",

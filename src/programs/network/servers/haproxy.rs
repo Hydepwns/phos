@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::programs::common;
 use crate::rule::Rule;
 
@@ -121,7 +121,7 @@ fn haproxy_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn haproxy_program() -> Arc<SimpleProgram> {
+pub fn haproxy_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.haproxy",

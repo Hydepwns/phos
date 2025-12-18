@@ -64,7 +64,8 @@ fn docker_compose_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn docker_compose_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn docker_compose_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.docker-compose",

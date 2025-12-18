@@ -123,7 +123,8 @@ impl Colorizer {
     }
 
     /// Set the theme (recomputes styles).
-    #[must_use] pub fn with_theme(mut self, theme: Theme) -> Self {
+    #[must_use]
+    pub fn with_theme(mut self, theme: Theme) -> Self {
         self.rule_styles = Self::compute_styles(&self.rules, &theme);
         self.theme = theme;
         self
@@ -159,7 +160,8 @@ impl Colorizer {
     ///
     /// When disabled, the colorizer passes through text unchanged.
     /// Useful for piping to files or commands that don't support ANSI.
-    #[must_use] pub fn with_color_enabled(mut self, enabled: bool) -> Self {
+    #[must_use]
+    pub fn with_color_enabled(mut self, enabled: bool) -> Self {
         self.color_enabled = enabled;
         self
     }
@@ -205,20 +207,24 @@ impl Colorizer {
         }
 
         // Phase 1: Check skip rules
-        let should_skip = self.rules.iter().any(|rule| rule.skip && rule.is_match(line));
+        let should_skip = self
+            .rules
+            .iter()
+            .any(|rule| rule.skip && rule.is_match(line));
         if should_skip {
             return None;
         }
 
         // Phase 2: Apply replacements functionally (avoid clone when no replacement)
-        let line: Cow<str> = self.rules.iter().fold(Cow::Borrowed(line), |acc, rule| {
-            match &rule.replace {
-                Some(replacement) if rule.is_match(&acc) => {
-                    Cow::Owned(rule.regex.replace_all(&acc, replacement).into_owned())
-                }
-                _ => acc,
-            }
-        });
+        let line: Cow<str> =
+            self.rules
+                .iter()
+                .fold(Cow::Borrowed(line), |acc, rule| match &rule.replace {
+                    Some(replacement) if rule.is_match(&acc) => {
+                        Cow::Owned(rule.regex.replace_all(&acc, replacement).into_owned())
+                    }
+                    _ => acc,
+                });
 
         // Phase 3: Update block mode state (side effect isolated here)
         self.update_block_state(&line);
@@ -235,7 +241,10 @@ impl Colorizer {
         let mut sorted_ranges = colored_ranges;
         sorted_ranges.sort_by_key(|(start, _, _)| *start);
 
-        Some((self.build_colored_output(&line, &sorted_ranges), had_matches))
+        Some((
+            self.build_colored_output(&line, &sorted_ranges),
+            had_matches,
+        ))
     }
 
     /// Update block mode state based on rules (isolated side effect).
@@ -305,13 +314,19 @@ impl Colorizer {
         let mut result = String::with_capacity(line.len() + ranges.len() * 20);
 
         // Process each range with fold to track position
-        let last_end = ranges.iter().fold(0usize, |last_end, &(start, end, style_idx)| {
-            // Write uncolored gap
-            self.write_segment(&mut result, &line[last_end..start]);
-            // Write colored section (look up style by index)
-            let _ = write!(result, "{}", self.rule_styles[style_idx].paint(&line[start..end]));
-            end
-        });
+        let last_end = ranges
+            .iter()
+            .fold(0usize, |last_end, &(start, end, style_idx)| {
+                // Write uncolored gap
+                self.write_segment(&mut result, &line[last_end..start]);
+                // Write colored section (look up style by index)
+                let _ = write!(
+                    result,
+                    "{}",
+                    self.rule_styles[style_idx].paint(&line[start..end])
+                );
+                end
+            });
 
         // Write trailing uncolored text
         self.write_segment(&mut result, &line[last_end..]);
@@ -573,10 +588,7 @@ mod tests {
     #[test]
     fn test_skip_rule() {
         let rules = vec![
-            Rule::new(r"DEBUG")
-                .unwrap()
-                .skip()
-                .build(),
+            Rule::new(r"DEBUG").unwrap().skip().build(),
             Rule::new(r"error")
                 .unwrap()
                 .semantic(SemanticColor::Error)
@@ -611,10 +623,7 @@ mod tests {
     fn test_skip_and_replace_together() {
         let rules = vec![
             // Skip DEBUG lines
-            Rule::new(r"^\[DEBUG\]")
-                .unwrap()
-                .skip()
-                .build(),
+            Rule::new(r"^\[DEBUG\]").unwrap().skip().build(),
             // Replace timestamp format
             Rule::new(r"(\d{4})-(\d{2})-(\d{2})")
                 .unwrap()

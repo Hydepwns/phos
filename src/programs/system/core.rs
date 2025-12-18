@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -98,7 +98,7 @@ fn systemd_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn systemd_program() -> Arc<SimpleProgram> {
+pub fn systemd_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.systemd",
@@ -116,7 +116,8 @@ pub fn systemd_program() -> Arc<SimpleProgram> {
 // =============================================================================
 
 fn syslog_rules() -> Vec<Rule> {
-    let mut rules = vec![Rule::new(
+    let mut rules =
+        vec![Rule::new(
         r"\b(kern|user|mail|daemon|auth|syslog|lpr|news|uucp|cron|authpriv|ftp|local[0-7])\b",
     )
     .unwrap()
@@ -170,7 +171,7 @@ fn syslog_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn syslog_program() -> Arc<SimpleProgram> {
+pub fn syslog_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.syslog",
@@ -308,7 +309,7 @@ fn dmesg_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn dmesg_program() -> Arc<SimpleProgram> {
+pub fn dmesg_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.dmesg",
@@ -399,7 +400,7 @@ fn cron_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn cron_program() -> Arc<SimpleProgram> {
+pub fn cron_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.cron",

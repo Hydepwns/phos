@@ -20,7 +20,8 @@ pub struct LoadResult {
 
 impl LoadResult {
     /// Format the error with file context.
-    #[must_use] pub fn format(&self) -> String {
+    #[must_use]
+    pub fn format(&self) -> String {
         let path_str = self.path.display().to_string();
         match &self.error {
             ConfigError::YamlError(e) => {
@@ -32,17 +33,24 @@ impl LoadResult {
                 msg
             }
             ConfigError::JsonError(e) => {
-                format!("{path_str}: JSON parse error at line {}, column {}: {e}",
-                    e.line(), e.column())
+                format!(
+                    "{path_str}: JSON parse error at line {}, column {}: {e}",
+                    e.line(),
+                    e.column()
+                )
             }
             ConfigError::RegexError(e) => {
-                format!("{path_str}: invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, )")
+                format!(
+                    "{path_str}: invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, )"
+                )
             }
             ConfigError::ReadError(e) => {
                 format!("{path_str}: failed to read file: {e}")
             }
             ConfigError::UnknownFormat(ext) => {
-                format!("{path_str}: unknown file format '.{ext}'\n  Hint: Use .yaml, .yml, or .json")
+                format!(
+                    "{path_str}: unknown file format '.{ext}'\n  Hint: Use .yaml, .yml, or .json"
+                )
             }
             _ => format!("{path_str}: {}", self.error),
         }
@@ -51,22 +59,26 @@ impl LoadResult {
 
 /// Get the user configuration directory.
 /// Returns ~/.config/phos on Unix, or appropriate equivalent on other platforms.
-#[must_use] pub fn config_dir() -> Option<PathBuf> {
+#[must_use]
+pub fn config_dir() -> Option<PathBuf> {
     dirs::config_dir().map(|p| p.join("phos"))
 }
 
 /// Get the programs directory.
-#[must_use] pub fn programs_dir() -> Option<PathBuf> {
+#[must_use]
+pub fn programs_dir() -> Option<PathBuf> {
     config_dir().map(|p| p.join("programs"))
 }
 
 /// Get the themes directory.
-#[must_use] pub fn themes_dir() -> Option<PathBuf> {
+#[must_use]
+pub fn themes_dir() -> Option<PathBuf> {
     config_dir().map(|p| p.join("themes"))
 }
 
 /// Get the global configuration file path.
-#[must_use] pub fn global_config_path() -> Option<PathBuf> {
+#[must_use]
+pub fn global_config_path() -> Option<PathBuf> {
     config_dir().map(|p| p.join("config.yaml"))
 }
 
@@ -80,10 +92,12 @@ pub fn load_user_programs(registry: &mut ProgramRegistry) -> Vec<LoadResult> {
 
     let entries = match fs::read_dir(&programs_path) {
         Ok(entries) => entries,
-        Err(e) => return vec![LoadResult {
-            path: programs_path,
-            error: ConfigError::ReadError(e)
-        }],
+        Err(e) => {
+            return vec![LoadResult {
+                path: programs_path,
+                error: ConfigError::ReadError(e),
+            }];
+        }
     };
 
     entries
@@ -94,14 +108,12 @@ pub fn load_user_programs(registry: &mut ProgramRegistry) -> Vec<LoadResult> {
                 .and_then(|e| e.to_str())
                 .is_some_and(|ext| matches!(ext.to_lowercase().as_str(), "yaml" | "yml" | "json"))
         })
-        .filter_map(|path| {
-            match load_program_from_file(&path) {
-                Ok(program) => {
-                    registry.register(program);
-                    None
-                }
-                Err(error) => Some(LoadResult { path, error }),
+        .filter_map(|path| match load_program_from_file(&path) {
+            Ok(program) => {
+                registry.register(program);
+                None
             }
+            Err(error) => Some(LoadResult { path, error }),
         })
         .collect()
 }
@@ -121,18 +133,29 @@ pub fn validate_program_file(path: &Path) -> Result<String, LoadResult> {
             match config.to_program() {
                 Ok(program) => {
                     let info = program.info();
-                    Ok(format!("{} ({}) - {} rules",
-                        info.name, info.id, program.rules().len()))
+                    Ok(format!(
+                        "{} ({}) - {} rules",
+                        info.name,
+                        info.id,
+                        program.rules().len()
+                    ))
                 }
-                Err(error) => Err(LoadResult { path: path.to_path_buf(), error }),
+                Err(error) => Err(LoadResult {
+                    path: path.to_path_buf(),
+                    error,
+                }),
             }
         }
-        Err(error) => Err(LoadResult { path: path.to_path_buf(), error }),
+        Err(error) => Err(LoadResult {
+            path: path.to_path_buf(),
+            error,
+        }),
     }
 }
 
 /// List all config files in the programs directory.
-#[must_use] pub fn list_program_files() -> Vec<PathBuf> {
+#[must_use]
+pub fn list_program_files() -> Vec<PathBuf> {
     let programs_path = match programs_dir() {
         Some(p) if p.exists() => p,
         _ => return Vec::new(),
@@ -145,7 +168,9 @@ pub fn validate_program_file(path: &Path) -> Result<String, LoadResult> {
             .filter(|path| {
                 path.extension()
                     .and_then(|e| e.to_str())
-                    .is_some_and(|ext| matches!(ext.to_lowercase().as_str(), "yaml" | "yml" | "json"))
+                    .is_some_and(|ext| {
+                        matches!(ext.to_lowercase().as_str(), "yaml" | "yml" | "json")
+                    })
             })
             .collect(),
         Err(_) => Vec::new(),

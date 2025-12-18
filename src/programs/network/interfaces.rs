@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -126,7 +126,7 @@ fn ifconfig_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn ifconfig_program() -> Arc<SimpleProgram> {
+pub fn ifconfig_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.ifconfig",
@@ -285,7 +285,7 @@ fn ip_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn ip_program() -> Arc<SimpleProgram> {
+pub fn ip_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.ip",
@@ -408,7 +408,7 @@ fn iwconfig_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn iwconfig_program() -> Arc<SimpleProgram> {
+pub fn iwconfig_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.iwconfig",
@@ -506,7 +506,7 @@ fn arp_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn arp_program() -> Arc<SimpleProgram> {
+pub fn arp_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.arp",

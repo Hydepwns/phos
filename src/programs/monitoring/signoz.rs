@@ -90,7 +90,8 @@ fn signoz_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn signoz_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn signoz_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "monitoring.signoz",

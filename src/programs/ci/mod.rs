@@ -36,4 +36,14 @@ mod tests {
         assert!(detected.is_some());
         assert_eq!(detected.unwrap().info().name, "jenkins");
     }
+
+    #[test]
+    fn test_github_actions_detection() {
+        let mut registry = ProgramRegistry::new();
+        register_all(&mut registry);
+
+        let detected = registry.detect("github-actions");
+        assert!(detected.is_some());
+        assert_eq!(detected.unwrap().info().id, "ci.github-actions");
+    }
 }

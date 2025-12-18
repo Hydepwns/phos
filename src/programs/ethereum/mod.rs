@@ -8,7 +8,7 @@ pub mod patterns;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use clients::{ClientMeta, Layer, ALL_CLIENTS};
+use clients::{ALL_CLIENTS, ClientMeta, Layer};
 
 use crate::category::Category;
 use crate::colors::Color;
@@ -22,7 +22,8 @@ pub mod colors {
     use std::collections::HashMap;
 
     /// Get Ethereum domain color definitions.
-    #[must_use] pub fn domain_colors() -> HashMap<String, Color> {
+    #[must_use]
+    pub fn domain_colors() -> HashMap<String, Color> {
         let mut colors = HashMap::new();
 
         // Core Ethereum concepts
@@ -67,7 +68,8 @@ pub struct EthereumProgram {
 
 impl EthereumProgram {
     /// Create a new Ethereum program from client metadata.
-    #[must_use] pub fn new(meta: &'static ClientMeta) -> Self {
+    #[must_use]
+    pub fn new(meta: &'static ClientMeta) -> Self {
         let info = ProgramInfo::new(
             &format!("ethereum.{}", meta.name.to_lowercase()),
             meta.name,
@@ -75,9 +77,7 @@ impl EthereumProgram {
             Category::Ethereum,
         );
 
-        let rules: Arc<[Rule]> = clients::rules_for(meta.name)
-            .unwrap_or_default()
-            .into();
+        let rules: Arc<[Rule]> = clients::rules_for(meta.name).unwrap_or_default().into();
 
         Self {
             info,
@@ -89,22 +89,26 @@ impl EthereumProgram {
     }
 
     /// Get the client layer (Consensus, Execution, Full, Middleware).
-    #[must_use] pub fn layer(&self) -> Layer {
+    #[must_use]
+    pub fn layer(&self) -> Layer {
         self.meta.layer
     }
 
     /// Get the implementation language.
-    #[must_use] pub fn language(&self) -> &'static str {
+    #[must_use]
+    pub fn language(&self) -> &'static str {
         self.meta.language
     }
 
     /// Get the project website.
-    #[must_use] pub fn website(&self) -> &'static str {
+    #[must_use]
+    pub fn website(&self) -> &'static str {
         self.meta.website
     }
 
     /// Get the brand color hex.
-    #[must_use] pub fn brand_color(&self) -> &'static str {
+    #[must_use]
+    pub fn brand_color(&self) -> &'static str {
         self.meta.brand_color
     }
 }
@@ -136,23 +140,26 @@ pub fn register_all(registry: &mut ProgramRegistry) {
 }
 
 /// Get an Ethereum program by client name.
-#[must_use] pub fn program_for(name: &str) -> Option<Arc<dyn Program>> {
-    clients::meta_for(name)
-        .map(|meta| Arc::new(EthereumProgram::new(meta)) as Arc<dyn Program>)
+#[must_use]
+pub fn program_for(name: &str) -> Option<Arc<dyn Program>> {
+    clients::meta_for(name).map(|meta| Arc::new(EthereumProgram::new(meta)) as Arc<dyn Program>)
 }
 
 /// Get client metadata by name.
-#[must_use] pub fn client_meta(name: &str) -> Option<&'static ClientMeta> {
+#[must_use]
+pub fn client_meta(name: &str) -> Option<&'static ClientMeta> {
     clients::meta_for(name)
 }
 
 /// Get brand color for an Ethereum client.
-#[must_use] pub fn brand_color(name: &str) -> Option<&'static str> {
+#[must_use]
+pub fn brand_color(name: &str) -> Option<&'static str> {
     clients::meta_for(name).map(|m| m.brand_color)
 }
 
 /// List all client names.
-#[must_use] pub fn all_client_names() -> Vec<&'static str> {
+#[must_use]
+pub fn all_client_names() -> Vec<&'static str> {
     ALL_CLIENTS.iter().map(|m| m.name).collect()
 }
 

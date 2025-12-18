@@ -4,7 +4,8 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// Container lifecycle states (Docker, Podman).
-#[must_use] pub fn container_status_rules() -> Vec<Rule> {
+#[must_use]
+pub fn container_status_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(running|Running|RUNNING|Up)\b")
             .unwrap()
@@ -26,7 +27,8 @@ use crate::rule::Rule;
 }
 
 /// Kubernetes pod and resource states.
-#[must_use] pub fn k8s_status_rules() -> Vec<Rule> {
+#[must_use]
+pub fn k8s_status_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(Running|Succeeded|Bound|Available|Ready)\b")
             .unwrap()
@@ -36,11 +38,13 @@ use crate::rule::Rule;
             .unwrap()
             .semantic(SemanticColor::Warn)
             .build(),
-        Rule::new(r"\b(Failed|Error|Unknown|CrashLoopBackOff|ImagePullBackOff|ErrImagePull|OOMKilled)\b")
-            .unwrap()
-            .semantic(SemanticColor::Error)
-            .bold()
-            .build(),
+        Rule::new(
+            r"\b(Failed|Error|Unknown|CrashLoopBackOff|ImagePullBackOff|ErrImagePull|OOMKilled)\b",
+        )
+        .unwrap()
+        .semantic(SemanticColor::Error)
+        .bold()
+        .build(),
         Rule::new(r"\b(Evicted|NodeLost|Unschedulable)\b")
             .unwrap()
             .semantic(SemanticColor::Failure)
@@ -49,7 +53,8 @@ use crate::rule::Rule;
 }
 
 /// Kubernetes resource types.
-#[must_use] pub fn k8s_resource_rules() -> Vec<Rule> {
+#[must_use]
+pub fn k8s_resource_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(pod|deployment|service|configmap|secret|namespace|node|replicaset|daemonset|statefulset|job|cronjob|ingress|pvc|pv)\b")
             .unwrap()

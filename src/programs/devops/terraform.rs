@@ -118,7 +118,8 @@ fn terraform_rules() -> Vec<Rule> {
     ]
 }
 
-#[must_use] pub fn terraform_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn terraform_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.terraform",
@@ -309,7 +310,10 @@ mod tests {
     #[test]
     fn test_apply_complete() {
         let rules = terraform_rules();
-        assert!(any_rule_matches(&rules, "Apply complete! Resources: 3 added"));
+        assert!(any_rule_matches(
+            &rules,
+            "Apply complete! Resources: 3 added"
+        ));
         assert!(any_rule_matches(&rules, "Creation complete after 30s"));
         assert!(any_rule_matches(&rules, "Destruction complete after 10s"));
     }
@@ -359,10 +363,7 @@ mod tests {
     #[test]
     fn test_terraform_apply_output() {
         let rules = terraform_rules();
-        assert!(any_rule_matches(
-            &rules,
-            "aws_instance.web: Creating..."
-        ));
+        assert!(any_rule_matches(&rules, "aws_instance.web: Creating..."));
         assert!(any_rule_matches(
             &rules,
             "aws_instance.web: Creation complete after 45s [id=i-1234567890abcdef0]"

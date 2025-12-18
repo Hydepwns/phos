@@ -1,6 +1,6 @@
 //! Database and data store programs.
 //!
-//! Provides Program implementations for `PostgreSQL`, Redis, etc.
+//! Provides Program implementations for PostgreSQL, Redis, MySQL, MongoDB, and Elasticsearch.
 
 mod elasticsearch;
 mod mongodb;

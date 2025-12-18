@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::programs::common;
 use crate::rule::Rule;
 
@@ -174,7 +174,7 @@ fn tcpdump_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn tcpdump_program() -> Arc<SimpleProgram> {
+pub fn tcpdump_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.tcpdump",

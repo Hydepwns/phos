@@ -121,7 +121,8 @@ pub enum ColorSpec {
 
 impl ColorSpec {
     /// Create from a color name, trying to parse as semantic first.
-    #[must_use] pub fn from_name(name: &str) -> Self {
+    #[must_use]
+    pub fn from_name(name: &str) -> Self {
         if let Some(semantic) = SemanticColor::from_name(name) {
             Self::Semantic(semantic)
         } else if name.starts_with('#') {
@@ -157,7 +158,8 @@ impl SemanticColor {
     ];
 
     /// Parse a semantic color from its name.
-    #[must_use] pub fn from_name(name: &str) -> Option<Self> {
+    #[must_use]
+    pub fn from_name(name: &str) -> Option<Self> {
         match name.to_lowercase().as_str() {
             // Log levels
             "error" => Some(Self::Error),
@@ -214,27 +216,32 @@ fn is_ansi_color(name: &str) -> bool {
 
 impl Color {
     /// Create a semantic color.
-    #[must_use] pub fn semantic(s: SemanticColor) -> Self {
+    #[must_use]
+    pub fn semantic(s: SemanticColor) -> Self {
         Self::Semantic(s)
     }
 
     /// Create a named color.
-    #[must_use] pub fn named(name: &str) -> Self {
+    #[must_use]
+    pub fn named(name: &str) -> Self {
         Self::Named(name.to_string())
     }
 
     /// Create a hex color.
-    #[must_use] pub fn hex(hex: &str) -> Self {
+    #[must_use]
+    pub fn hex(hex: &str) -> Self {
         Self::Hex(hex.to_string())
     }
 
     /// Create an RGB color.
-    #[must_use] pub fn rgb(r: u8, g: u8, b: u8) -> Self {
+    #[must_use]
+    pub fn rgb(r: u8, g: u8, b: u8) -> Self {
         Self::Rgb { r, g, b }
     }
 
     /// Convert to `nu_ansi_term` Style.
-    #[must_use] pub fn to_style(&self) -> Style {
+    #[must_use]
+    pub fn to_style(&self) -> Style {
         match self {
             Color::Named(name) => Self::named_to_style(name),
             Color::Hex(hex) => Self::hex_to_style(hex),
@@ -277,7 +284,8 @@ impl Color {
 ///
 /// Accepts formats: "#RRGGBB", "RRGGBB"
 /// Returns None if the string is invalid.
-#[must_use] pub fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
+#[must_use]
+pub fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
     let hex = hex.trim_start_matches('#');
     if hex.len() < 6 {
         return None;
@@ -293,7 +301,8 @@ impl Color {
 /// Brand colors for Ethereum clients.
 pub mod brands {
     /// Get brand color hex for a client.
-    #[must_use] pub fn color(client: &str) -> Option<&'static str> {
+    #[must_use]
+    pub fn color(client: &str) -> Option<&'static str> {
         match client.to_lowercase().as_str() {
             "lighthouse" => Some("#9933FF"),
             "prysm" => Some("#22CC88"),

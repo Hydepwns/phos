@@ -90,7 +90,8 @@ fn ansible_rules() -> Vec<Rule> {
     ]
 }
 
-#[must_use] pub fn ansible_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn ansible_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.ansible",

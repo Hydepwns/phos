@@ -1,15 +1,15 @@
 //! Log streaming and colorization.
 
-use bollard::container::LogsOptions;
 use bollard::Docker;
+use bollard::container::LogsOptions;
 use futures::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{Mutex, broadcast};
 use tokio::task::JoinHandle;
 
 use crate::aggregator::html::ansi_to_html;
-use crate::{programs, Colorizer, Theme};
+use crate::{Colorizer, Theme, programs};
 
 /// A colorized log entry ready for display.
 #[derive(Debug, Clone)]
@@ -139,10 +139,7 @@ impl LogStreamer {
                         let _ = tx.send(entry);
                     }
                     Err(e) => {
-                        eprintln!(
-                            "Log stream error for {}: {}",
-                            container_name, e
-                        );
+                        eprintln!("Log stream error for {container_name}: {e}");
                         break;
                     }
                 }
@@ -159,5 +156,5 @@ fn chrono_now() -> String {
         .unwrap_or_default();
     let secs = duration.as_secs();
     let nanos = duration.subsec_nanos();
-    format!("{}.{:09}Z", secs, nanos)
+    format!("{secs}.{nanos:09}Z")
 }

@@ -109,7 +109,8 @@ fn redis_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn redis_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn redis_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "data.redis",

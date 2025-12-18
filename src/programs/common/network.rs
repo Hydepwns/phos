@@ -4,7 +4,8 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// IPv4 address pattern.
-#[must_use] pub fn ipv4_rule() -> Rule {
+#[must_use]
+pub fn ipv4_rule() -> Rule {
     Rule::new(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
         .unwrap()
         .semantic(SemanticColor::Identifier)
@@ -12,7 +13,8 @@ use crate::rule::Rule;
 }
 
 /// IPv6 address pattern (simplified).
-#[must_use] pub fn ipv6_rule() -> Rule {
+#[must_use]
+pub fn ipv6_rule() -> Rule {
     Rule::new(r"\b([a-fA-F0-9:]+:+[a-fA-F0-9:]+)\b")
         .unwrap()
         .semantic(SemanticColor::Identifier)
@@ -20,12 +22,14 @@ use crate::rule::Rule;
 }
 
 /// Both IPv4 and IPv6 rules.
-#[must_use] pub fn ip_rules() -> Vec<Rule> {
+#[must_use]
+pub fn ip_rules() -> Vec<Rule> {
     vec![ipv4_rule(), ipv6_rule()]
 }
 
 /// MAC address patterns.
-#[must_use] pub fn mac_address_rule() -> Rule {
+#[must_use]
+pub fn mac_address_rule() -> Rule {
     Rule::new(r"\b([a-fA-F0-9]{2}:){5}[a-fA-F0-9]{2}\b")
         .unwrap()
         .semantic(SemanticColor::Identifier)
@@ -33,7 +37,8 @@ use crate::rule::Rule;
 }
 
 /// HTTP status codes (4xx/5xx as errors, 2xx/3xx as success).
-#[must_use] pub fn http_status_rules() -> Vec<Rule> {
+#[must_use]
+pub fn http_status_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b[45]\d{2}\b")
             .unwrap()
@@ -47,7 +52,8 @@ use crate::rule::Rule;
 }
 
 /// HTTP methods (GET, POST, PUT, DELETE, etc.).
-#[must_use] pub fn http_method_rule() -> Rule {
+#[must_use]
+pub fn http_method_rule() -> Rule {
     Rule::new(r"\b(GET|POST|PUT|DELETE|PATCH|HEAD|OPTIONS)\b")
         .unwrap()
         .semantic(SemanticColor::Key)
@@ -55,7 +61,8 @@ use crate::rule::Rule;
 }
 
 /// Network connection states for netstat/ss.
-#[must_use] pub fn connection_state_rules() -> Vec<Rule> {
+#[must_use]
+pub fn connection_state_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\bESTABLISHED\b")
             .unwrap()
@@ -89,7 +96,8 @@ use crate::rule::Rule;
 }
 
 /// Port state rules for nmap.
-#[must_use] pub fn port_state_rules() -> Vec<Rule> {
+#[must_use]
+pub fn port_state_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\bopen\b")
             .unwrap()
@@ -277,13 +285,19 @@ mod tests {
     #[test]
     fn test_connection_state_established() {
         let rules = connection_state_rules();
-        assert!(any_rule_matches(&rules, "tcp  0  0 127.0.0.1:8080  127.0.0.1:12345 ESTABLISHED"));
+        assert!(any_rule_matches(
+            &rules,
+            "tcp  0  0 127.0.0.1:8080  127.0.0.1:12345 ESTABLISHED"
+        ));
     }
 
     #[test]
     fn test_connection_state_listen() {
         let rules = connection_state_rules();
-        assert!(any_rule_matches(&rules, "tcp  0  0 0.0.0.0:22  0.0.0.0:*  LISTEN"));
+        assert!(any_rule_matches(
+            &rules,
+            "tcp  0  0 0.0.0.0:22  0.0.0.0:*  LISTEN"
+        ));
         assert!(any_rule_matches(&rules, "tcp  0  0 :::80  :::*  LISTENING"));
     }
 
@@ -325,6 +339,9 @@ mod tests {
         assert!(any_rule_matches(&rules, "22/tcp open  ssh"));
         assert!(any_rule_matches(&rules, "80/tcp closed http"));
         assert!(any_rule_matches(&rules, "443/tcp filtered https"));
-        assert!(any_rule_matches(&rules, "8080/tcp open|filtered http-proxy"));
+        assert!(any_rule_matches(
+            &rules,
+            "8080/tcp open|filtered http-proxy"
+        ));
     }
 }

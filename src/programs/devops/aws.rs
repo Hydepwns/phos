@@ -91,7 +91,8 @@ fn aws_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn aws_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn aws_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.aws",
@@ -136,10 +137,7 @@ mod tests {
     #[test]
     fn test_arn_patterns() {
         let rules = aws_rules();
-        assert!(any_rule_matches(
-            &rules,
-            "arn:aws:s3:::my-bucket"
-        ));
+        assert!(any_rule_matches(&rules, "arn:aws:s3:::my-bucket"));
         assert!(any_rule_matches(
             &rules,
             "arn:aws:iam::123456789012:role/my-role"
@@ -192,7 +190,10 @@ mod tests {
         assert!(any_rule_matches(&rules, "aws lambda invoke"));
         assert!(any_rule_matches(&rules, "aws rds describe-db-instances"));
         assert!(any_rule_matches(&rules, "aws iam list-users"));
-        assert!(any_rule_matches(&rules, "aws cloudformation describe-stacks"));
+        assert!(any_rule_matches(
+            &rules,
+            "aws cloudformation describe-stacks"
+        ));
         assert!(any_rule_matches(&rules, "aws cloudwatch get-metric-data"));
         assert!(any_rule_matches(&rules, "aws sns publish"));
         assert!(any_rule_matches(&rules, "aws sqs send-message"));

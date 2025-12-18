@@ -4,7 +4,8 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// Size/memory with units (10 GB, 256 MB, 1024 KB).
-#[must_use] pub fn size_rule() -> Rule {
+#[must_use]
+pub fn size_rule() -> Rule {
     Rule::new(r"\d+(\.\d+)?\s*(GB|MB|KB|B|GiB|MiB|KiB)\b")
         .unwrap()
         .semantic(SemanticColor::Metric)
@@ -12,7 +13,8 @@ use crate::rule::Rule;
 }
 
 /// Duration with units (100ms, 5s, 2m, 1h).
-#[must_use] pub fn duration_rule() -> Rule {
+#[must_use]
+pub fn duration_rule() -> Rule {
     Rule::new(r"\b\d+(\.\d+)?\s*(ms|s|m|h|ns|us)\b")
         .unwrap()
         .semantic(SemanticColor::Metric)
@@ -20,7 +22,8 @@ use crate::rule::Rule;
 }
 
 /// Percentage values (50%, 99.9%).
-#[must_use] pub fn percentage_rule() -> Rule {
+#[must_use]
+pub fn percentage_rule() -> Rule {
     Rule::new(r"\b\d+(\.\d+)?%")
         .unwrap()
         .semantic(SemanticColor::Metric)
@@ -28,7 +31,8 @@ use crate::rule::Rule;
 }
 
 /// Generic number pattern (should typically be last in rule list).
-#[must_use] pub fn number_rule() -> Rule {
+#[must_use]
+pub fn number_rule() -> Rule {
     Rule::new(r"\b\d+\b")
         .unwrap()
         .semantic(SemanticColor::Number)
@@ -36,7 +40,8 @@ use crate::rule::Rule;
 }
 
 /// Common metric rules (size, duration, percentage).
-#[must_use] pub fn metric_rules() -> Vec<Rule> {
+#[must_use]
+pub fn metric_rules() -> Vec<Rule> {
     vec![size_rule(), duration_rule(), percentage_rule()]
 }
 

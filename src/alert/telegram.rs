@@ -2,8 +2,8 @@
 
 #![allow(clippy::format_push_string)]
 
-use super::formatter::{truncate, AlertPayload, WebhookFormatter, WebhookService};
-use serde_json::{json, Value};
+use super::formatter::{AlertPayload, WebhookFormatter, WebhookService, truncate};
+use serde_json::{Value, json};
 
 /// Telegram Bot API formatter with `MarkdownV2`.
 pub struct TelegramFormatter;

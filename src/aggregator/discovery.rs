@@ -1,7 +1,7 @@
 //! Container discovery via Docker API.
 
-use bollard::container::ListContainersOptions;
 use bollard::Docker;
+use bollard::container::ListContainersOptions;
 use std::collections::HashMap;
 
 use crate::programs;
@@ -72,11 +72,7 @@ impl ContainerDiscovery {
             .into_iter()
             .filter_map(|c| {
                 let id = c.id?.chars().take(12).collect();
-                let name = c
-                    .names?
-                    .first()?
-                    .trim_start_matches('/')
-                    .to_string();
+                let name = c.names?.first()?.trim_start_matches('/').to_string();
 
                 // Apply filter if set
                 if let Some(ref pattern) = self.filter_pattern {
@@ -111,11 +107,9 @@ impl ContainerDiscovery {
         }
 
         // Simple glob matching: *.dappnode.eth matches foo.dappnode.eth
-        if pattern.starts_with('*') {
-            let suffix = &pattern[1..];
+        if let Some(suffix) = pattern.strip_prefix('*') {
             name.ends_with(suffix)
-        } else if pattern.ends_with('*') {
-            let prefix = &pattern[..pattern.len() - 1];
+        } else if let Some(prefix) = pattern.strip_suffix('*') {
             name.starts_with(prefix)
         } else {
             name.contains(pattern)

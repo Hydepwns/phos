@@ -56,10 +56,12 @@ fn helm_rules() -> Vec<Rule> {
 
     // Hooks and resources
     rules.extend([
-        Rule::new(r"\b(pre-install|post-install|pre-upgrade|post-upgrade|pre-delete|post-delete)\b")
-            .unwrap()
-            .semantic(SemanticColor::Key)
-            .build(),
+        Rule::new(
+            r"\b(pre-install|post-install|pre-upgrade|post-upgrade|pre-delete|post-delete)\b",
+        )
+        .unwrap()
+        .semantic(SemanticColor::Key)
+        .build(),
         Rule::new(r"created|configured|unchanged")
             .unwrap()
             .semantic(SemanticColor::Success)
@@ -72,7 +74,8 @@ fn helm_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn helm_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn helm_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.helm",

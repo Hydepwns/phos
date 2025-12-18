@@ -5,7 +5,7 @@
 //!        `PHOS_PROGRAM=docker command | phoscat`
 
 use anyhow::{Context, Result};
-use phos::{programs, Colorizer, Theme};
+use phos::{Colorizer, Theme, programs};
 use std::env;
 use std::io::{self, BufRead, Write};
 
@@ -14,9 +14,7 @@ const AUTO_DETECT_LINES: usize = 10;
 
 fn main() -> Result<()> {
     // Get program name from arg or env (optional now)
-    let program_name = env::args()
-        .nth(1)
-        .or_else(|| env::var("PHOS_PROGRAM").ok());
+    let program_name = env::args().nth(1).or_else(|| env::var("PHOS_PROGRAM").ok());
 
     // Get theme from env
     let theme_name = env::var("PHOS_THEME").unwrap_or_else(|_| "default-dark".into());
@@ -26,11 +24,16 @@ fn main() -> Result<()> {
     let registry = programs::default_registry();
 
     // Determine rules - explicit program or auto-detect
-    let rules = if let Some(name) = program_name { registry.get(&name).map_or_else(|| {
-        eprintln!("Unknown program: {name}");
-        eprintln!("Run 'phos list' to see available programs.");
-        std::process::exit(1);
-    }, |p| p.rules()) } else {
+    let rules = if let Some(name) = program_name {
+        registry.get(&name).map_or_else(
+            || {
+                eprintln!("Unknown program: {name}");
+                eprintln!("Run 'phos list' to see available programs.");
+                std::process::exit(1);
+            },
+            |p| p.rules(),
+        )
+    } else {
         // Auto-detect: buffer initial lines
         let stdin = io::stdin();
         let stdout = io::stdout();

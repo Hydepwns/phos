@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -115,7 +115,7 @@ fn cargo_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn cargo_program() -> Arc<SimpleProgram> {
+pub fn cargo_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.cargo",

@@ -127,19 +127,20 @@ pub struct EthereumJson {
 /// Global instance of stats patterns, compiled once at first use.
 /// This avoids recompiling regex patterns for each `StatsCollector` instance.
 /// Uses `ERROR_LEVEL_PATTERN` from `common::log_levels` to avoid duplication.
-static STATS_PATTERNS: std::sync::LazyLock<StatsPatterns> = std::sync::LazyLock::new(|| StatsPatterns {
-    error: ERROR_LEVEL_PATTERN.clone(),
-    warn: Regex::new(r"(?i)\b(WARN|WARNING)\b").unwrap(),
-    info: Regex::new(r"(?i)\b(INFO|NOTICE)\b").unwrap(),
-    debug: Regex::new(r"(?i)\bDEBUG\b").unwrap(),
-    trace: Regex::new(r"(?i)\bTRACE\b").unwrap(),
-    timestamp_iso: Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}").unwrap(),
-    timestamp_syslog: Regex::new(r"[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}").unwrap(),
-    error_message: Regex::new(r#"(?i)(?:error|err|failed|failure)[:\s]+["']?([^"'\n]{1,100})"#)
-        .unwrap(),
-    peer_count: Regex::new(r"(?i)\bpeers?[=:\s]+(\d+)").unwrap(),
-    slot: Regex::new(r"(?i)\bslot[=:\s]+(\d+)").unwrap(),
-});
+static STATS_PATTERNS: std::sync::LazyLock<StatsPatterns> =
+    std::sync::LazyLock::new(|| StatsPatterns {
+        error: ERROR_LEVEL_PATTERN.clone(),
+        warn: Regex::new(r"(?i)\b(WARN|WARNING)\b").unwrap(),
+        info: Regex::new(r"(?i)\b(INFO|NOTICE)\b").unwrap(),
+        debug: Regex::new(r"(?i)\bDEBUG\b").unwrap(),
+        trace: Regex::new(r"(?i)\bTRACE\b").unwrap(),
+        timestamp_iso: Regex::new(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}").unwrap(),
+        timestamp_syslog: Regex::new(r"[A-Z][a-z]{2}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}").unwrap(),
+        error_message: Regex::new(r#"(?i)(?:error|err|failed|failure)[:\s]+["']?([^"'\n]{1,100})"#)
+            .unwrap(),
+        peer_count: Regex::new(r"(?i)\bpeers?[=:\s]+(\d+)").unwrap(),
+        slot: Regex::new(r"(?i)\bslot[=:\s]+(\d+)").unwrap(),
+    });
 
 // ---------------------------------------------------------------------------
 // Helper Functions
@@ -204,7 +205,8 @@ pub struct LogLevelCounts {
 
 impl LogLevelCounts {
     /// Total of all log levels.
-    #[must_use] pub fn total(&self) -> usize {
+    #[must_use]
+    pub fn total(&self) -> usize {
         self.error + self.warn + self.info + self.debug + self.trace
     }
 
@@ -254,7 +256,8 @@ pub struct StatsPatterns {
 
 impl Stats {
     /// Create a new stats collector.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             max_errors: 10,
             ..Default::default()
@@ -485,7 +488,8 @@ impl Stats {
     }
 
     /// Export statistics as Prometheus metrics format.
-    #[must_use] pub fn to_prometheus(&self, program: Option<&str>) -> String {
+    #[must_use]
+    pub fn to_prometheus(&self, program: Option<&str>) -> String {
         let program_label = program.unwrap_or("unknown");
         let mut output = String::new();
 
@@ -559,7 +563,8 @@ impl Stats {
     /// Format statistics as a compact single-line string for interval output.
     ///
     /// Format: `[HH:MM:SS] lines=N err=N warn=N info=N peers=N slot=N`
-    #[must_use] pub fn to_compact(&self) -> String {
+    #[must_use]
+    pub fn to_compact(&self) -> String {
         use std::time::{SystemTime, UNIX_EPOCH};
 
         // Get current time as HH:MM:SS
@@ -632,7 +637,8 @@ pub struct StatsCollector {
 
 impl StatsCollector {
     /// Create a new stats collector.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             stats: Stats::new(),
         }
@@ -649,7 +655,8 @@ impl StatsCollector {
     }
 
     /// Get the collected stats.
-    #[must_use] pub fn stats(&self) -> &Stats {
+    #[must_use]
+    pub fn stats(&self) -> &Stats {
         &self.stats
     }
 
@@ -664,32 +671,38 @@ impl StatsCollector {
     }
 
     /// Get the current error count (for alerting).
-    #[must_use] pub fn error_count(&self) -> usize {
+    #[must_use]
+    pub fn error_count(&self) -> usize {
         self.stats.log_levels.error
     }
 
     /// Get the last observed peer count (for alerting).
-    #[must_use] pub fn peer_count(&self) -> Option<usize> {
+    #[must_use]
+    pub fn peer_count(&self) -> Option<usize> {
         self.stats.last_peer_count
     }
 
     /// Get the last observed slot (for alerting).
-    #[must_use] pub fn slot(&self) -> Option<u64> {
+    #[must_use]
+    pub fn slot(&self) -> Option<u64> {
         self.stats.last_slot
     }
 
     /// Export statistics as JSON.
-    #[must_use] pub fn to_json(&self, program: Option<&str>) -> StatsJson {
+    #[must_use]
+    pub fn to_json(&self, program: Option<&str>) -> StatsJson {
         self.stats.to_json(program)
     }
 
     /// Export statistics as Prometheus metrics format.
-    #[must_use] pub fn to_prometheus(&self, program: Option<&str>) -> String {
+    #[must_use]
+    pub fn to_prometheus(&self, program: Option<&str>) -> String {
         self.stats.to_prometheus(program)
     }
 
     /// Format statistics as a compact single-line string for interval output.
-    #[must_use] pub fn to_compact(&self) -> String {
+    #[must_use]
+    pub fn to_compact(&self) -> String {
         self.stats.to_compact()
     }
 
@@ -697,7 +710,8 @@ impl StatsCollector {
     ///
     /// Returns the formatted output as a string that can be written to
     /// stderr (default), a file, or any other destination.
-    #[must_use] pub fn export(&self, format: StatsExportFormat, program: Option<&str>) -> String {
+    #[must_use]
+    pub fn export(&self, format: StatsExportFormat, program: Option<&str>) -> String {
         match format {
             StatsExportFormat::Human => {
                 // Capture print_summary output - for human format, we still use print_summary
@@ -772,8 +786,14 @@ mod tests {
         collector.process_line("2024-01-15T10:30:50 INFO Last", true);
 
         let stats = collector.stats();
-        assert_eq!(stats.first_timestamp, Some("2024-01-15T10:30:45".to_string()));
-        assert_eq!(stats.last_timestamp, Some("2024-01-15T10:30:50".to_string()));
+        assert_eq!(
+            stats.first_timestamp,
+            Some("2024-01-15T10:30:45".to_string())
+        );
+        assert_eq!(
+            stats.last_timestamp,
+            Some("2024-01-15T10:30:50".to_string())
+        );
     }
 
     #[test]

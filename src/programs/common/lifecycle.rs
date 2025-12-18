@@ -5,7 +5,8 @@ use crate::rule::Rule;
 
 /// Server ready patterns - matches "ready for connections", "Ready to accept connections",
 /// "Waiting for connections", "listening", etc.
-#[must_use] pub fn server_ready_rule() -> Rule {
+#[must_use]
+pub fn server_ready_rule() -> Rule {
     Rule::new(r"(?i)\b(ready (for|to accept) connections|waiting for connections|listening on)\b")
         .unwrap()
         .semantic(SemanticColor::Success)
@@ -14,7 +15,8 @@ use crate::rule::Rule;
 }
 
 /// Server initialized patterns - matches "initialized", "Server initialized", "started".
-#[must_use] pub fn server_initialized_rule() -> Rule {
+#[must_use]
+pub fn server_initialized_rule() -> Rule {
     Rule::new(r"(?i)\b(server\s+)?(initialized|started)\b")
         .unwrap()
         .semantic(SemanticColor::Success)
@@ -22,7 +24,8 @@ use crate::rule::Rule;
 }
 
 /// Server shutdown patterns - matches "shutdown", "shutting down", "stopping".
-#[must_use] pub fn server_shutdown_rule() -> Rule {
+#[must_use]
+pub fn server_shutdown_rule() -> Rule {
     Rule::new(r"(?i)\b(shut\s*down|shutting\s+down|stopping)\b")
         .unwrap()
         .semantic(SemanticColor::Warn)
@@ -30,7 +33,8 @@ use crate::rule::Rule;
 }
 
 /// Shutdown complete pattern - for "Shutdown complete", "Shutdown completed".
-#[must_use] pub fn server_shutdown_complete_rule() -> Rule {
+#[must_use]
+pub fn server_shutdown_complete_rule() -> Rule {
     Rule::new(r"(?i)\bshutdown\s+complet(e|ed)\b")
         .unwrap()
         .semantic(SemanticColor::Info)
@@ -39,7 +43,8 @@ use crate::rule::Rule;
 
 /// Common server lifecycle rules.
 /// Returns rules for ready, initialized, shutdown complete, and shutdown states.
-#[must_use] pub fn server_lifecycle_rules() -> Vec<Rule> {
+#[must_use]
+pub fn server_lifecycle_rules() -> Vec<Rule> {
     vec![
         server_ready_rule(),
         server_initialized_rule(),

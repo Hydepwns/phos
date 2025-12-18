@@ -4,7 +4,8 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// Diff rules for unified diff format.
-#[must_use] pub fn diff_rules() -> Vec<Rule> {
+#[must_use]
+pub fn diff_rules() -> Vec<Rule> {
     vec![
         // Added lines
         Rule::new(r"^\+[^+].*$")
@@ -37,7 +38,8 @@ use crate::rule::Rule;
 }
 
 /// Build status rules (SUCCESS, FAILED, PASSED, etc.).
-#[must_use] pub fn build_status_rules() -> Vec<Rule> {
+#[must_use]
+pub fn build_status_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(PASSED|SUCCESS|SUCCEEDED|OK)\b")
             .unwrap()
@@ -57,7 +59,8 @@ use crate::rule::Rule;
 }
 
 /// Key=value structured log patterns.
-#[must_use] pub fn key_value_rule() -> Rule {
+#[must_use]
+pub fn key_value_rule() -> Rule {
     Rule::new(r"\b\w+=\S+")
         .unwrap()
         .semantic(SemanticColor::Value)
@@ -65,7 +68,8 @@ use crate::rule::Rule;
 }
 
 /// Filesystem mount point patterns.
-#[must_use] pub fn mount_point_rule() -> Rule {
+#[must_use]
+pub fn mount_point_rule() -> Rule {
     Rule::new(r"/[^\s]+")
         .unwrap()
         .semantic(SemanticColor::Identifier)
@@ -73,7 +77,8 @@ use crate::rule::Rule;
 }
 
 /// Filesystem type patterns.
-#[must_use] pub fn filesystem_type_rule() -> Rule {
+#[must_use]
+pub fn filesystem_type_rule() -> Rule {
     Rule::new(r"\b(ext[234]|xfs|btrfs|zfs|ntfs|vfat|fat32|tmpfs|devtmpfs|sysfs|proc|cgroup|overlay|nfs|cifs|squashfs)\b")
         .unwrap()
         .semantic(SemanticColor::Label)
@@ -81,7 +86,8 @@ use crate::rule::Rule;
 }
 
 /// Process states for ps/top (R, S, D, Z, T, etc.).
-#[must_use] pub fn process_state_rules() -> Vec<Rule> {
+#[must_use]
+pub fn process_state_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b[R]\b")
             .unwrap()

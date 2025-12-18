@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::programs::common;
 use crate::rule::Rule;
 
@@ -21,11 +21,13 @@ fn whois_rules() -> Vec<Rule> {
 
     // Important fields
     rules.extend([
-        Rule::new(r"^(Domain Name|Registrar|Registry Domain ID|Registrant|Admin|Tech|Name Server):")
-            .unwrap()
-            .semantic(SemanticColor::Key)
-            .bold()
-            .build(),
+        Rule::new(
+            r"^(Domain Name|Registrar|Registry Domain ID|Registrant|Admin|Tech|Name Server):",
+        )
+        .unwrap()
+        .semantic(SemanticColor::Key)
+        .bold()
+        .build(),
         Rule::new(r"^(Creation Date|Updated Date|Registry Expiry Date|Expiration Date):")
             .unwrap()
             .semantic(SemanticColor::Label)
@@ -119,7 +121,7 @@ fn whois_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn whois_program() -> Arc<SimpleProgram> {
+pub fn whois_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.whois",

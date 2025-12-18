@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -37,7 +37,7 @@ fn lsmod_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn lsmod_program() -> Arc<SimpleProgram> {
+pub fn lsmod_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.lsmod",
@@ -88,7 +88,7 @@ fn lspci_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn lspci_program() -> Arc<SimpleProgram> {
+pub fn lspci_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.lspci",
@@ -130,7 +130,7 @@ fn vmstat_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn vmstat_program() -> Arc<SimpleProgram> {
+pub fn vmstat_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.vmstat",
@@ -178,7 +178,7 @@ fn iostat_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn iostat_program() -> Arc<SimpleProgram> {
+pub fn iostat_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.iostat",
@@ -218,7 +218,7 @@ fn env_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn env_program() -> Arc<SimpleProgram> {
+pub fn env_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.env",
@@ -282,7 +282,7 @@ fn blkid_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn blkid_program() -> Arc<SimpleProgram> {
+pub fn blkid_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.blkid",
@@ -359,7 +359,7 @@ fn fdisk_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn fdisk_program() -> Arc<SimpleProgram> {
+pub fn fdisk_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.fdisk",
@@ -388,11 +388,13 @@ fn lsblk_rules() -> Vec<Rule> {
             .semantic(SemanticColor::Key)
             .build(),
         // Column headers
-        Rule::new(r"\b(NAME|MAJ:MIN|RM|SIZE|RO|TYPE|MOUNTPOINT|MOUNTPOINTS|FSTYPE|LABEL|UUID|MODEL)\b")
-            .unwrap()
-            .semantic(SemanticColor::Label)
-            .bold()
-            .build(),
+        Rule::new(
+            r"\b(NAME|MAJ:MIN|RM|SIZE|RO|TYPE|MOUNTPOINT|MOUNTPOINTS|FSTYPE|LABEL|UUID|MODEL)\b",
+        )
+        .unwrap()
+        .semantic(SemanticColor::Label)
+        .bold()
+        .build(),
         // Device types
         Rule::new(r"\b(disk|part|lvm|crypt|loop|rom|raid\d*)\b")
             .unwrap()
@@ -420,7 +422,7 @@ fn lsblk_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn lsblk_program() -> Arc<SimpleProgram> {
+pub fn lsblk_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.lsblk",

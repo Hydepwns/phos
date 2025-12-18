@@ -94,8 +94,8 @@ impl ConditionEvaluator {
 
         if self.error_pattern.is_match(line) {
             self.error_fired = true;
-            let payload = AlertPayload::new("Error Detected", line)
-                .with_severity(AlertSeverity::Error);
+            let payload =
+                AlertPayload::new("Error Detected", line).with_severity(AlertSeverity::Error);
             Some(add_program(payload, program))
         } else {
             None
@@ -111,12 +111,10 @@ impl ConditionEvaluator {
     ) -> Option<AlertPayload> {
         // Fire when error count first reaches threshold
         if error_count == threshold && self.error_pattern.is_match(line) {
-            let payload = AlertPayload::new(
-                format!("Error Threshold Reached: {threshold} errors"),
-                line,
-            )
-            .with_severity(AlertSeverity::Error)
-            .with_field("error_count", error_count.to_string());
+            let payload =
+                AlertPayload::new(format!("Error Threshold Reached: {threshold} errors"), line)
+                    .with_severity(AlertSeverity::Error)
+                    .with_field("error_count", error_count.to_string());
             Some(add_program(payload, program))
         } else {
             None
@@ -137,13 +135,11 @@ impl ConditionEvaluator {
             if let Some(last) = self.last_peer_count {
                 if last >= threshold {
                     // Just crossed below threshold
-                    let payload = AlertPayload::new(
-                        format!("Peer Count Dropped Below {threshold}"),
-                        line,
-                    )
-                    .with_severity(AlertSeverity::Warning)
-                    .with_field("previous", last.to_string())
-                    .with_field("current", current.to_string());
+                    let payload =
+                        AlertPayload::new(format!("Peer Count Dropped Below {threshold}"), line)
+                            .with_severity(AlertSeverity::Warning)
+                            .with_field("previous", last.to_string())
+                            .with_field("current", current.to_string());
                     return Some(add_program(payload, program));
                 }
             }
@@ -170,14 +166,9 @@ impl ConditionEvaluator {
         }
         None
     }
-
 }
 
-fn evaluate_pattern(
-    line: &str,
-    regex: &Regex,
-    program: Option<&str>,
-) -> Option<AlertPayload> {
+fn evaluate_pattern(line: &str, regex: &Regex, program: Option<&str>) -> Option<AlertPayload> {
     if regex.is_match(line) {
         let payload = AlertPayload::new("Pattern Match", line)
             .with_severity(AlertSeverity::Warning)
@@ -215,8 +206,7 @@ mod tests {
         assert!(result.is_some());
 
         // Second error should not fire (fire-once)
-        let result =
-            evaluator.evaluate(&condition, "ERROR: another failure", 1, None, None, None);
+        let result = evaluator.evaluate(&condition, "ERROR: another failure", 1, None, None, None);
         assert!(result.is_none());
     }
 
@@ -226,13 +216,11 @@ mod tests {
         let condition = AlertCondition::ErrorThreshold { count: 5 };
 
         // Below threshold
-        let result =
-            evaluator.evaluate(&condition, "ERROR: test", 4, None, None, Some("lodestar"));
+        let result = evaluator.evaluate(&condition, "ERROR: test", 4, None, None, Some("lodestar"));
         assert!(result.is_none());
 
         // At threshold
-        let result =
-            evaluator.evaluate(&condition, "ERROR: test", 5, None, None, Some("lodestar"));
+        let result = evaluator.evaluate(&condition, "ERROR: test", 5, None, None, Some("lodestar"));
         assert!(result.is_some());
         let payload = result.unwrap();
         assert!(payload.title.contains("5 errors"));
@@ -248,13 +236,11 @@ mod tests {
         evaluator.update_state(Some(15), None);
 
         // Peers above threshold - no alert
-        let result =
-            evaluator.evaluate(&condition, "peers=15", 0, Some(15), None, None);
+        let result = evaluator.evaluate(&condition, "peers=15", 0, Some(15), None, None);
         assert!(result.is_none());
 
         // Peers drop below threshold - should alert
-        let result =
-            evaluator.evaluate(&condition, "peers=5", 0, Some(5), None, Some("geth"));
+        let result = evaluator.evaluate(&condition, "peers=5", 0, Some(5), None, Some("geth"));
         assert!(result.is_some());
         let payload = result.unwrap();
         assert!(payload.title.contains("Below 10"));
@@ -269,13 +255,11 @@ mod tests {
         let condition = AlertCondition::Pattern { regex };
 
         // No match
-        let result =
-            evaluator.evaluate(&condition, "INFO: normal log", 0, None, None, None);
+        let result = evaluator.evaluate(&condition, "INFO: normal log", 0, None, None, None);
         assert!(result.is_none());
 
         // Match
-        let result =
-            evaluator.evaluate(&condition, "FATAL: out of memory", 0, None, None, None);
+        let result = evaluator.evaluate(&condition, "FATAL: out of memory", 0, None, None, None);
         assert!(result.is_some());
     }
 
@@ -464,13 +448,24 @@ mod tests {
         let regex = Regex::new(r"error\[E\d{4}\]").unwrap(); // Rust compiler error pattern
         let condition = AlertCondition::Pattern { regex };
 
-        assert!(evaluator
-            .evaluate(&condition, "error[E0382]: borrow of moved value", 0, None, None, None)
-            .is_some());
+        assert!(
+            evaluator
+                .evaluate(
+                    &condition,
+                    "error[E0382]: borrow of moved value",
+                    0,
+                    None,
+                    None,
+                    None
+                )
+                .is_some()
+        );
 
-        assert!(evaluator
-            .evaluate(&condition, "warning: unused variable", 0, None, None, None)
-            .is_none());
+        assert!(
+            evaluator
+                .evaluate(&condition, "warning: unused variable", 0, None, None, None)
+                .is_none()
+        );
     }
 
     #[test]
@@ -478,14 +473,8 @@ mod tests {
         let mut evaluator = ConditionEvaluator::new();
         let condition = AlertCondition::Error;
 
-        let result = evaluator.evaluate(
-            &condition,
-            "ERROR: test",
-            0,
-            None,
-            None,
-            Some("lighthouse"),
-        );
+        let result =
+            evaluator.evaluate(&condition, "ERROR: test", 0, None, None, Some("lighthouse"));
 
         assert!(result.is_some());
         let payload = result.unwrap();

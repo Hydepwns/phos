@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -109,7 +109,7 @@ fn fail2ban_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn fail2ban_program() -> Arc<SimpleProgram> {
+pub fn fail2ban_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.fail2ban",
@@ -222,7 +222,7 @@ fn auditd_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn auditd_program() -> Arc<SimpleProgram> {
+pub fn auditd_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.auditd",
@@ -379,7 +379,7 @@ fn iptables_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn iptables_program() -> Arc<SimpleProgram> {
+pub fn iptables_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.iptables",

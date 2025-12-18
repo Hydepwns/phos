@@ -12,7 +12,7 @@
 //!
 //! # Built-in Programs
 //!
-//! phos includes 99+ built-in programs. Use [`crate::programs::default_registry`]
+//! phos includes 98 built-in programs. Use [`crate::programs::default_registry`]
 //! to get a registry with all built-in programs.
 //!
 //! # Examples
@@ -97,7 +97,8 @@ impl ProgramInfo {
     /// Create a new `ProgramInfo` with owned strings.
     ///
     /// Use this for user-defined programs loaded from configuration files.
-    #[must_use] pub fn new(id: &str, name: &str, description: &str, category: Category) -> Self {
+    #[must_use]
+    pub fn new(id: &str, name: &str, description: &str, category: Category) -> Self {
         Self {
             id: Cow::Owned(id.to_string()),
             name: Cow::Owned(name.to_string()),
@@ -109,7 +110,8 @@ impl ProgramInfo {
     /// Create a new `ProgramInfo` with static strings (zero allocation).
     ///
     /// Use this for built-in programs where all strings are compile-time constants.
-    #[must_use] pub fn new_static(
+    #[must_use]
+    pub fn new_static(
         id: &'static str,
         name: &'static str,
         description: &'static str,
@@ -195,7 +197,8 @@ impl SimpleProgram {
     /// Create a new simple program with static strings (zero allocation).
     ///
     /// Use this for built-in programs where all strings are compile-time constants.
-    #[must_use] pub fn new(
+    #[must_use]
+    pub fn new(
         id: &'static str,
         name: &'static str,
         description: &'static str,
@@ -211,13 +214,15 @@ impl SimpleProgram {
     }
 
     /// Builder: set detection patterns for auto-detection from command lines.
-    #[must_use] pub fn with_detect_patterns(mut self, patterns: Vec<&'static str>) -> Self {
+    #[must_use]
+    pub fn with_detect_patterns(mut self, patterns: Vec<&'static str>) -> Self {
         self.detect_patterns = patterns;
         self
     }
 
     /// Builder: set domain-specific colors.
-    #[must_use] pub fn with_domain_colors(mut self, colors: HashMap<String, Color>) -> Self {
+    #[must_use]
+    pub fn with_domain_colors(mut self, colors: HashMap<String, Color>) -> Self {
         self.domain_colors = colors;
         self
     }
@@ -277,7 +282,8 @@ impl Default for ProgramRegistry {
 
 impl ProgramRegistry {
     /// Create a new empty registry.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             programs: HashMap::new(),
             detection_cache: HashMap::new(),
@@ -301,7 +307,8 @@ impl ProgramRegistry {
     }
 
     /// Get a program by ID.
-    #[must_use] pub fn get(&self, id: &str) -> Option<Arc<dyn Program>> {
+    #[must_use]
+    pub fn get(&self, id: &str) -> Option<Arc<dyn Program>> {
         // Try exact match first
         if let Some(program) = self.programs.get(id) {
             return Some(Arc::clone(program));
@@ -309,7 +316,9 @@ impl ProgramRegistry {
 
         // Try matching just the name part (e.g., "lodestar" matches "ethereum.lodestar")
         for (program_id, program) in &self.programs {
-            if program_id.ends_with(&format!(".{id}")) || program.info().name.eq_ignore_ascii_case(id) {
+            if program_id.ends_with(&format!(".{id}"))
+                || program.info().name.eq_ignore_ascii_case(id)
+            {
                 return Some(Arc::clone(program));
             }
         }
@@ -322,7 +331,8 @@ impl ProgramRegistry {
     /// Uses word-boundary matching to avoid false positives where a pattern
     /// might match a substring (e.g., "git" matching "digit").
     /// Returns the most specific match (longest pattern wins).
-    #[must_use] pub fn detect(&self, cmd: &str) -> Option<Arc<dyn Program>> {
+    #[must_use]
+    pub fn detect(&self, cmd: &str) -> Option<Arc<dyn Program>> {
         let cmd_lower = cmd.to_lowercase();
 
         // Collect all matches with their pattern length for specificity
@@ -346,12 +356,14 @@ impl ProgramRegistry {
     }
 
     /// List all registered programs.
-    #[must_use] pub fn list(&self) -> Vec<&ProgramInfo> {
+    #[must_use]
+    pub fn list(&self) -> Vec<&ProgramInfo> {
         self.programs.values().map(|p| p.info()).collect()
     }
 
     /// List programs by category.
-    #[must_use] pub fn list_by_category(&self, category: Category) -> Vec<&ProgramInfo> {
+    #[must_use]
+    pub fn list_by_category(&self, category: Category) -> Vec<&ProgramInfo> {
         self.programs
             .values()
             .filter(|p| p.info().category == category)
@@ -361,23 +373,22 @@ impl ProgramRegistry {
 
     /// Get all unique categories that have programs.
     pub fn categories(&self) -> Vec<Category> {
-        let mut categories: Vec<Category> = self
-            .programs
-            .values()
-            .map(|p| p.info().category)
-            .collect();
+        let mut categories: Vec<Category> =
+            self.programs.values().map(|p| p.info().category).collect();
         categories.sort_by_key(Category::as_str);
         categories.dedup();
         categories
     }
 
     /// Get the number of registered programs.
-    #[must_use] pub fn len(&self) -> usize {
+    #[must_use]
+    pub fn len(&self) -> usize {
         self.programs.len()
     }
 
     /// Check if the registry is empty.
-    #[must_use] pub fn is_empty(&self) -> bool {
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
         self.programs.is_empty()
     }
 
@@ -386,7 +397,8 @@ impl ProgramRegistry {
     /// Tries each program's rules against the sample lines and returns
     /// the program with the most rule matches. This is useful for auto-detecting
     /// the program when reading from stdin.
-    #[must_use] pub fn detect_from_lines(&self, lines: &[&str]) -> Option<Arc<dyn Program>> {
+    #[must_use]
+    pub fn detect_from_lines(&self, lines: &[&str]) -> Option<Arc<dyn Program>> {
         if lines.is_empty() {
             return None;
         }
@@ -450,7 +462,11 @@ mod tests {
     #[test]
     fn test_registry_register_and_get() {
         let mut registry = ProgramRegistry::new();
-        let program = Arc::new(TestProgram::new("dev.program", "TestProgram", Category::Dev));
+        let program = Arc::new(TestProgram::new(
+            "dev.program",
+            "TestProgram",
+            Category::Dev,
+        ));
         registry.register(program);
 
         assert!(registry.get("dev.program").is_some());
@@ -461,7 +477,11 @@ mod tests {
     #[test]
     fn test_registry_detect() {
         let mut registry = ProgramRegistry::new();
-        let program = Arc::new(TestProgram::new("dev.program", "TestProgram", Category::Dev));
+        let program = Arc::new(TestProgram::new(
+            "dev.program",
+            "TestProgram",
+            Category::Dev,
+        ));
         registry.register(program);
 
         assert!(registry.detect("run test command").is_some());

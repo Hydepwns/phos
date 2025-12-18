@@ -12,11 +12,11 @@
 
 //! # phos - High-performance universal log colorizer
 //!
-//! A fast, portable log colorizer with support for 99+ programs across 9 categories.
+//! A fast, portable log colorizer with support for 98 programs across 9 categories.
 //!
 //! ## Features
 //!
-//! - **99 built-in programs**: Ethereum clients, DevOps tools, dev tools, databases, etc.
+//! - **98 built-in programs**: Ethereum clients, DevOps tools, dev tools, databases, etc.
 //! - **13 themes**: Dracula, Nord, Catppuccin, Gruvbox, Tokyo Night, and more
 //! - **Semantic colors**: Rules use abstract colors (Error, Warn, Info) that themes resolve
 //! - **Regex-based**: Powerful pattern matching with capture groups and replacements
@@ -106,7 +106,7 @@ pub mod theme;
 pub use alert::{AlertCondition, AlertManager, AlertManagerBuilder, AlertSeverity};
 pub use category::{Category, ParseCategoryError};
 pub use colorizer::Colorizer;
-pub use colors::{parse_hex_rgb, Color, ColorSpec, SemanticColor};
+pub use colors::{Color, ColorSpec, SemanticColor, parse_hex_rgb};
 pub use config::{AlertsConfig, Config, GlobalConfig, RuleConfig};
 pub use program::{Program, ProgramInfo, ProgramRegistry};
 pub use rule::Rule;
@@ -116,7 +116,7 @@ pub use theme::{Theme, ThemeConfig, ThemeLoadError};
 /// Prelude for convenient imports.
 pub mod prelude {
     pub use crate::{
-        Category, Color, ColorSpec, Colorizer, Config, Program, ProgramInfo, ProgramRegistry,
-        Rule, SemanticColor, Stats, StatsCollector, Theme,
+        Category, Color, ColorSpec, Colorizer, Config, Program, ProgramInfo, ProgramRegistry, Rule,
+        SemanticColor, Stats, StatsCollector, Theme,
     };
 }

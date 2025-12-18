@@ -1,7 +1,7 @@
 //! Benchmarks for phos colorization performance.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
-use phos::{programs, Colorizer, Theme};
+use criterion::{BenchmarkId, Criterion, Throughput, black_box, criterion_group, criterion_main};
+use phos::{Colorizer, Theme, programs};
 
 // Sample log lines of varying complexity
 const SIMPLE_LINE: &str = "INFO: Application started successfully";

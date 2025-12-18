@@ -73,10 +73,7 @@ impl Config {
         let path = path.as_ref();
         let content = fs::read_to_string(path)?;
 
-        let extension = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("");
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
 
         match extension.to_lowercase().as_str() {
             "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
@@ -93,16 +90,13 @@ impl Config {
 
 /// Convert a single rule config to a Rule.
 fn rule_from_config(config: &RuleConfig) -> Result<Rule, ConfigError> {
-    let mut builder = config
-        .colors
-        .iter()
-        .filter(|c| *c != "bold")
-        .fold(Rule::new(&config.regex)?, |b, color| {
-            match parse_semantic_color(color) {
-                Some(s) => b.semantic(s),
-                None => b.named(color),
-            }
-        });
+    let mut builder = config.colors.iter().filter(|c| *c != "bold").fold(
+        Rule::new(&config.regex)?,
+        |b, color| match parse_semantic_color(color) {
+            Some(s) => b.semantic(s),
+            None => b.named(color),
+        },
+    );
 
     // Apply skip if set
     if config.skip {
@@ -218,10 +212,7 @@ impl GlobalConfig {
         let path = path.as_ref();
         let content = fs::read_to_string(path)?;
 
-        let extension = path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("yaml");
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("yaml");
 
         match extension.to_lowercase().as_str() {
             "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),

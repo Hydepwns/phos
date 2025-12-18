@@ -15,7 +15,7 @@ pub mod themes;
 
 pub use colors::show_colors;
 pub use completions::generate_completions;
-pub use config::{handle_config_action, ConfigAction};
+pub use config::{ConfigAction, handle_config_action};
 pub use info::show_info;
 pub use list::list_programs;
 pub use man::generate_man_page;

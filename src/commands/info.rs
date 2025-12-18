@@ -27,9 +27,9 @@ pub struct ProgramInfoJson {
 
 /// Show detailed information about a program.
 pub fn show_info(registry: &ProgramRegistry, name: &str, format: OutputFormat) -> Result<()> {
-    let program = registry
-        .get(name)
-        .ok_or_else(|| anyhow::anyhow!("Unknown program: {name}. Run 'phos list' to see available programs."))?;
+    let program = registry.get(name).ok_or_else(|| {
+        anyhow::anyhow!("Unknown program: {name}. Run 'phos list' to see available programs.")
+    })?;
 
     let info = program.info();
 

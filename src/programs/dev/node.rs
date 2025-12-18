@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -110,7 +110,7 @@ fn npm_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn npm_program() -> Arc<SimpleProgram> {
+pub fn npm_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.npm",
@@ -199,7 +199,7 @@ fn yarn_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn yarn_program() -> Arc<SimpleProgram> {
+pub fn yarn_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.yarn",
@@ -276,7 +276,7 @@ fn pnpm_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn pnpm_program() -> Arc<SimpleProgram> {
+pub fn pnpm_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.pnpm",

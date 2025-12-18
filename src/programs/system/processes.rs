@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -66,7 +66,7 @@ fn ps_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn ps_program() -> Arc<SimpleProgram> {
+pub fn ps_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.ps",
@@ -108,7 +108,7 @@ fn free_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn free_program() -> Arc<SimpleProgram> {
+pub fn free_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.free",
@@ -181,7 +181,7 @@ fn top_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn top_program() -> Arc<SimpleProgram> {
+pub fn top_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.top",
@@ -237,7 +237,7 @@ fn uptime_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn uptime_program() -> Arc<SimpleProgram> {
+pub fn uptime_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.uptime",
@@ -298,7 +298,7 @@ fn lsof_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn lsof_program() -> Arc<SimpleProgram> {
+pub fn lsof_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.lsof",

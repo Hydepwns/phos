@@ -4,7 +4,8 @@ use crate::colors::SemanticColor;
 use crate::rule::Rule;
 
 /// ISO timestamp (2024-01-15T10:30:45).
-#[must_use] pub fn iso_timestamp_rule() -> Rule {
+#[must_use]
+pub fn iso_timestamp_rule() -> Rule {
     Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -12,7 +13,8 @@ use crate::rule::Rule;
 }
 
 /// ISO timestamp with space separator (2024-01-15 10:30:45).
-#[must_use] pub fn iso_timestamp_space_rule() -> Rule {
+#[must_use]
+pub fn iso_timestamp_space_rule() -> Rule {
     Rule::new(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -20,7 +22,8 @@ use crate::rule::Rule;
 }
 
 /// Traditional syslog timestamp (Jan 15 10:30:45).
-#[must_use] pub fn syslog_timestamp_rule() -> Rule {
+#[must_use]
+pub fn syslog_timestamp_rule() -> Rule {
     Rule::new(r"\w{3}\s+\d{1,2}\s+\d{2}:\d{2}:\d{2}")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -28,7 +31,8 @@ use crate::rule::Rule;
 }
 
 /// Common timestamp formats.
-#[must_use] pub fn timestamp_rules() -> Vec<Rule> {
+#[must_use]
+pub fn timestamp_rules() -> Vec<Rule> {
     vec![
         iso_timestamp_rule(),
         iso_timestamp_space_rule(),
@@ -39,7 +43,8 @@ use crate::rule::Rule;
 // Database-specific timestamp formats
 
 /// `PostgreSQL` timestamp (2024-12-05 00:12:36.123 UTC).
-#[must_use] pub fn postgres_timestamp_rule() -> Rule {
+#[must_use]
+pub fn postgres_timestamp_rule() -> Rule {
     Rule::new(r"\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}\s+\w+")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -47,7 +52,8 @@ use crate::rule::Rule;
 }
 
 /// `MySQL` ISO timestamp with fractional seconds (2024-12-05T00:12:36.123456Z).
-#[must_use] pub fn mysql_iso_timestamp_rule() -> Rule {
+#[must_use]
+pub fn mysql_iso_timestamp_rule() -> Rule {
     Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+Z?")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -55,7 +61,8 @@ use crate::rule::Rule;
 }
 
 /// `MySQL` legacy timestamp (YYMMDD HH:MM:SS format).
-#[must_use] pub fn mysql_legacy_timestamp_rule() -> Rule {
+#[must_use]
+pub fn mysql_legacy_timestamp_rule() -> Rule {
     Rule::new(r"\d{6}\s+\d{1,2}:\d{2}:\d{2}")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -63,7 +70,8 @@ use crate::rule::Rule;
 }
 
 /// Redis timestamp (05 Dec 2024 00:12:36.123).
-#[must_use] pub fn redis_timestamp_rule() -> Rule {
+#[must_use]
+pub fn redis_timestamp_rule() -> Rule {
     Rule::new(r"\d{2}\s+\w{3}\s+\d{4}\s+\d{2}:\d{2}:\d{2}\.\d{3}")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -71,7 +79,8 @@ use crate::rule::Rule;
 }
 
 /// `MongoDB` timestamp with timezone offset (2024-12-05T00:12:36.123+0000).
-#[must_use] pub fn mongodb_timestamp_rule() -> Rule {
+#[must_use]
+pub fn mongodb_timestamp_rule() -> Rule {
     Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d+[+-]\d{4}")
         .unwrap()
         .semantic(SemanticColor::Timestamp)
@@ -79,7 +88,8 @@ use crate::rule::Rule;
 }
 
 /// Log4j/Elasticsearch bracketed timestamp ([2024-12-05 00:12:36,123] or [2024-12-05T00:12:36,123]).
-#[must_use] pub fn log4j_timestamp_rule() -> Rule {
+#[must_use]
+pub fn log4j_timestamp_rule() -> Rule {
     Rule::new(r"\[\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2},\d{3}\]")
         .unwrap()
         .semantic(SemanticColor::Timestamp)

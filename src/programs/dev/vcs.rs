@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -140,7 +140,7 @@ fn git_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn git_program() -> Arc<SimpleProgram> {
+pub fn git_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.git",
@@ -222,7 +222,7 @@ fn diff_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn diff_program() -> Arc<SimpleProgram> {
+pub fn diff_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.diff",
@@ -271,7 +271,7 @@ fn wdiff_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn wdiff_program() -> Arc<SimpleProgram> {
+pub fn wdiff_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.wdiff",

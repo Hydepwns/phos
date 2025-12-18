@@ -45,7 +45,8 @@ pub enum ShellType {
 
 impl ShellType {
     /// Parse shell type from string.
-    #[must_use] pub fn parse(s: &str) -> Option<Self> {
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
             "bash" => Some(Self::Bash),
             "zsh" => Some(Self::Zsh),
@@ -55,13 +56,15 @@ impl ShellType {
     }
 
     /// Get list of supported shell names.
-    #[must_use] pub fn supported() -> &'static [&'static str] {
+    #[must_use]
+    pub fn supported() -> &'static [&'static str] {
         &["bash", "zsh", "fish"]
     }
 }
 
 /// Generate shell integration script.
-#[must_use] pub fn generate_script(shell: ShellType, registry: &ProgramRegistry) -> String {
+#[must_use]
+pub fn generate_script(shell: ShellType, registry: &ProgramRegistry) -> String {
     match shell {
         ShellType::Bash => generate_bash(registry),
         ShellType::Zsh => generate_zsh(registry),
@@ -187,7 +190,8 @@ end
 }
 
 /// List all programs that would be aliased.
-#[must_use] pub fn list_aliasable(registry: &ProgramRegistry) -> Vec<(&'static str, &'static [&'static str])> {
+#[must_use]
+pub fn list_aliasable(registry: &ProgramRegistry) -> Vec<(&'static str, &'static [&'static str])> {
     ALIASABLE_PROGRAMS
         .iter()
         .filter(|(program, _)| registry.get(program).is_some())

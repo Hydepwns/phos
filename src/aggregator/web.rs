@@ -1,14 +1,14 @@
 //! Web server for the log aggregator UI.
 
 use axum::{
+    Json, Router,
     extract::{
-        ws::{Message, WebSocket, WebSocketUpgrade},
         Path, Query, State,
+        ws::{Message, WebSocket, WebSocketUpgrade},
     },
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::get,
-    Json, Router,
 };
 use bollard::Docker;
 use futures::{SinkExt, StreamExt};
@@ -18,8 +18,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 
-use crate::aggregator::{ContainerDiscovery, LogStreamer};
 use crate::Theme;
+use crate::aggregator::{ContainerDiscovery, LogStreamer};
 
 /// Application state shared across handlers.
 #[derive(Clone)]
@@ -43,9 +43,7 @@ impl AppState {
 
     /// Create with a container filter.
     pub fn with_filter(docker: Docker, theme: Theme, filter: &str) -> Self {
-        let discovery = Arc::new(
-            ContainerDiscovery::new(docker.clone()).with_filter(filter),
-        );
+        let discovery = Arc::new(ContainerDiscovery::new(docker.clone()).with_filter(filter));
         let streamer = Arc::new(LogStreamer::new(docker, theme));
         Self {
             discovery,
@@ -77,11 +75,7 @@ async fn index_html() -> Html<&'static str> {
 
 /// Serve the CSS stylesheet.
 async fn styles_css() -> impl IntoResponse {
-    (
-        StatusCode::OK,
-        [("content-type", "text/css")],
-        STYLES_CSS,
-    )
+    (StatusCode::OK, [("content-type", "text/css")], STYLES_CSS)
 }
 
 /// List all containers.
@@ -149,28 +143,22 @@ async fn handle_logs_ws(
         Err(e) => {
             let _ = sender
                 .send(Message::Text(
-                    format!(
-                        "{{\"error\": \"Failed to list containers: {}\"}}",
-                        e
-                    )
-                    .into(),
+                    format!("{{\"error\": \"Failed to list containers: {e}\"}}").into(),
                 ))
                 .await;
             return;
         }
     };
 
-    let container = match containers.iter().find(|c| c.id == container_id || c.name == container_id)
+    let container = match containers
+        .iter()
+        .find(|c| c.id == container_id || c.name == container_id)
     {
         Some(c) => c.clone(),
         None => {
             let _ = sender
                 .send(Message::Text(
-                    format!(
-                        "{{\"error\": \"Container not found: {}\"}}",
-                        container_id
-                    )
-                    .into(),
+                    format!("{{\"error\": \"Container not found: {container_id}\"}}").into(),
                 ))
                 .await;
             return;

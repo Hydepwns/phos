@@ -24,7 +24,8 @@ pub struct RateLimiter {
 
 impl RateLimiter {
     /// Create a new rate limiter with default settings.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             global_cooldown: Duration::from_secs(30),
             per_condition_cooldown: Duration::from_secs(60),
@@ -37,25 +38,29 @@ impl RateLimiter {
     }
 
     /// Set global cooldown between any alerts.
-    #[must_use] pub fn with_global_cooldown(mut self, cooldown: Duration) -> Self {
+    #[must_use]
+    pub fn with_global_cooldown(mut self, cooldown: Duration) -> Self {
         self.global_cooldown = cooldown;
         self
     }
 
     /// Set per-condition cooldown.
-    #[must_use] pub fn with_per_condition_cooldown(mut self, cooldown: Duration) -> Self {
+    #[must_use]
+    pub fn with_per_condition_cooldown(mut self, cooldown: Duration) -> Self {
         self.per_condition_cooldown = cooldown;
         self
     }
 
     /// Set maximum alerts per hour (0 = unlimited).
-    #[must_use] pub fn with_max_per_hour(mut self, max: usize) -> Self {
+    #[must_use]
+    pub fn with_max_per_hour(mut self, max: usize) -> Self {
         self.max_per_hour = max;
         self
     }
 
     /// Check if an alert can be sent for the given condition.
-    #[must_use] pub fn can_alert(&self, condition: &str) -> RateLimitResult {
+    #[must_use]
+    pub fn can_alert(&self, condition: &str) -> RateLimitResult {
         let now = Instant::now();
 
         // Check global cooldown
@@ -97,8 +102,7 @@ impl RateLimiter {
         let now = Instant::now();
 
         self.last_alert = Some(now);
-        self.condition_timestamps
-            .insert(condition.to_string(), now);
+        self.condition_timestamps.insert(condition.to_string(), now);
 
         // Reset hourly counter if needed
         if now.duration_since(self.hour_start) >= Duration::from_secs(3600) {
@@ -109,7 +113,8 @@ impl RateLimiter {
     }
 
     /// Get the current hourly alert count.
-    #[must_use] pub fn hourly_count(&self) -> usize {
+    #[must_use]
+    pub fn hourly_count(&self) -> usize {
         self.hourly_count
     }
 
@@ -136,14 +141,18 @@ pub enum RateLimitResult {
     /// Global cooldown not elapsed.
     GlobalCooldown { remaining: Duration },
     /// Per-condition cooldown not elapsed.
-    ConditionCooldown { condition: String, remaining: Duration },
+    ConditionCooldown {
+        condition: String,
+        remaining: Duration,
+    },
     /// Hourly limit reached.
     HourlyLimitReached { remaining: Duration },
 }
 
 impl RateLimitResult {
     /// Returns true if the alert is allowed.
-    #[must_use] pub fn is_allowed(&self) -> bool {
+    #[must_use]
+    pub fn is_allowed(&self) -> bool {
         matches!(self, Self::Allowed)
     }
 }
@@ -276,21 +285,27 @@ mod tests {
     fn test_rate_limit_result_is_allowed() {
         assert!(RateLimitResult::Allowed.is_allowed());
 
-        assert!(!RateLimitResult::GlobalCooldown {
-            remaining: Duration::from_secs(1)
-        }
-        .is_allowed());
+        assert!(
+            !RateLimitResult::GlobalCooldown {
+                remaining: Duration::from_secs(1)
+            }
+            .is_allowed()
+        );
 
-        assert!(!RateLimitResult::ConditionCooldown {
-            condition: "error".to_string(),
-            remaining: Duration::from_secs(1)
-        }
-        .is_allowed());
+        assert!(
+            !RateLimitResult::ConditionCooldown {
+                condition: "error".to_string(),
+                remaining: Duration::from_secs(1)
+            }
+            .is_allowed()
+        );
 
-        assert!(!RateLimitResult::HourlyLimitReached {
-            remaining: Duration::from_secs(1)
-        }
-        .is_allowed());
+        assert!(
+            !RateLimitResult::HourlyLimitReached {
+                remaining: Duration::from_secs(1)
+            }
+            .is_allowed()
+        );
     }
 
     #[test]

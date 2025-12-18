@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -78,11 +78,25 @@ fn go_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn go_program() -> Arc<SimpleProgram> {
+pub fn go_program() -> Arc<dyn Program> {
     Arc::new(
-        SimpleProgram::new("dev.go", "go", "Go build and test output", Category::Dev, go_rules())
-            // Use space prefix to avoid matching "cargo build" -> "car[go build]"
-            .with_detect_patterns(vec![" go build", " go run", " go mod", " go get", " go fmt", " go vet", " go test"]),
+        SimpleProgram::new(
+            "dev.go",
+            "go",
+            "Go build and test output",
+            Category::Dev,
+            go_rules(),
+        )
+        // Use space prefix to avoid matching "cargo build" -> "car[go build]"
+        .with_detect_patterns(vec![
+            " go build",
+            " go run",
+            " go mod",
+            " go get",
+            " go fmt",
+            " go vet",
+            " go test",
+        ]),
     )
 }
 
@@ -174,7 +188,7 @@ fn elixir_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn elixir_program() -> Arc<SimpleProgram> {
+pub fn elixir_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.elixir",
@@ -302,7 +316,7 @@ fn php_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn php_program() -> Arc<SimpleProgram> {
+pub fn php_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.php",

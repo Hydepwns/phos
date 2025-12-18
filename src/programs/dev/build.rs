@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -68,7 +68,7 @@ fn make_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn make_program() -> Arc<SimpleProgram> {
+pub fn make_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.make",
@@ -201,7 +201,7 @@ fn gcc_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn gcc_program() -> Arc<SimpleProgram> {
+pub fn gcc_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.gcc",
@@ -289,7 +289,7 @@ fn configure_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn configure_program() -> Arc<SimpleProgram> {
+pub fn configure_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.configure",
@@ -376,7 +376,7 @@ fn ant_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn ant_program() -> Arc<SimpleProgram> {
+pub fn ant_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.ant",
@@ -502,7 +502,7 @@ fn mvn_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn mvn_program() -> Arc<SimpleProgram> {
+pub fn mvn_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "dev.mvn",

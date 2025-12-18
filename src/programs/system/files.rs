@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -87,7 +87,7 @@ fn ls_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn ls_program() -> Arc<SimpleProgram> {
+pub fn ls_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.ls",
@@ -147,7 +147,7 @@ fn df_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn df_program() -> Arc<SimpleProgram> {
+pub fn df_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.df",
@@ -190,7 +190,7 @@ fn du_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn du_program() -> Arc<SimpleProgram> {
+pub fn du_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.du",
@@ -245,7 +245,7 @@ fn stat_rules() -> Vec<Rule> {
     ]
 }
 
-pub fn stat_program() -> Arc<SimpleProgram> {
+pub fn stat_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.stat",
@@ -303,7 +303,7 @@ fn mount_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn mount_program() -> Arc<SimpleProgram> {
+pub fn mount_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "system.mount",

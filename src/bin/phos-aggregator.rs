@@ -9,8 +9,8 @@ use bollard::Docker;
 use std::env;
 use std::net::SocketAddr;
 
-use phos::aggregator::{create_router, AppState};
 use phos::Theme;
+use phos::aggregator::{AppState, create_router};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -33,10 +33,10 @@ async fn main() -> Result<()> {
     docker.ping().await.expect("Failed to ping Docker daemon");
 
     println!("phos-aggregator starting...");
-    println!("  Theme: {}", theme_name);
-    println!("  Port: {}", port);
+    println!("  Theme: {theme_name}");
+    println!("  Port: {port}");
     if let Some(ref f) = filter {
-        println!("  Filter: {}", f);
+        println!("  Filter: {f}");
     }
 
     // Create application state
@@ -51,7 +51,7 @@ async fn main() -> Result<()> {
 
     // Start server
     let addr = SocketAddr::from(([0, 0, 0, 0], port));
-    println!("Listening on http://{}", addr);
+    println!("Listening on http://{addr}");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;

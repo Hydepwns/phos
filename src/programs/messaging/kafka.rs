@@ -151,7 +151,8 @@ fn kafka_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn kafka_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn kafka_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "messaging.kafka",

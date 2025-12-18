@@ -1,7 +1,7 @@
 //! Discord webhook formatter.
 
-use super::formatter::{truncate, AlertPayload, WebhookFormatter, WebhookService};
-use serde_json::{json, Value};
+use super::formatter::{AlertPayload, WebhookFormatter, WebhookService, truncate};
+use serde_json::{Value, json};
 
 /// Discord webhook formatter with rich embeds.
 pub struct DiscordFormatter;
@@ -64,15 +64,19 @@ mod tests {
 
         let embed = &json["embeds"][0];
         assert!(embed["title"].as_str().unwrap().contains("[ERR]"));
-        assert!(embed["description"]
-            .as_str()
-            .unwrap()
-            .contains("Failed to connect"));
+        assert!(
+            embed["description"]
+                .as_str()
+                .unwrap()
+                .contains("Failed to connect")
+        );
         assert_eq!(embed["color"], 0xFF5500);
-        assert!(embed["footer"]["text"]
-            .as_str()
-            .unwrap()
-            .contains("lodestar"));
+        assert!(
+            embed["footer"]["text"]
+                .as_str()
+                .unwrap()
+                .contains("lodestar")
+        );
     }
 
     #[test]

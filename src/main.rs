@@ -316,9 +316,7 @@ fn main() -> Result<()> {
             60 => global_config.alerts.cooldown,
             custom => custom,
         };
-        let mut builder = AlertManagerBuilder::new()
-            .url(url)
-            .cooldown_secs(cooldown);
+        let mut builder = AlertManagerBuilder::new().url(url).cooldown_secs(cooldown);
 
         // Chat ID: CLI > global config
         let chat_id = cli
@@ -380,7 +378,12 @@ fn main() -> Result<()> {
         }
     } else if !cli.args.is_empty() {
         // Run the command
-        commands::run_command(&mut colorizer, &cli.args, stats.as_mut(), alert_manager.as_mut())?;
+        commands::run_command(
+            &mut colorizer,
+            &cli.args,
+            stats.as_mut(),
+            alert_manager.as_mut(),
+        )?;
     } else {
         // No input - show help
         eprintln!("Usage: phos -p <program> -- <command>");

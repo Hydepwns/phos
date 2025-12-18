@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -88,7 +88,7 @@ fn ping_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn ping_program() -> Arc<SimpleProgram> {
+pub fn ping_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.ping",
@@ -210,7 +210,7 @@ fn curl_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn curl_program() -> Arc<SimpleProgram> {
+pub fn curl_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.curl",
@@ -304,7 +304,7 @@ fn dig_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn dig_program() -> Arc<SimpleProgram> {
+pub fn dig_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.dig",
@@ -397,7 +397,7 @@ fn traceroute_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn traceroute_program() -> Arc<SimpleProgram> {
+pub fn traceroute_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.traceroute",
@@ -454,10 +454,12 @@ fn nmap_rules() -> Vec<Rule> {
 
     // Service names
     rules.push(
-        Rule::new(r"\b(http|https|ssh|ftp|smtp|dns|mysql|postgresql|redis|mongodb|telnet|pop3|imap)\b")
-            .unwrap()
-            .semantic(SemanticColor::Label)
-            .build(),
+        Rule::new(
+            r"\b(http|https|ssh|ftp|smtp|dns|mysql|postgresql|redis|mongodb|telnet|pop3|imap)\b",
+        )
+        .unwrap()
+        .semantic(SemanticColor::Label)
+        .build(),
     );
 
     // Port numbers
@@ -536,7 +538,7 @@ fn nmap_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn nmap_program() -> Arc<SimpleProgram> {
+pub fn nmap_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.nmap",

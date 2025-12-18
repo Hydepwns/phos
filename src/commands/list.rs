@@ -28,8 +28,10 @@ pub fn list_programs(
     category: Option<&str>,
     format: OutputFormat,
 ) -> Result<()> {
-    let categories: Vec<Category> = category
-        .map_or_else(|| registry.categories(), |c| vec![c.parse::<Category>().expect("Invalid category")]);
+    let categories: Vec<Category> = category.map_or_else(
+        || registry.categories(),
+        |c| vec![c.parse::<Category>().expect("Invalid category")],
+    );
 
     match format {
         OutputFormat::Json => {
@@ -57,13 +59,10 @@ pub fn list_programs(
         OutputFormat::Table => {
             println!("Available programs ({} total):\n", registry.len());
 
-            for (cat, programs) in categories
-                .iter()
-                .filter_map(|cat| {
-                    let programs = registry.list_by_category(*cat);
-                    (!programs.is_empty()).then_some((*cat, programs))
-                })
-            {
+            for (cat, programs) in categories.iter().filter_map(|cat| {
+                let programs = registry.list_by_category(*cat);
+                (!programs.is_empty()).then_some((*cat, programs))
+            }) {
                 println!("{}:", cat.display_name());
                 for info in &programs {
                     let name = info.id.split('.').next_back().unwrap_or(&info.id);
@@ -75,7 +74,9 @@ pub fn list_programs(
             // Also show Ethereum layer info if showing ethereum category
             if category == Some("ethereum") {
                 println!("Ethereum clients by layer:");
-                println!("  Consensus:  Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda");
+                println!(
+                    "  Consensus:  Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda"
+                );
                 println!("  Execution:  Geth, Nethermind, Besu, Erigon, Reth");
                 println!("  Full Node:  Mana");
                 println!("  Middleware: Charon, MEV-Boost");

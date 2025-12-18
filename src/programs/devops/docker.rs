@@ -52,7 +52,8 @@ fn docker_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn docker_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn docker_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "devops.docker",
@@ -106,7 +107,10 @@ mod tests {
     fn test_container_status_exited() {
         let rules = docker_rules();
         assert!(any_rule_matches(&rules, "CONTAINER ID  STATUS: exited"));
-        assert!(any_rule_matches(&rules, "container Exited (0) 5 minutes ago"));
+        assert!(any_rule_matches(
+            &rules,
+            "container Exited (0) 5 minutes ago"
+        ));
         assert!(any_rule_matches(&rules, "status: stopped"));
     }
 

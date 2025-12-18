@@ -13,4 +13,4 @@ mod web;
 pub use discovery::{ContainerDiscovery, ContainerInfo};
 pub use html::ansi_to_html;
 pub use streamer::{ColorizedLogEntry, LogStreamer};
-pub use web::{create_router, AppState};
+pub use web::{AppState, create_router};

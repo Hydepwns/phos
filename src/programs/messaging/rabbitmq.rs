@@ -167,7 +167,8 @@ fn rabbitmq_rules() -> Vec<Rule> {
     rules
 }
 
-#[must_use] pub fn rabbitmq_program() -> Arc<dyn Program> {
+#[must_use]
+pub fn rabbitmq_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "messaging.rabbitmq",

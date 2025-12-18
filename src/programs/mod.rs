@@ -29,7 +29,8 @@ pub fn register_all(registry: &mut ProgramRegistry) {
 }
 
 /// Create a registry with all built-in programs.
-#[must_use] pub fn default_registry() -> ProgramRegistry {
+#[must_use]
+pub fn default_registry() -> ProgramRegistry {
     let mut registry = ProgramRegistry::new();
     register_all(&mut registry);
     registry
@@ -43,33 +44,75 @@ mod tests {
     /// Sample log lines for smoke testing each program category.
     const SAMPLE_LOGS: &[(&str, &str)] = &[
         // Ethereum
-        ("lighthouse", "Dec 05 00:12:36.557 INFO Synced slot: 12345, epoch: 385, peers: 47"),
-        ("geth", "INFO [12-05|00:12:36.557] Imported new chain segment number=19630289 hash=0x4f6a0b..."),
-        ("lodestar", "Dec 05 00:12:36.557[] info: Synced - Peers 47 - Eph 167991/6 - slot 5375712"),
+        (
+            "lighthouse",
+            "Dec 05 00:12:36.557 INFO Synced slot: 12345, epoch: 385, peers: 47",
+        ),
+        (
+            "geth",
+            "INFO [12-05|00:12:36.557] Imported new chain segment number=19630289 hash=0x4f6a0b...",
+        ),
+        (
+            "lodestar",
+            "Dec 05 00:12:36.557[] info: Synced - Peers 47 - Eph 167991/6 - slot 5375712",
+        ),
         // DevOps
-        ("docker", "2024-01-15T10:30:45.123Z INFO Container started id=abc123def456"),
-        ("kubectl", "error: the server doesn't have a resource type \"pods\""),
+        (
+            "docker",
+            "2024-01-15T10:30:45.123Z INFO Container started id=abc123def456",
+        ),
+        (
+            "kubectl",
+            "error: the server doesn't have a resource type \"pods\"",
+        ),
         ("terraform", "Plan: 3 to add, 1 to change, 0 to destroy."),
         // System
-        ("systemd", "Dec 15 10:30:45 hostname systemd[1]: Started My Service."),
+        (
+            "systemd",
+            "Dec 15 10:30:45 hostname systemd[1]: Started My Service.",
+        ),
         ("dmesg", "[    0.000000] Linux version 5.15.0-generic"),
         // Dev
         ("cargo", "error[E0382]: borrow of moved value: `x`"),
         ("git", "commit abc123def (HEAD -> main, origin/main)"),
-        ("npm", "npm ERR! 404 Not Found - GET https://registry.npmjs.org/nonexistent"),
+        (
+            "npm",
+            "npm ERR! 404 Not Found - GET https://registry.npmjs.org/nonexistent",
+        ),
         // Network
-        ("nginx", "192.168.1.1 - - [15/Dec/2024:10:30:45 +0000] \"GET /api HTTP/1.1\" 200 1234"),
-        ("ping", "64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=14.2 ms"),
+        (
+            "nginx",
+            "192.168.1.1 - - [15/Dec/2024:10:30:45 +0000] \"GET /api HTTP/1.1\" 200 1234",
+        ),
+        (
+            "ping",
+            "64 bytes from 8.8.8.8: icmp_seq=1 ttl=117 time=14.2 ms",
+        ),
         ("curl", "HTTP/2 200 OK"),
         // Data
-        ("postgres", "2024-01-15 10:30:45.123 UTC [1234] ERROR:  relation \"users\" does not exist"),
-        ("redis", "[1234] 15 Dec 10:30:45.123 # Server started, Redis version=7.0.0"),
+        (
+            "postgres",
+            "2024-01-15 10:30:45.123 UTC [1234] ERROR:  relation \"users\" does not exist",
+        ),
+        (
+            "redis",
+            "[1234] 15 Dec 10:30:45.123 # Server started, Redis version=7.0.0",
+        ),
         // Monitoring
-        ("prometheus", "level=info ts=2024-01-15T10:30:45.123Z caller=main.go:123 msg=\"Server is ready\""),
+        (
+            "prometheus",
+            "level=info ts=2024-01-15T10:30:45.123Z caller=main.go:123 msg=\"Server is ready\"",
+        ),
         // Messaging
-        ("kafka", "[2024-01-15 10:30:45,123] INFO [Controller id=1] Processing partition"),
+        (
+            "kafka",
+            "[2024-01-15 10:30:45,123] INFO [Controller id=1] Processing partition",
+        ),
         // CI
-        ("github-actions", "::error::Process completed with exit code 1."),
+        (
+            "github-actions",
+            "::error::Process completed with exit code 1.",
+        ),
     ];
 
     #[test]
@@ -104,11 +147,7 @@ mod tests {
             let program = registry.get(&info.id).expect("Program should exist");
             let rules = program.rules();
             // All programs should have at least one rule
-            assert!(
-                !rules.is_empty(),
-                "Program {} has no rules",
-                info.id
-            );
+            assert!(!rules.is_empty(), "Program {} has no rules", info.id);
         }
     }
 
@@ -132,7 +171,11 @@ mod tests {
 
             // Test with empty line
             let empty_result = colorizer.colorize("");
-            assert_eq!(empty_result, "", "Empty line should return empty for {}", info.id);
+            assert_eq!(
+                empty_result, "",
+                "Empty line should return empty for {}",
+                info.id
+            );
         }
     }
 

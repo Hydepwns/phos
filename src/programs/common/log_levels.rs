@@ -21,7 +21,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 
 /// Standard log level rules (ERROR, WARN, INFO, DEBUG, TRACE).
 /// Handles common case variations.
-#[must_use] pub fn log_level_rules() -> Vec<Rule> {
+#[must_use]
+pub fn log_level_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(ERROR|error|Error|ERR|err|Err)\b")
             .unwrap()
@@ -49,7 +50,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 }
 
 /// Systemd/syslog priority levels (emerg, alert, crit, etc.).
-#[must_use] pub fn syslog_priority_rules() -> Vec<Rule> {
+#[must_use]
+pub fn syslog_priority_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(emerg|emergency)\b")
             .unwrap()
@@ -91,7 +93,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 
 /// Structured log level patterns (level=error, level=info).
 /// Common in Prometheus, Grafana, and Go applications.
-#[must_use] pub fn structured_log_level_rules() -> Vec<Rule> {
+#[must_use]
+pub fn structured_log_level_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\blevel=(error|fatal|panic)\b")
             .unwrap()
@@ -119,7 +122,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 
 /// Bracketed log levels (`[ERROR]`, `[WARN]`, `[INFO]`).
 /// Common in databases and Java applications.
-#[must_use] pub fn bracketed_log_level_rules() -> Vec<Rule> {
+#[must_use]
+pub fn bracketed_log_level_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\[(ERROR|FATAL|PANIC)\]")
             .unwrap()
@@ -148,7 +152,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 
 /// Database-style log levels (LOG, NOTICE, FATAL, PANIC).
 /// Common in `PostgreSQL`, `MySQL`, and other databases.
-#[must_use] pub fn database_log_level_rules() -> Vec<Rule> {
+#[must_use]
+pub fn database_log_level_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\b(PANIC|FATAL):")
             .unwrap()
@@ -176,7 +181,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 
 /// JSON structured log levels ("level": "error", etc.).
 /// Common in Caddy, Traefik, and modern JSON-logging applications.
-#[must_use] pub fn json_log_level_rules() -> Vec<Rule> {
+#[must_use]
+pub fn json_log_level_rules() -> Vec<Rule> {
     vec![
         Rule::new(r#""level"\s*:\s*"(error|fatal)""#)
             .unwrap()
@@ -204,7 +210,8 @@ pub static ERROR_LEVEL_PATTERN: std::sync::LazyLock<Regex> = std::sync::LazyLock
 
 /// Syslog-style bracketed log levels (`[emerg]`, `[alert]`, `[crit]`, etc.).
 /// Common in nginx and other traditional Unix services.
-#[must_use] pub fn syslog_bracketed_log_level_rules() -> Vec<Rule> {
+#[must_use]
+pub fn syslog_bracketed_log_level_rules() -> Vec<Rule> {
     vec![
         Rule::new(r"\[emerg\]")
             .unwrap()
@@ -433,13 +440,34 @@ mod tests {
     #[test]
     fn test_json_log_level_rules_match() {
         let rules = json_log_level_rules();
-        assert!(any_rule_matches(&rules, r#"{"level": "error", "msg": "failed"}"#));
-        assert!(any_rule_matches(&rules, r#"{"level": "fatal", "msg": "crash"}"#));
-        assert!(any_rule_matches(&rules, r#"{"level": "warn", "msg": "caution"}"#));
-        assert!(any_rule_matches(&rules, r#"{"level": "warning", "msg": "caution"}"#));
-        assert!(any_rule_matches(&rules, r#"{"level": "info", "msg": "status"}"#));
-        assert!(any_rule_matches(&rules, r#"{"level": "debug", "msg": "debug"}"#));
-        assert!(any_rule_matches(&rules, r#"{"level": "trace", "msg": "trace"}"#));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "error", "msg": "failed"}"#
+        ));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "fatal", "msg": "crash"}"#
+        ));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "warn", "msg": "caution"}"#
+        ));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "warning", "msg": "caution"}"#
+        ));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "info", "msg": "status"}"#
+        ));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "debug", "msg": "debug"}"#
+        ));
+        assert!(any_rule_matches(
+            &rules,
+            r#"{"level": "trace", "msg": "trace"}"#
+        ));
     }
 
     #[test]

@@ -35,7 +35,8 @@ impl AlertPayload {
     }
 
     /// Set the severity level.
-    #[must_use] pub fn with_severity(mut self, severity: AlertSeverity) -> Self {
+    #[must_use]
+    pub fn with_severity(mut self, severity: AlertSeverity) -> Self {
         self.severity = severity;
         self
     }
@@ -68,9 +69,9 @@ pub enum WebhookService {
 
 impl WebhookService {
     /// Auto-detect service type from URL.
-    #[must_use] pub fn detect(url: &str) -> Self {
-        if url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks")
-        {
+    #[must_use]
+    pub fn detect(url: &str) -> Self {
+        if url.contains("discord.com/api/webhooks") || url.contains("discordapp.com/api/webhooks") {
             Self::Discord
         } else if url.contains("api.telegram.org/bot") {
             Self::Telegram {
@@ -105,7 +106,8 @@ pub trait WebhookFormatter: Send + Sync {
 }
 
 /// Get the current timestamp in ISO 8601 format.
-#[must_use] pub fn current_timestamp() -> String {
+#[must_use]
+pub fn current_timestamp() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let duration = SystemTime::now()
@@ -124,9 +126,7 @@ pub trait WebhookFormatter: Send + Sync {
     // Calculate year, month, day from days since epoch (1970-01-01)
     let (year, month, day) = days_to_ymd(days_since_epoch);
 
-    format!(
-        "{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}Z"
-    )
+    format!("{year:04}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}Z")
 }
 
 /// Convert days since Unix epoch to (year, month, day).
@@ -168,7 +168,8 @@ fn is_leap_year(year: i64) -> bool {
 }
 
 /// Truncate a string to a maximum length, respecting UTF-8 boundaries.
-#[must_use] pub fn truncate(s: &str, max: usize) -> &str {
+#[must_use]
+pub fn truncate(s: &str, max: usize) -> &str {
     if s.len() <= max {
         s
     } else {
@@ -186,9 +187,8 @@ mod tests {
 
     #[test]
     fn test_webhook_service_detect_discord() {
-        let service = WebhookService::detect(
-            "https://discord.com/api/webhooks/123456789/abcdefghijklmnop",
-        );
+        let service =
+            WebhookService::detect("https://discord.com/api/webhooks/123456789/abcdefghijklmnop");
         assert_eq!(service, WebhookService::Discord);
 
         let service = WebhookService::detect(
@@ -199,8 +199,7 @@ mod tests {
 
     #[test]
     fn test_webhook_service_detect_telegram() {
-        let service =
-            WebhookService::detect("https://api.telegram.org/bot123:ABC/sendMessage");
+        let service = WebhookService::detect("https://api.telegram.org/bot123:ABC/sendMessage");
         assert!(matches!(service, WebhookService::Telegram { .. }));
     }
 

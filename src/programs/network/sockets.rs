@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::common;
 use crate::category::Category;
 use crate::colors::SemanticColor;
-use crate::program::SimpleProgram;
+use crate::program::{Program, SimpleProgram};
 use crate::rule::Rule;
 
 // =============================================================================
@@ -47,11 +47,13 @@ fn netstat_rules() -> Vec<Rule> {
 
     // Header row
     rules.push(
-        Rule::new(r"\b(Proto|Recv-Q|Send-Q|Local Address|Foreign Address|State|PID/Program name)\b")
-            .unwrap()
-            .semantic(SemanticColor::Label)
-            .bold()
-            .build(),
+        Rule::new(
+            r"\b(Proto|Recv-Q|Send-Q|Local Address|Foreign Address|State|PID/Program name)\b",
+        )
+        .unwrap()
+        .semantic(SemanticColor::Label)
+        .bold()
+        .build(),
     );
 
     // Process info
@@ -78,7 +80,7 @@ fn netstat_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn netstat_program() -> Arc<SimpleProgram> {
+pub fn netstat_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.netstat",
@@ -123,7 +125,7 @@ fn ss_rules() -> Vec<Rule> {
 
     // Socket options/info
     rules.extend([
-Rule::new(r#"users:\(\("[^"]+",pid=\d+,fd=\d+\)\)"#)
+        Rule::new(r#"users:\(\("[^"]+",pid=\d+,fd=\d+\)\)"#)
             .unwrap()
             .semantic(SemanticColor::Identifier)
             .build(),
@@ -177,7 +179,7 @@ Rule::new(r#"users:\(\("[^"]+",pid=\d+,fd=\d+\)\)"#)
     rules
 }
 
-pub fn ss_program() -> Arc<SimpleProgram> {
+pub fn ss_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.ss",
@@ -252,7 +254,7 @@ fn sockstat_rules() -> Vec<Rule> {
     rules
 }
 
-pub fn sockstat_program() -> Arc<SimpleProgram> {
+pub fn sockstat_program() -> Arc<dyn Program> {
     Arc::new(
         SimpleProgram::new(
             "network.sockstat",

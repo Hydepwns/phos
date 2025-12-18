@@ -216,7 +216,8 @@ pub struct AlertManagerBuilder {
 
 impl AlertManagerBuilder {
     /// Create a new builder.
-    #[must_use] pub fn new() -> Self {
+    #[must_use]
+    pub fn new() -> Self {
         Self {
             url: None,
             chat_id: None,
@@ -249,10 +250,8 @@ impl AlertManagerBuilder {
 
     /// Add multiple conditions from CLI strings.
     pub fn conditions(mut self, condition_strs: &[String]) -> Result<Self, ParseConditionError> {
-        let parsed: Result<Vec<AlertCondition>, _> = condition_strs
-            .iter()
-            .map(|s| s.parse())
-            .collect();
+        let parsed: Result<Vec<AlertCondition>, _> =
+            condition_strs.iter().map(|s| s.parse()).collect();
         self.conditions.extend(parsed?);
         Ok(self)
     }
@@ -265,13 +264,15 @@ impl AlertManagerBuilder {
     }
 
     /// Set the cooldown in seconds.
-    #[must_use] pub fn cooldown_secs(mut self, secs: u64) -> Self {
+    #[must_use]
+    pub fn cooldown_secs(mut self, secs: u64) -> Self {
         self.cooldown = Some(std::time::Duration::from_secs(secs));
         self
     }
 
     /// Build the `AlertManager`.
-    #[must_use] pub fn build(self) -> Option<AlertManager> {
+    #[must_use]
+    pub fn build(self) -> Option<AlertManager> {
         let url = self.url?;
 
         let mut manager = AlertManager::new(url);
@@ -329,7 +330,10 @@ mod tests {
 
     #[test]
     fn test_alert_manager_builder_no_url() {
-        let manager = AlertManagerBuilder::new().condition("error").unwrap().build();
+        let manager = AlertManagerBuilder::new()
+            .condition("error")
+            .unwrap()
+            .build();
         assert!(manager.is_none());
     }
 
