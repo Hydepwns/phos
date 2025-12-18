@@ -9,13 +9,16 @@ use proptest::prelude::*;
 
 /// Strategy for generating arbitrary printable strings (no control chars except newline)
 fn printable_string() -> impl Strategy<Value = String> {
-    proptest::collection::vec(any::<char>().prop_filter_map("printable", |c| {
-        if c.is_ascii_graphic() || c == ' ' || c == '\n' || c == '\t' {
-            Some(c)
-        } else {
-            None
-        }
-    }), 0..500)
+    proptest::collection::vec(
+        any::<char>().prop_filter_map("printable", |c| {
+            if c.is_ascii_graphic() || c == ' ' || c == '\n' || c == '\t' {
+                Some(c)
+            } else {
+                None
+            }
+        }),
+        0..500,
+    )
     .prop_map(|chars| chars.into_iter().collect())
 }
 
@@ -97,9 +100,7 @@ fn validate_ansi(s: &str) -> Result<(), String> {
 
                 // Final byte must be 0x40-0x7E
                 if i >= bytes.len() {
-                    return Err(format!(
-                        "Truncated CSI sequence starting at byte {start}"
-                    ));
+                    return Err(format!("Truncated CSI sequence starting at byte {start}"));
                 }
 
                 if !(0x40..=0x7e).contains(&bytes[i]) {

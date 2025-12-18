@@ -2,7 +2,7 @@
 //!
 //! These tests verify that colorization rules work correctly on real log samples.
 
-use phos::{programs, Colorizer, Theme};
+use phos::{Colorizer, Theme, programs};
 
 /// Helper to check if output contains ANSI escape codes
 fn has_ansi_codes(s: &str) -> bool {
@@ -162,12 +162,18 @@ mod ethereum {
 
         let colored = colorize_with_program("ethereum.lighthouse", &test_lines);
 
-        for (original, colorized) in test_lines.iter().zip(colored.iter()) {
-            assert!(
-                has_ansi_codes(colorized),
-                "Expected '{original}' to be colorized"
-            );
-        }
+        let uncolorized: Vec<_> = test_lines
+            .iter()
+            .zip(colored.iter())
+            .filter(|(_, colorized)| !has_ansi_codes(colorized))
+            .map(|(original, _)| original.as_str())
+            .collect();
+
+        assert!(
+            uncolorized.is_empty(),
+            "Expected these lines to be colorized: {:?}",
+            uncolorized
+        );
     }
 }
 
@@ -860,12 +866,18 @@ mod common_patterns {
         // Test with nginx which has IP rules
         let colored = colorize_with_program("network.nginx", &lines);
 
-        for (original, colorized) in lines.iter().zip(colored.iter()) {
-            assert!(
-                has_ansi_codes(colorized),
-                "Expected IP in '{original}' to be colorized"
-            );
-        }
+        let uncolorized: Vec<_> = lines
+            .iter()
+            .zip(colored.iter())
+            .filter(|(_, colorized)| !has_ansi_codes(colorized))
+            .map(|(original, _)| original.as_str())
+            .collect();
+
+        assert!(
+            uncolorized.is_empty(),
+            "Expected IPs in these lines to be colorized: {:?}",
+            uncolorized
+        );
     }
 
     #[test]
@@ -941,15 +953,22 @@ mod registry {
     fn test_all_programs_have_rules() {
         let registry = programs::default_registry();
 
-        for info in registry.list() {
-            let program = registry.get(&info.id).expect("Program should exist");
-            let rules = program.rules();
-            assert!(
-                !rules.is_empty(),
-                "Program '{}' has no rules",
-                info.id
-            );
-        }
+        let missing: Vec<_> = registry
+            .list()
+            .iter()
+            .filter_map(|info| {
+                registry
+                    .get(&info.id)
+                    .filter(|p| p.rules().is_empty())
+                    .map(|_| info.id.to_string())
+            })
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "Programs without rules: {}",
+            missing.join(", ")
+        );
     }
 
     #[test]
@@ -957,7 +976,7 @@ mod registry {
         let registry = programs::default_registry();
 
         // Test detection for various commands
-        let test_cases = vec![
+        let test_cases = [
             ("docker logs myapp", Some("devops.docker")),
             ("kubectl get pods", Some("devops.kubectl")),
             ("cargo build", Some("dev.cargo")),
@@ -967,28 +986,29 @@ mod registry {
             ("journalctl -f", Some("system.systemd")),
         ];
 
-        for (command, expected_id) in test_cases {
-            let detected = registry.detect(command);
-            match expected_id {
-                Some(id) => {
-                    assert!(
-                        detected.is_some(),
-                        "Expected '{command}' to detect program '{id}'"
-                    );
-                    assert_eq!(
-                        detected.unwrap().info().id,
-                        id,
-                        "Command '{command}' detected wrong program"
-                    );
+        let failures: Vec<_> = test_cases
+            .iter()
+            .filter_map(|(command, expected_id)| {
+                let detected = registry.detect(command);
+                match (
+                    detected.as_ref().map(|p| p.info().id.as_ref()),
+                    *expected_id,
+                ) {
+                    (Some(actual), Some(expected)) if actual == expected => None,
+                    (None, None) => None,
+                    (actual, expected) => Some(format!(
+                        "'{command}': expected {:?}, got {:?}",
+                        expected, actual
+                    )),
                 }
-                None => {
-                    assert!(
-                        detected.is_none(),
-                        "Expected '{command}' to not detect any program"
-                    );
-                }
-            }
-        }
+            })
+            .collect();
+
+        assert!(
+            failures.is_empty(),
+            "Detection failures: {}",
+            failures.join("; ")
+        );
     }
 
     #[test]
@@ -997,9 +1017,6 @@ mod registry {
         let count = registry.len();
 
         // Should have 98 programs as documented
-        assert_eq!(
-            count, 98,
-            "Expected 98 programs in registry, got {count}"
-        );
+        assert_eq!(count, 98, "Expected 98 programs in registry, got {count}");
     }
 }

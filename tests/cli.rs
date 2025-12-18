@@ -2,8 +2,8 @@
 //!
 //! These tests verify the command-line interface behavior.
 
-use std::process::{Command, Stdio};
 use std::io::Write;
+use std::process::{Command, Stdio};
 
 /// Get the path to the phos binary
 fn phos_bin() -> Command {
@@ -35,7 +35,9 @@ fn run_phos_with_stdin(args: &[&str], input: &str) -> (String, String, bool) {
         .expect("Failed to spawn phos");
 
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(input.as_bytes()).expect("Failed to write to stdin");
+        stdin
+            .write_all(input.as_bytes())
+            .expect("Failed to write to stdin");
     }
 
     let output = child.wait_with_output().expect("Failed to wait for phos");
@@ -59,7 +61,7 @@ mod version_help {
         let (stdout, _, success) = run_phos(&["--version"]);
         assert!(success);
         assert!(stdout.contains("phos"));
-        assert!(stdout.contains("0.1.0"));
+        assert!(stdout.contains("0.2.0"));
     }
 
     #[test]
@@ -343,7 +345,10 @@ mod pipe_input {
         let (stdout, _, success) = run_phos_with_stdin(&["-p", "cargo", "--color"], input);
         assert!(success);
         // With --color flag, should have ANSI codes even when piped
-        assert!(stdout.contains("\x1b["), "Expected ANSI codes in output: {stdout}");
+        assert!(
+            stdout.contains("\x1b["),
+            "Expected ANSI codes in output: {stdout}"
+        );
     }
 
     #[test]
@@ -392,7 +397,8 @@ mod error_handling {
     fn test_unknown_theme() {
         // Unknown theme falls back to default, doesn't error
         let input = "test line";
-        let (stdout, _, success) = run_phos_with_stdin(&["-p", "cargo", "-t", "nonexistent"], input);
+        let (stdout, _, success) =
+            run_phos_with_stdin(&["-p", "cargo", "-t", "nonexistent"], input);
         assert!(success);
         assert!(stdout.contains("test line"));
     }
@@ -507,14 +513,19 @@ mod command_execution {
 
 mod config_file {
     use super::*;
-    use std::fs;
     use std::env;
+    use std::fs;
 
     #[test]
     fn test_config_file_not_found() {
-        let (_, stderr, success) = run_phos_with_stdin(&["--config", "/nonexistent/config.yaml"], "test");
+        let (_, stderr, success) =
+            run_phos_with_stdin(&["--config", "/nonexistent/config.yaml"], "test");
         assert!(!success);
-        assert!(stderr.contains("No such file") || stderr.contains("not found") || stderr.contains("error"));
+        assert!(
+            stderr.contains("No such file")
+                || stderr.contains("not found")
+                || stderr.contains("error")
+        );
     }
 
     #[test]
@@ -609,61 +620,113 @@ mod smoke_tests {
     /// Smoke test that verifies all programs can be used without crashing
     #[test]
     fn test_all_programs_can_colorize() {
-        let programs = vec![
+        let programs = [
             // DevOps
-            "docker", "kubectl", "terraform", "k9s", "helm", "ansible",
+            "docker",
+            "kubectl",
+            "terraform",
+            "k9s",
+            "helm",
+            "ansible",
             // System
-            "systemd", "syslog", "dmesg", "fail2ban", "cron", "iptables",
+            "systemd",
+            "syslog",
+            "dmesg",
+            "fail2ban",
+            "cron",
+            "iptables",
             // Dev
-            "cargo", "git", "npm", "go", "make",
+            "cargo",
+            "git",
+            "npm",
+            "go",
+            "make",
             // Network
-            "ping", "curl", "dig", "nginx",
+            "ping",
+            "curl",
+            "dig",
+            "nginx",
             // Data
-            "postgres", "redis", "mysql", "mongodb", "elasticsearch",
+            "postgres",
+            "redis",
+            "mysql",
+            "mongodb",
+            "elasticsearch",
             // Monitoring
-            "prometheus", "grafana",
+            "prometheus",
+            "grafana",
             // Messaging
-            "kafka", "rabbitmq",
+            "kafka",
+            "rabbitmq",
             // CI
-            "github-actions", "jenkins",
+            "github-actions",
+            "jenkins",
         ];
 
         let input = "test line with ERROR and WARNING and 192.168.1.1";
 
-        for program in programs {
-            let (stdout, stderr, success) = run_phos_with_stdin(&["-p", program], input);
-            assert!(
-                success,
-                "Program '{program}' failed: {stderr}"
-            );
-            assert!(
-                stdout.contains("test line"),
-                "Program '{program}' didn't output correctly"
-            );
-        }
+        let failures: Vec<_> = programs
+            .iter()
+            .filter_map(|program| {
+                let (stdout, stderr, success) = run_phos_with_stdin(&["-p", program], input);
+                if !success {
+                    Some(format!("'{program}' failed: {stderr}"))
+                } else if !stdout.contains("test line") {
+                    Some(format!("'{program}' didn't output correctly"))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert!(
+            failures.is_empty(),
+            "Program failures: {}",
+            failures.join("; ")
+        );
     }
 
     /// Smoke test that verifies all Ethereum clients can be used
     #[test]
     fn test_all_ethereum_clients_can_colorize() {
-        let clients = vec![
-            "lighthouse", "prysm", "teku", "nimbus", "lodestar", "grandine", "lambda",
-            "geth", "nethermind", "besu", "erigon", "reth",
-            "mana", "charon", "mev-boost",
+        let clients = [
+            "lighthouse",
+            "prysm",
+            "teku",
+            "nimbus",
+            "lodestar",
+            "grandine",
+            "lambda",
+            "geth",
+            "nethermind",
+            "besu",
+            "erigon",
+            "reth",
+            "mana",
+            "charon",
+            "mev-boost",
         ];
 
         let input = "INFO slot=12345 epoch=385 head=0xabcdef1234567890";
 
-        for client in clients {
-            let (stdout, stderr, success) = run_phos_with_stdin(&["-c", client], input);
-            assert!(
-                success,
-                "Client '{client}' failed: {stderr}"
-            );
-            assert!(
-                stdout.contains("INFO") || stdout.contains("slot"),
-                "Client '{client}' didn't output correctly"
-            );
-        }
+        let failures: Vec<_> = clients
+            .iter()
+            .filter_map(|client| {
+                let (stdout, stderr, success) = run_phos_with_stdin(&["-c", client], input);
+                if !success {
+                    Some(format!("'{client}' failed: {stderr}"))
+                } else if !stdout.contains("INFO") && !stdout.contains("slot") {
+                    Some(format!("'{client}' didn't output correctly"))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        assert!(
+            failures.is_empty(),
+            "Client failures: {}",
+            failures.join("; ")
+        );
     }
 }
