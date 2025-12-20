@@ -54,6 +54,11 @@ ansi-to-html = "0.2"
 async-stream = "0.3"
 futures = "0.3"
 
+# WAMP/WebSocket for DAppNode integration
+tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+tokio-stream = "0.1"
+async-trait = "0.1"
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.4"

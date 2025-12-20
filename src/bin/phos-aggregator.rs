@@ -6,6 +6,8 @@
 //!
 //! ## Environment Variables
 //!
+//! - `PHOS_BACKEND`: Backend to use ("docker" or "dappnode", default: "docker")
+//! - `PHOS_WAMP_URL`: Custom WAMP URL for DAppNode backend
 //! - `PHOS_THEME`: Color theme (default: "default-dark")
 //! - `PHOS_PORT`: Server port (default: 8080)
 //! - `PHOS_CONTAINER_FILTER`: Optional container name filter
@@ -14,17 +16,22 @@
 //! - `PHOS_ALERT_CONDITIONS`: Comma-separated alert conditions (default: "error")
 
 use anyhow::Result;
-use bollard::Docker;
 use std::env;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 use phos::Theme;
 use phos::alert::AlertCondition;
-use phos::aggregator::{AggregatorConfig, AppState, create_router};
+use phos::aggregator::{
+    AggregatorConfig, AppState, ContainerProvider,
+    DockerProvider, DappnodeProvider, create_router,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     // Read configuration from environment
+    let backend = env::var("PHOS_BACKEND").unwrap_or_else(|_| "docker".to_string());
+    let wamp_url = env::var("PHOS_WAMP_URL").ok();
     let theme_name = env::var("PHOS_THEME").unwrap_or_else(|_| "default-dark".to_string());
     let port: u16 = env::var("PHOS_PORT")
         .ok()
@@ -45,14 +52,49 @@ async fn main() -> Result<()> {
     // Get theme
     let theme = Theme::builtin(&theme_name).unwrap_or_else(Theme::default_dark);
 
-    // Connect to Docker
-    let docker = Docker::connect_with_local_defaults()
-        .expect("Failed to connect to Docker socket. Is Docker running?");
+    // Create provider based on backend selection
+    let provider: Arc<dyn ContainerProvider> = match backend.to_lowercase().as_str() {
+        "dappnode" | "wamp" => {
+            println!("Using DAppNode WAMP backend");
+            let mut provider = if let Some(url) = wamp_url {
+                DappnodeProvider::with_url(url)
+            } else {
+                DappnodeProvider::new()
+            };
 
-    // Verify Docker connection
-    docker.ping().await.expect("Failed to ping Docker daemon");
+            if let Some(ref f) = filter {
+                provider = provider.with_filter(f);
+            }
+
+            // Verify connection
+            provider
+                .verify_connection()
+                .await
+                .expect("Failed to connect to DAppNode WAMP. Is DAPPMANAGER running?");
+
+            Arc::new(provider)
+        }
+        _ => {
+            println!("Using Docker backend");
+            let mut provider = DockerProvider::new()
+                .expect("Failed to connect to Docker socket. Is Docker running?");
+
+            if let Some(ref f) = filter {
+                provider = provider.with_filter(f);
+            }
+
+            // Verify connection
+            provider
+                .verify_connection()
+                .await
+                .expect("Failed to ping Docker daemon");
+
+            Arc::new(provider)
+        }
+    };
 
     println!("phos-aggregator starting...");
+    println!("  Backend: {}", provider.name());
     println!("  Theme: {theme_name}");
     println!("  Port: {port}");
     println!("  Max lines: {max_lines}");
@@ -66,14 +108,14 @@ async fn main() -> Result<()> {
     // Create configuration
     let config = AggregatorConfig {
         theme,
-        filter,
+        filter: None, // Filter is already applied to provider
         max_lines,
         alert_webhook,
         alert_conditions,
     };
 
     // Create application state
-    let state = AppState::from_config(docker, config);
+    let state = AppState::from_config(provider, config);
 
     // Create router
     let app = create_router(state);

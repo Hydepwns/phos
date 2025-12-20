@@ -1,7 +1,5 @@
 //! Log streaming and colorization.
 
-use bollard::Docker;
-use bollard::container::LogsOptions;
 use futures::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -9,6 +7,7 @@ use tokio::sync::{Mutex, broadcast};
 use tokio::task::JoinHandle;
 
 use crate::aggregator::html::ansi_to_html;
+use crate::aggregator::provider::ContainerProvider;
 use crate::alert::AlertCondition;
 use crate::{Colorizer, Theme, programs};
 
@@ -55,7 +54,7 @@ pub struct AlertConfig {
 
 /// Manages log streaming from multiple containers.
 pub struct LogStreamer {
-    docker: Docker,
+    provider: Arc<dyn ContainerProvider>,
     theme: Theme,
     colorizers: Arc<Mutex<HashMap<String, Colorizer>>>,
     tx: broadcast::Sender<ColorizedLogEntry>,
@@ -65,18 +64,18 @@ pub struct LogStreamer {
 
 impl LogStreamer {
     /// Create a new log streamer with default settings.
-    pub fn new(docker: Docker, theme: Theme) -> Self {
-        Self::with_config(docker, theme, 10000, None)
+    pub fn new(provider: Arc<dyn ContainerProvider>, theme: Theme) -> Self {
+        Self::with_config(provider, theme, 10000, None)
     }
 
     /// Create a log streamer with custom max_lines setting.
-    pub fn with_max_lines(docker: Docker, theme: Theme, max_lines: usize) -> Self {
-        Self::with_config(docker, theme, max_lines, None)
+    pub fn with_max_lines(provider: Arc<dyn ContainerProvider>, theme: Theme, max_lines: usize) -> Self {
+        Self::with_config(provider, theme, max_lines, None)
     }
 
     /// Create a log streamer with full configuration.
     pub fn with_config(
-        docker: Docker,
+        provider: Arc<dyn ContainerProvider>,
         theme: Theme,
         max_lines: usize,
         alert_config: Option<AlertConfig>,
@@ -85,7 +84,7 @@ impl LogStreamer {
         let channel_size = max_lines.min(10000).max(100);
         let (tx, _) = broadcast::channel(channel_size);
         Self {
-            docker,
+            provider,
             theme,
             colorizers: Arc::new(Mutex::new(HashMap::new())),
             tx,
@@ -116,7 +115,7 @@ impl LogStreamer {
         container_name: String,
         program: Option<String>,
     ) -> JoinHandle<()> {
-        let docker = self.docker.clone();
+        let provider = self.provider.clone();
         let tx = self.tx.clone();
         let theme = self.theme.clone();
         let colorizers = self.colorizers.clone();
@@ -148,23 +147,21 @@ impl LogStreamer {
                 Arc::new(std::sync::Mutex::new(manager))
             });
 
-            let options = LogsOptions::<String> {
-                follow: true,
-                stdout: true,
-                stderr: true,
-                timestamps: true,
-                tail: "100".to_string(),
-                ..Default::default()
+            // Get log stream from provider
+            let mut stream = match provider.get_logs(&container_id, 100, true).await {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("Failed to get logs for {container_name}: {e}");
+                    return;
+                }
             };
 
-            let mut stream = docker.logs(&container_id, Some(options));
             let mut error_count = 0usize;
 
             while let Some(result) = stream.next().await {
                 match result {
-                    Ok(log_output) => {
-                        let line = log_output.to_string();
-                        let line = line.trim();
+                    Ok(log_line) => {
+                        let line = log_line.content.trim();
                         if line.is_empty() {
                             continue;
                         }

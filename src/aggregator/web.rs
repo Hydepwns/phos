@@ -10,7 +10,6 @@ use axum::{
     response::{Html, IntoResponse, Response},
     routing::get,
 };
-use bollard::Docker;
 use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -20,7 +19,7 @@ use tower_http::cors::CorsLayer;
 
 use crate::Theme;
 use crate::alert::AlertCondition;
-use crate::aggregator::{ContainerDiscovery, LogStreamer, AlertConfig};
+use crate::aggregator::{AlertConfig, ContainerProvider, LogStreamer};
 
 /// Configuration for the aggregator.
 #[derive(Clone)]
@@ -52,56 +51,38 @@ impl Default for AggregatorConfig {
 /// Application state shared across handlers.
 #[derive(Clone)]
 pub struct AppState {
-    pub discovery: Arc<ContainerDiscovery>,
+    pub provider: Arc<dyn ContainerProvider>,
     pub streamer: Arc<LogStreamer>,
     pub active_streams: Arc<Mutex<HashMap<String, tokio::task::JoinHandle<()>>>>,
 }
 
 impl AppState {
-    /// Create new application state.
-    pub fn new(docker: Docker, theme: Theme) -> Self {
-        let discovery = Arc::new(ContainerDiscovery::new(docker.clone()));
-        let streamer = Arc::new(LogStreamer::new(docker, theme));
+    /// Create new application state with a provider.
+    pub fn new(provider: Arc<dyn ContainerProvider>, theme: Theme) -> Self {
+        let streamer = Arc::new(LogStreamer::new(provider.clone(), theme));
         Self {
-            discovery,
+            provider,
             streamer,
             active_streams: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
-    /// Create with a container filter.
-    pub fn with_filter(docker: Docker, theme: Theme, filter: &str) -> Self {
-        let discovery = Arc::new(ContainerDiscovery::new(docker.clone()).with_filter(filter));
-        let streamer = Arc::new(LogStreamer::new(docker, theme));
-        Self {
-            discovery,
-            streamer,
-            active_streams: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
-
-    /// Create from configuration.
-    pub fn from_config(docker: Docker, config: AggregatorConfig) -> Self {
-        let discovery = if let Some(ref filter) = config.filter {
-            Arc::new(ContainerDiscovery::new(docker.clone()).with_filter(filter))
-        } else {
-            Arc::new(ContainerDiscovery::new(docker.clone()))
-        };
-
+    /// Create from configuration with a provider.
+    pub fn from_config(provider: Arc<dyn ContainerProvider>, config: AggregatorConfig) -> Self {
         let alert_config = config.alert_webhook.map(|url| AlertConfig {
             webhook_url: url,
             conditions: config.alert_conditions,
         });
 
         let streamer = Arc::new(LogStreamer::with_config(
-            docker,
+            provider.clone(),
             config.theme,
             config.max_lines,
             alert_config,
         ));
 
         Self {
-            discovery,
+            provider,
             streamer,
             active_streams: Arc::new(Mutex::new(HashMap::new())),
         }
@@ -135,7 +116,7 @@ async fn styles_css() -> impl IntoResponse {
 
 /// List all containers.
 async fn list_containers(State(state): State<AppState>) -> Response {
-    match state.discovery.list_containers().await {
+    match state.provider.list_containers().await {
         Ok(containers) => {
             let json: Vec<_> = containers.iter().map(|c| c.to_json()).collect();
             Json(json).into_response()
@@ -193,7 +174,7 @@ async fn handle_logs_ws(
     let (mut sender, mut receiver) = socket.split();
 
     // Find container info
-    let containers = match state.discovery.list_containers().await {
+    let containers = match state.provider.list_containers().await {
         Ok(c) => c,
         Err(e) => {
             let _ = sender
