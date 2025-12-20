@@ -19,7 +19,35 @@ use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 
 use crate::Theme;
-use crate::aggregator::{ContainerDiscovery, LogStreamer};
+use crate::alert::AlertCondition;
+use crate::aggregator::{ContainerDiscovery, LogStreamer, AlertConfig};
+
+/// Configuration for the aggregator.
+#[derive(Clone)]
+pub struct AggregatorConfig {
+    /// Color theme for log colorization.
+    pub theme: Theme,
+    /// Optional container name filter.
+    pub filter: Option<String>,
+    /// Maximum log lines to buffer.
+    pub max_lines: usize,
+    /// Optional webhook URL for alerts.
+    pub alert_webhook: Option<String>,
+    /// Alert conditions to evaluate.
+    pub alert_conditions: Vec<AlertCondition>,
+}
+
+impl Default for AggregatorConfig {
+    fn default() -> Self {
+        Self {
+            theme: Theme::default_dark(),
+            filter: None,
+            max_lines: 10000,
+            alert_webhook: None,
+            alert_conditions: Vec::new(),
+        }
+    }
+}
 
 /// Application state shared across handlers.
 #[derive(Clone)]
@@ -45,6 +73,33 @@ impl AppState {
     pub fn with_filter(docker: Docker, theme: Theme, filter: &str) -> Self {
         let discovery = Arc::new(ContainerDiscovery::new(docker.clone()).with_filter(filter));
         let streamer = Arc::new(LogStreamer::new(docker, theme));
+        Self {
+            discovery,
+            streamer,
+            active_streams: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    /// Create from configuration.
+    pub fn from_config(docker: Docker, config: AggregatorConfig) -> Self {
+        let discovery = if let Some(ref filter) = config.filter {
+            Arc::new(ContainerDiscovery::new(docker.clone()).with_filter(filter))
+        } else {
+            Arc::new(ContainerDiscovery::new(docker.clone()))
+        };
+
+        let alert_config = config.alert_webhook.map(|url| AlertConfig {
+            webhook_url: url,
+            conditions: config.alert_conditions,
+        });
+
+        let streamer = Arc::new(LogStreamer::with_config(
+            docker,
+            config.theme,
+            config.max_lines,
+            alert_config,
+        ));
+
         Self {
             discovery,
             streamer,
