@@ -107,7 +107,26 @@ docker-logs() {
 
 ### DAppNode
 
-*Coming soon* - DAppNode package for phos
+Install the **phos** package from the DAppNode store. Smart alerts are pre-configured - just add a webhook URL!
+
+**Quick Start**:
+1. Install phos from DAppNode store
+2. Add Discord/Telegram webhook URL in settings
+3. Done - you're protected!
+
+**Pre-configured alerts**: errors, peer drops (<10), sync stalls, reorgs, slashing
+
+**Additional patterns you can add**:
+- `pattern:missed.*head` - Missed head vote
+- `pattern:attestable_delay` - Late block (>4s = missed)
+- `pattern:optimistic` - EL not synced
+- `pattern:MissingBeaconBlock` - DB corruption
+
+**Filter by client**: `*geth*`, `*lighthouse*`, `*prysm*`, etc.
+
+UI: http://phos.dappnode:8080
+
+Technical: Uses WAMP protocol to connect to DAPPMANAGER - no Docker socket required.
 
 ### Sedge
 
