@@ -1,6 +1,6 @@
 [package]
 name = "phoscat"
-version = "0.4.2"
+version = "0.4.3"
 edition = "2024"
 authors = ["DROO <droo@axol.io>"]
 description = "High-performance universal log colorizer"
