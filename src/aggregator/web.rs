@@ -99,7 +99,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/containers", get(list_containers))
         .route("/api/themes", get(list_themes))
         // WebSocket for log streaming
-        .route("/ws/logs/:container_id", get(container_logs_ws))
+        .route("/ws/logs/{container_id}", get(container_logs_ws))
         .layer(CorsLayer::permissive())
         .with_state(state)
 }
