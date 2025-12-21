@@ -62,6 +62,9 @@ async-trait = "0.1"
 # Socket.IO for modern DAppNode integration
 rust_socketio = { version = "0.6", features = ["async"] }
 
+# Vendored OpenSSL for musl/static builds (required by rust_socketio)
+openssl = { version = "0.10", features = ["vendored"] }
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.4"
