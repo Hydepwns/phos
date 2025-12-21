@@ -1,6 +1,6 @@
 [package]
 name = "phoscat"
-version = "0.4.0"
+version = "0.4.2"
 edition = "2024"
 authors = ["DROO <droo@axol.io>"]
 description = "High-performance universal log colorizer"
@@ -58,6 +58,9 @@ futures = "0.3"
 tokio-tungstenite = { version = "0.26", features = ["rustls-tls-webpki-roots"] }
 tokio-stream = "0.1"
 async-trait = "0.1"
+
+# Socket.IO for modern DAppNode integration
+rust_socketio = { version = "0.6", features = ["async"] }
 
 [dev-dependencies]
 criterion = "0.5"

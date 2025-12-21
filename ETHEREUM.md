@@ -124,9 +124,9 @@ Install the **phos** package from the DAppNode store. Smart alerts are pre-confi
 
 **Filter by client**: `*geth*`, `*lighthouse*`, `*prysm*`, etc.
 
-UI: http://phos.dappnode:8080
+UI: http://phos.dappnode:8180
 
-Technical: Uses WAMP protocol to connect to DAPPMANAGER - no Docker socket required.
+Technical: Connects to dappmanager via Socket.IO API for container logs.
 
 ### Sedge
 
