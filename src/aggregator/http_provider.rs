@@ -17,22 +17,17 @@ use super::{ContainerInfo, provider::{ContainerProvider, LogLine, LogStream, Pro
 const DEFAULT_DAPPMANAGER_URL: &str = "http://dappmanager.dappnode";
 
 /// Container info from public-packages endpoint.
+/// API returns: {"name":"geth.dnp.dappnode.eth","version":"0.1.49","state":"running","ip":"172.33.0.44"}
 #[derive(Debug, Clone, Deserialize)]
-#[serde(rename_all = "camelCase")]
 struct PublicPackageData {
-    /// Container name (e.g., "DAppNodeCore-dappmanager.dnp.dappnode.eth")
-    container_name: Option<String>,
-    /// DNP name (e.g., "dappmanager.dnp.dappnode.eth")
-    dnp_name: Option<String>,
-    /// Service name (e.g., "dappmanager")
-    service_name: Option<String>,
-    /// Current state
+    /// Package name (e.g., "geth.dnp.dappnode.eth")
+    name: Option<String>,
+    /// Package version
+    version: Option<String>,
+    /// Current state (running, exited, etc.)
     state: Option<String>,
-    /// Image name
-    image: Option<String>,
-    /// Container ID
-    #[serde(default)]
-    container_id: Option<String>,
+    /// Container IP address
+    ip: Option<String>,
 }
 
 /// DAppNode HTTP provider.
@@ -144,10 +139,7 @@ impl ContainerProvider for HttpProvider {
         let mut containers = Vec::new();
 
         for pkg in packages {
-            let name = pkg.container_name
-                .or(pkg.dnp_name.clone())
-                .or(pkg.service_name.clone())
-                .unwrap_or_default();
+            let name = pkg.name.unwrap_or_default();
 
             if name.is_empty() {
                 continue;
@@ -159,13 +151,14 @@ impl ContainerProvider for HttpProvider {
                 }
             }
 
-            let image = pkg.image.unwrap_or_default();
-            let program = Self::detect_program(&registry, &name, &image);
+            // Generate a display name from package name (e.g., "geth.dnp.dappnode.eth" -> "geth")
+            let display_name = name.split('.').next().unwrap_or(&name).to_string();
+            let program = Self::detect_program(&registry, &name, &display_name);
 
             containers.push(ContainerInfo {
-                id: pkg.container_id.unwrap_or_else(|| name.clone()),
+                id: name.clone(),
                 name,
-                image,
+                image: pkg.version.unwrap_or_default(),
                 status: pkg.state.unwrap_or_else(|| "unknown".to_string()),
                 program,
             });
