@@ -25,7 +25,7 @@ use phos::Theme;
 use phos::alert::AlertCondition;
 use phos::aggregator::{
     AggregatorConfig, AppState, ContainerProvider,
-    DockerProvider, DappnodeProvider, SocketIOProvider, create_router,
+    DockerProvider, DappnodeProvider, SocketIOProvider, HttpProvider, create_router,
 };
 
 #[tokio::main]
@@ -56,8 +56,28 @@ async fn main() -> Result<()> {
 
     // Create provider based on backend selection
     let provider: Arc<dyn ContainerProvider> = match backend.to_lowercase().as_str() {
-        "dappnode" | "socketio" => {
-            println!("Using DAppNode Socket.IO backend");
+        "dappnode" => {
+            println!("Using DAppNode HTTP backend");
+            let mut provider = if let Some(url) = dappnode_url.clone() {
+                HttpProvider::with_url(url)
+            } else {
+                HttpProvider::new()
+            };
+
+            if let Some(ref f) = filter {
+                provider = provider.with_filter(f);
+            }
+
+            // Verify connection
+            provider
+                .verify_connection()
+                .await
+                .expect("Failed to connect to DAppNode. Is DAPPMANAGER running?");
+
+            Arc::new(provider)
+        }
+        "socketio" => {
+            println!("Using DAppNode Socket.IO backend (requires auth)");
             let mut provider = if let Some(url) = dappnode_url {
                 SocketIOProvider::with_url(url)
             } else {
