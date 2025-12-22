@@ -152,6 +152,7 @@ async fn list_themes() -> Json<Vec<&'static str>> {
 #[derive(Debug, Deserialize)]
 struct LogsQuery {
     program: Option<String>,
+    theme: Option<String>,
 }
 
 /// WebSocket handler for container logs.
@@ -161,7 +162,7 @@ async fn container_logs_ws(
     Query(query): Query<LogsQuery>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_logs_ws(socket, container_id, query.program, state))
+    ws.on_upgrade(move |socket| handle_logs_ws(socket, container_id, query.program, query.theme, state))
 }
 
 /// Handle WebSocket connection for log streaming.
@@ -169,6 +170,7 @@ async fn handle_logs_ws(
     socket: WebSocket,
     container_id: String,
     program_override: Option<String>,
+    theme_override: Option<String>,
     state: AppState,
 ) {
     let (mut sender, mut receiver) = socket.split();
@@ -203,32 +205,69 @@ async fn handle_logs_ws(
 
     // Use program override or detected program
     let program = program_override.or(container.program.clone());
+    let program_id = program.clone().unwrap_or_else(|| "unknown".to_string());
 
-    // Subscribe to log entries
-    let mut rx = state.streamer.subscribe();
+    // Get theme - use override or default
+    let theme = theme_override
+        .as_ref()
+        .and_then(|name| Theme::builtin(name))
+        .unwrap_or_else(Theme::default_dark);
 
-    // Start streaming for this container if not already
-    {
-        let mut active = state.active_streams.lock().await;
-        if !active.contains_key(&container.id) {
-            let handle = state.streamer.spawn_container_stream(
-                container.id.clone(),
-                container.name.clone(),
-                program,
-            );
-            active.insert(container.id.clone(), handle);
-        }
-    }
+    // For custom themes, stream directly with per-connection colorizer
+    // This bypasses the shared LogStreamer to support different themes per connection
+    let provider = state.provider.clone();
+    let container_id_clone = container.id.clone();
+    let container_name = container.name.clone();
 
-    let target_id = container.id.clone();
-
-    // Spawn task to forward log entries to WebSocket
     let send_task = tokio::spawn(async move {
-        while let Ok(entry) = rx.recv().await {
-            // Only send entries for this container
-            if entry.container_id == target_id {
-                let json = entry.to_json().to_string();
-                if sender.send(Message::Text(json.into())).await.is_err() {
+        use crate::aggregator::html::ansi_to_html;
+        use crate::{Colorizer, programs};
+
+        // Create colorizer with the requested theme
+        let registry = programs::default_registry();
+        let rules = registry
+            .get(&program_id)
+            .map(|p| p.rules())
+            .unwrap_or_default();
+        let mut colorizer = Colorizer::new(rules).with_theme(theme);
+
+        // Get log stream from provider
+        let mut stream = match provider.get_logs(&container_id_clone, 100, true).await {
+            Ok(s) => s,
+            Err(e) => {
+                let _ = sender
+                    .send(Message::Text(
+                        format!("{{\"error\": \"Failed to get logs: {e}\"}}").into(),
+                    ))
+                    .await;
+                return;
+            }
+        };
+
+        while let Some(result) = stream.next().await {
+            match result {
+                Ok(log_line) => {
+                    let line = log_line.content.trim();
+                    if line.is_empty() {
+                        continue;
+                    }
+
+                    let colorized = colorizer.colorize(line);
+                    let html = ansi_to_html(&colorized);
+
+                    let json = serde_json::json!({
+                        "container_id": container_id_clone,
+                        "container_name": container_name,
+                        "program": program_id,
+                        "html": html
+                    });
+
+                    if sender.send(Message::Text(json.to_string().into())).await.is_err() {
+                        break;
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Log stream error for {container_name}: {e}");
                     break;
                 }
             }
@@ -263,6 +302,9 @@ const INDEX_HTML: &str = r#"<!DOCTYPE html>
       <select id="container">
         <option value="">Select container...</option>
       </select>
+      <select id="theme">
+        <option value="default-dark">default-dark</option>
+      </select>
       <button id="clear">Clear</button>
       <label>
         <input type="checkbox" id="follow" checked>
@@ -274,10 +316,15 @@ const INDEX_HTML: &str = r#"<!DOCTYPE html>
   <script>
     const logs = document.getElementById('logs');
     const containerSelect = document.getElementById('container');
+    const themeSelect = document.getElementById('theme');
     const followCheckbox = document.getElementById('follow');
     const clearBtn = document.getElementById('clear');
     let ws = null;
     const MAX_LINES = 10000;
+
+    // Load saved theme from localStorage
+    const savedTheme = localStorage.getItem('phos-theme') || 'default-dark';
+    themeSelect.value = savedTheme;
 
     // Fetch containers
     fetch('/api/containers')
@@ -292,6 +339,21 @@ const INDEX_HTML: &str = r#"<!DOCTYPE html>
       })
       .catch(e => console.error('Failed to fetch containers:', e));
 
+    // Fetch themes
+    fetch('/api/themes')
+      .then(r => r.json())
+      .then(themes => {
+        themeSelect.innerHTML = '';
+        themes.forEach(t => {
+          const opt = document.createElement('option');
+          opt.value = t;
+          opt.textContent = t;
+          if (t === savedTheme) opt.selected = true;
+          themeSelect.appendChild(opt);
+        });
+      })
+      .catch(e => console.error('Failed to fetch themes:', e));
+
     function connect(containerId) {
       if (ws) {
         ws.close();
@@ -301,7 +363,8 @@ const INDEX_HTML: &str = r#"<!DOCTYPE html>
 
       logs.innerHTML = '';
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-      ws = new WebSocket(`${proto}//${location.host}/ws/logs/${containerId}`);
+      const theme = themeSelect.value;
+      ws = new WebSocket(`${proto}//${location.host}/ws/logs/${containerId}?theme=${encodeURIComponent(theme)}`);
 
       ws.onmessage = (e) => {
         try {
@@ -342,6 +405,10 @@ const INDEX_HTML: &str = r#"<!DOCTYPE html>
     }
 
     containerSelect.onchange = () => connect(containerSelect.value);
+    themeSelect.onchange = () => {
+      localStorage.setItem('phos-theme', themeSelect.value);
+      if (containerSelect.value) connect(containerSelect.value);
+    };
     clearBtn.onclick = () => { logs.innerHTML = ''; };
   </script>
 </body>
