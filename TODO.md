@@ -86,7 +86,7 @@
 
 ### Ethereum Tooling
 - [x] eth-docker integration guide (see ETHEREUM.md)
-- [ ] DAppNode package
+- [x] DAppNode package
 - [ ] Sedge integration
 - [ ] Stereum integration
 

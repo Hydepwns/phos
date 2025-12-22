@@ -126,7 +126,7 @@ Install the **phos** package from the DAppNode store. Smart alerts are pre-confi
 
 UI: http://phos.dappnode:8180
 
-Technical: Connects to dappmanager via Socket.IO API for container logs.
+Technical: Uses Docker socket for direct container log access.
 
 ### Sedge
 
