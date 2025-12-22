@@ -23,7 +23,7 @@
         packages = {
           default = pkgs.rustPlatform.buildRustPackage {
             pname = "phos";
-            version = "0.2.0";
+            version = "0.4.8";
 
             src = ./.;
 
