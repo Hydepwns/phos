@@ -2,7 +2,7 @@
 FROM rust:alpine AS builder
 
 # Install build dependencies
-RUN apk add --no-cache musl-dev git
+RUN apk add --no-cache musl-dev git perl openssl-dev
 
 WORKDIR /app
 
