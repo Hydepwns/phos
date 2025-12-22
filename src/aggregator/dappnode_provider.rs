@@ -62,6 +62,7 @@ struct DappnodePackage {
 /// Container/service info within a package.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct DappnodeContainer {
     container_name: Option<String>,
     container_id: Option<String>,
@@ -79,6 +80,7 @@ pub struct DappnodeProvider {
 }
 
 /// WAMP connection state.
+#[allow(dead_code)]
 struct WampConnection {
     sender: futures::stream::SplitSink<
         tokio_tungstenite::WebSocketStream<

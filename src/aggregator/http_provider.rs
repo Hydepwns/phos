@@ -19,6 +19,7 @@ const DEFAULT_DAPPMANAGER_URL: &str = "http://dappmanager.dappnode";
 /// Container info from public-packages endpoint.
 /// API returns: {"name":"geth.dnp.dappnode.eth","version":"0.1.49","state":"running","ip":"172.33.0.44"}
 #[derive(Debug, Clone, Deserialize)]
+#[allow(dead_code)]
 struct PublicPackageData {
     /// Package name (e.g., "geth.dnp.dappnode.eth")
     name: Option<String>,

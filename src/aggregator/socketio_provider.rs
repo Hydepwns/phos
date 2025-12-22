@@ -28,6 +28,7 @@ const LOG_POLL_INTERVAL: Duration = Duration::from_secs(2);
 /// Package info returned by dappmanager's packagesGet.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct DappnodePackage {
     /// Package DNP name (e.g., "geth.dnp.dappnode.eth")
     dnp_name: Option<String>,
@@ -44,6 +45,7 @@ struct DappnodePackage {
 /// Container info within a package.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[allow(dead_code)]
 struct DappnodeContainer {
     container_name: Option<String>,
     container_id: Option<String>,
