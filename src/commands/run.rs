@@ -357,11 +357,16 @@ fn run_pty_io_loop(
                         b'\n' => {
                             // Strip existing ANSI and colorize
                             let stripped = phos::strip_ansi(&line_buffer);
-                            let colored = colorizer.colorize(&stripped);
-                            writeln!(stdout, "{}", colored)?;
+                            if !stripped.is_empty() {
+                                let colored = colorizer.colorize(&stripped);
+                                writeln!(stdout, "{}", colored)?;
+                            } else {
+                                // Empty line or \r\n sequence - just output newline
+                                writeln!(stdout)?;
+                            }
 
                             if let Some(ref mut s) = stats {
-                                s.process_line(&stripped, true);
+                                s.process_line(&stripped, !stripped.is_empty());
                             }
                             if let Some(ref mut a) = alert_manager {
                                 let (err_count, peer_count, slot) = stats
@@ -399,17 +404,17 @@ fn run_pty_io_loop(
         }
     }
 
-    // Flush remaining content
+    // Flush remaining content with final newline
     if !line_buffer.is_empty() {
         let stripped = phos::strip_ansi(&line_buffer);
         if raw {
-            write!(stdout, "{}", line_buffer)?;
+            writeln!(stdout, "{}", line_buffer)?;
         } else {
             let colored = colorizer.colorize(&stripped);
-            write!(stdout, "{}", colored)?;
+            writeln!(stdout, "{}", colored)?;
         }
-        stdout.flush()?;
     }
+    stdout.flush()?;
 
     // Wait for child to fully exit (handles EINTR)
     loop {
