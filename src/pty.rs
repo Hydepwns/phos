@@ -194,7 +194,7 @@ pub fn setup_sigwinch_handler(pty_fd: RawFd) -> io::Result<std::thread::JoinHand
 // Polling Helpers
 // ============================================================================
 
-/// Poll a file descriptor for specific events.
+/// Poll a file descriptor for specific events (retries on EINTR).
 fn poll_for(fd: RawFd, flags: PollFlags, timeout_ms: i32) -> io::Result<bool> {
     use nix::poll::{poll, PollFd, PollTimeout};
 
@@ -205,9 +205,15 @@ fn poll_for(fd: RawFd, flags: PollFlags, timeout_ms: i32) -> io::Result<bool> {
         t => PollTimeout::from(t.min(i32::from(u16::MAX)) as u16),
     };
 
-    poll(&mut poll_fds, timeout)
-        .to_io()
-        .map(|ready| ready > 0 && poll_fds[0].revents().map_or(false, |r| r.intersects(flags)))
+    loop {
+        match poll(&mut poll_fds, timeout) {
+            Ok(ready) => {
+                return Ok(ready > 0 && poll_fds[0].revents().map_or(false, |r| r.intersects(flags)))
+            }
+            Err(nix::Error::EINTR) => continue,
+            Err(e) => return Err(io::Error::from_raw_os_error(e as i32)),
+        }
+    }
 }
 
 /// Check if a file descriptor has data ready to read.

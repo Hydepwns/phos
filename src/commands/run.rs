@@ -168,40 +168,16 @@ mod pty_helpers {
         }
     }
 
-    /// Check child process status, returning exit code if terminated.
+    /// Check child process status, returning exit code if terminated (handles EINTR).
     pub fn check_child_status(child: Pid) -> Result<Option<i32>> {
-        waitpid(child, Some(WaitPidFlag::WNOHANG))
-            .map(|status| match status {
-                WaitStatus::StillAlive => None,
-                other => wait_status_to_exit_code(other),
-            })
-            .map_err(Into::into)
-    }
-
-    /// Process a line: colorize, record stats, check alerts.
-    pub fn process_line(
-        line: &str,
-        colorizer: &mut Colorizer,
-        stdout: &mut std::io::Stdout,
-        stats: &mut Option<&mut StatsCollector>,
-        alert_manager: &mut Option<&mut AlertManager>,
-    ) -> std::io::Result<()> {
-        let colored = colorizer.colorize(line);
-        writeln!(stdout, "{}", colored)?;
-
-        if let Some(ref mut s) = stats {
-            s.process_line(line, true);
+        loop {
+            match waitpid(child, Some(WaitPidFlag::WNOHANG)) {
+                Ok(WaitStatus::StillAlive) => return Ok(None),
+                Ok(other) => return Ok(wait_status_to_exit_code(other)),
+                Err(nix::Error::EINTR) => continue,
+                Err(e) => return Err(e.into()),
+            }
         }
-
-        if let Some(ref mut a) = alert_manager {
-            let (err_count, peer_count, slot) = stats
-                .as_ref()
-                .map(|s| (s.error_count(), s.peer_count(), s.slot()))
-                .unwrap_or((0, None, None));
-            a.check_line(line, err_count, peer_count, slot);
-        }
-
-        Ok(())
     }
 }
 
@@ -209,12 +185,15 @@ mod pty_helpers {
 ///
 /// This function creates a pseudo-terminal so that child processes see a TTY,
 /// allowing interactive programs like vim, less, and editors to work correctly.
+///
+/// If `raw` is true, output is passed through without colorization (for vim, etc.).
 #[cfg(unix)]
 pub fn run_command_pty(
     colorizer: &mut Colorizer,
     args: &[String],
     mut stats: Option<&mut StatsCollector>,
     mut alert_manager: Option<&mut AlertManager>,
+    raw: bool,
 ) -> Result<()> {
     let (cmd, cmd_args) = args.split_first().context("No command specified")?;
 
@@ -275,6 +254,7 @@ pub fn run_command_pty(
                 child,
                 &mut stats,
                 &mut alert_manager,
+                raw,
             )?;
 
             if exit_code != 0 {
@@ -294,8 +274,9 @@ fn run_pty_io_loop(
     child: Pid,
     stats: &mut Option<&mut StatsCollector>,
     alert_manager: &mut Option<&mut AlertManager>,
+    raw: bool,
 ) -> Result<i32> {
-    use pty_helpers::{check_child_status, process_line, wait_status_to_exit_code};
+    use pty_helpers::{check_child_status, wait_status_to_exit_code};
 
     let _raw_guard = RawModeGuard::new()?;
 
@@ -315,46 +296,98 @@ fn run_pty_io_loop(
                 &mut line_buffer,
                 stats,
                 alert_manager,
+                raw,
             )?;
             return Ok(exit_code);
         }
 
-        // Forward stdin to PTY
+        // Forward stdin to PTY (retry on EINTR)
         if poll_read(stdin_fd, 0)? {
-            let n = std::io::stdin().read(&mut read_buf)?;
+            let n = loop {
+                match std::io::stdin().read(&mut read_buf) {
+                    Ok(n) => break n,
+                    Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
+                    Err(e) => return Err(e.into()),
+                }
+            };
             if n > 0 {
                 pty.write_all(&read_buf[..n])?;
             }
         }
 
-        // Read and process PTY output
+        // Read and process PTY output (retry on EINTR)
         if poll_read(pty_fd, 10)? {
             let n = match pty.read(&mut read_buf) {
                 Ok(0) => break,
                 Ok(n) => n,
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
                 Err(e) if e.raw_os_error() == Some(libc::EIO) => break,
+                Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
                 Err(e) => return Err(e.into()),
             };
 
-            // Process bytes with inline closures
-            for &byte in &read_buf[..n] {
-                match byte {
-                    b'\n' => {
-                        process_line(&line_buffer, colorizer, &mut stdout, stats, alert_manager)?;
-                        line_buffer.clear();
-                    }
-                    b'\r' => {
-                        if !line_buffer.is_empty() {
-                            let colored = colorizer.colorize(&line_buffer);
-                            write!(stdout, "\r{}", colored)?;
-                        } else {
-                            write!(stdout, "\r")?;
+            if raw {
+                // Raw mode: pass through without colorization
+                stdout.write_all(&read_buf[..n])?;
+                stdout.flush()?;
+
+                // Track lines for stats/alerts (strip ANSI for accurate matching)
+                for &byte in &read_buf[..n] {
+                    if byte == b'\n' {
+                        let stripped = phos::strip_ansi(&line_buffer);
+                        if let Some(ref mut s) = stats {
+                            s.process_line(&stripped, !stripped.is_empty());
                         }
-                        stdout.flush()?;
-                    }
-                    _ => {
+                        if let Some(ref mut a) = alert_manager {
+                            let (err_count, peer_count, slot) = stats
+                                .as_ref()
+                                .map(|s| (s.error_count(), s.peer_count(), s.slot()))
+                                .unwrap_or((0, None, None));
+                            a.check_line(&stripped, err_count, peer_count, slot);
+                        }
+                        line_buffer.clear();
+                    } else if byte != b'\r' {
                         line_buffer.push(byte as char);
+                    }
+                }
+            } else {
+                // Colorize mode: strip ANSI, colorize, output
+                for &byte in &read_buf[..n] {
+                    match byte {
+                        b'\n' => {
+                            // Strip existing ANSI and colorize
+                            let stripped = phos::strip_ansi(&line_buffer);
+                            let colored = colorizer.colorize(&stripped);
+                            writeln!(stdout, "{}", colored)?;
+
+                            if let Some(ref mut s) = stats {
+                                s.process_line(&stripped, true);
+                            }
+                            if let Some(ref mut a) = alert_manager {
+                                let (err_count, peer_count, slot) = stats
+                                    .as_ref()
+                                    .map(|s| (s.error_count(), s.peer_count(), s.slot()))
+                                    .unwrap_or((0, None, None));
+                                a.check_line(&stripped, err_count, peer_count, slot);
+                            }
+                            line_buffer.clear();
+                        }
+                        b'\r' => {
+                            // Carriage return: clear line and display colorized content
+                            if !line_buffer.is_empty() {
+                                let stripped = phos::strip_ansi(&line_buffer);
+                                let colored = colorizer.colorize(&stripped);
+                                write!(stdout, "\x1b[2K\r{}", colored)?;
+                                stdout.flush()?;
+                                line_buffer.clear();
+                            } else {
+                                write!(stdout, "\x1b[2K\r")?;
+                                stdout.flush()?;
+                            }
+                        }
+                        _ => {
+                            line_buffer.push(byte as char);
+                        }
                     }
                 }
             }
@@ -368,13 +401,24 @@ fn run_pty_io_loop(
 
     // Flush remaining content
     if !line_buffer.is_empty() {
-        process_line(&line_buffer, colorizer, &mut stdout, stats, alert_manager)?;
+        let stripped = phos::strip_ansi(&line_buffer);
+        if raw {
+            write!(stdout, "{}", line_buffer)?;
+        } else {
+            let colored = colorizer.colorize(&stripped);
+            write!(stdout, "{}", colored)?;
+        }
+        stdout.flush()?;
     }
 
-    // Wait for child to fully exit
-    waitpid(child, None)
-        .map(|status| wait_status_to_exit_code(status).unwrap_or(0))
-        .map_err(Into::into)
+    // Wait for child to fully exit (handles EINTR)
+    loop {
+        match waitpid(child, None) {
+            Ok(status) => return Ok(wait_status_to_exit_code(status).unwrap_or(0)),
+            Err(nix::Error::EINTR) => continue,
+            Err(e) => return Err(e.into()),
+        }
+    }
 }
 
 /// Drain remaining output from PTY after child exits.
@@ -386,9 +430,8 @@ fn drain_pty_output(
     line_buffer: &mut String,
     stats: &mut Option<&mut StatsCollector>,
     alert_manager: &mut Option<&mut AlertManager>,
+    raw: bool,
 ) -> Result<()> {
-    use pty_helpers::process_line;
-
     let mut read_buf = [0u8; 4096];
     let pty_fd = pty.as_raw_fd();
 
@@ -398,25 +441,55 @@ fn drain_pty_output(
             Ok(n) => n,
         };
 
-        for &byte in &read_buf[..n] {
-            match byte {
-                b'\n' => {
-                    process_line(line_buffer, colorizer, stdout, stats, alert_manager)?;
+        if raw {
+            // Raw mode: pass through
+            stdout.write_all(&read_buf[..n])?;
+
+            for &byte in &read_buf[..n] {
+                if byte == b'\n' {
+                    let stripped = phos::strip_ansi(line_buffer);
+                    if let Some(ref mut s) = stats {
+                        s.process_line(&stripped, !stripped.is_empty());
+                    }
+                    if let Some(ref mut a) = alert_manager {
+                        let (err_count, peer_count, slot) = stats
+                            .as_ref()
+                            .map(|s| (s.error_count(), s.peer_count(), s.slot()))
+                            .unwrap_or((0, None, None));
+                        a.check_line(&stripped, err_count, peer_count, slot);
+                    }
                     line_buffer.clear();
+                } else if byte != b'\r' {
+                    line_buffer.push(byte as char);
                 }
-                b'\r' => {}
-                _ => {
+            }
+        } else {
+            // Colorize mode
+            for &byte in &read_buf[..n] {
+                if byte == b'\n' {
+                    let stripped = phos::strip_ansi(line_buffer);
+                    let colored = colorizer.colorize(&stripped);
+                    writeln!(stdout, "{}", colored)?;
+
+                    if let Some(ref mut s) = stats {
+                        s.process_line(&stripped, true);
+                    }
+                    if let Some(ref mut a) = alert_manager {
+                        let (err_count, peer_count, slot) = stats
+                            .as_ref()
+                            .map(|s| (s.error_count(), s.peer_count(), s.slot()))
+                            .unwrap_or((0, None, None));
+                        a.check_line(&stripped, err_count, peer_count, slot);
+                    }
+                    line_buffer.clear();
+                } else if byte != b'\r' {
                     line_buffer.push(byte as char);
                 }
             }
         }
     }
 
-    // Flush remaining content
-    if !line_buffer.is_empty() {
-        process_line(line_buffer, colorizer, stdout, stats, alert_manager)?;
-        line_buffer.clear();
-    }
+    stdout.flush()?;
 
     Ok(())
 }
