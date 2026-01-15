@@ -103,6 +103,14 @@ pub struct Cli {
     #[arg(long, default_value = "60")]
     alert_cooldown: u64,
 
+    /// Use PTY mode for interactive programs (default when both stdin/stdout are TTYs)
+    #[arg(long)]
+    pty: bool,
+
+    /// Force pipe mode (disable PTY even when available)
+    #[arg(long)]
+    no_pty: bool,
+
     /// Subcommand or command to run
     #[command(subcommand)]
     command: Option<Commands>,
@@ -377,7 +385,36 @@ fn main() -> Result<()> {
             }
         }
     } else if !cli.args.is_empty() {
-        // Run the command
+        // Run the command - choose PTY or pipe mode
+        #[cfg(unix)]
+        {
+            let use_pty = if cli.no_pty {
+                false
+            } else if cli.pty {
+                true
+            } else {
+                // Auto: use PTY when both stdin and stdout are TTYs
+                atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
+            };
+
+            if use_pty {
+                commands::run_command_pty(
+                    &mut colorizer,
+                    &cli.args,
+                    stats.as_mut(),
+                    alert_manager.as_mut(),
+                )?;
+            } else {
+                commands::run_command(
+                    &mut colorizer,
+                    &cli.args,
+                    stats.as_mut(),
+                    alert_manager.as_mut(),
+                )?;
+            }
+        }
+
+        #[cfg(not(unix))]
         commands::run_command(
             &mut colorizer,
             &cli.args,

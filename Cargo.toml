@@ -65,6 +65,11 @@ rust_socketio = { version = "0.6", features = ["async"] }
 # Vendored OpenSSL for musl/static builds (required by rust_socketio)
 openssl = { version = "0.10", features = ["vendored"] }
 
+# PTY support (Unix only)
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["term", "process", "poll", "fs"] }
+signal-hook = "0.3"
+
 [dev-dependencies]
 criterion = "0.5"
 proptest = "1.4"

@@ -77,6 +77,9 @@ fn generate_bash(registry: &ProgramRegistry) -> String {
     let mut script = String::from(
         r#"# phos shell integration for bash
 # Add to ~/.bashrc: eval "$(phos shell-init bash)"
+#
+# Note: phos automatically uses PTY mode for interactive commands
+# when both stdin and stdout are TTYs. Use --no-pty to force pipe mode.
 
 # Skip if not interactive or no TTY
 [[ $- != *i* ]] && return
@@ -120,6 +123,9 @@ fn generate_zsh(registry: &ProgramRegistry) -> String {
     let mut script = String::from(
         r#"# phos shell integration for zsh
 # Add to ~/.zshrc: eval "$(phos shell-init zsh)"
+#
+# Note: phos automatically uses PTY mode for interactive commands
+# when both stdin and stdout are TTYs. Use --no-pty to force pipe mode.
 
 # Skip if not interactive or no TTY
 [[ ! -o interactive ]] && return
@@ -156,6 +162,9 @@ fn generate_fish(registry: &ProgramRegistry) -> String {
     let mut script = String::from(
         r"# phos shell integration for fish
 # Add to ~/.config/fish/config.fish: phos shell-init fish | source
+#
+# Note: phos automatically uses PTY mode for interactive commands
+# when both stdin and stdout are TTYs. Use --no-pty to force pipe mode.
 
 # Skip if not interactive or no TTY
 not status is-interactive; and return
