@@ -1,13 +1,16 @@
 //! Docker provider using bollard (direct Docker socket access).
 
 use async_trait::async_trait;
-use bollard::Docker;
 use bollard::container::{ListContainersOptions, LogsOptions};
+use bollard::Docker;
 use futures::StreamExt;
 use std::collections::HashMap;
 
+use super::{
+    provider::{ContainerProvider, LogLine, LogStream, ProviderError},
+    ContainerInfo,
+};
 use crate::programs;
-use super::{ContainerInfo, provider::{ContainerProvider, LogLine, LogStream, ProviderError}};
 
 /// Docker provider using direct socket access via bollard.
 pub struct DockerProvider {
@@ -143,7 +146,11 @@ impl ContainerProvider for DockerProvider {
             stdout: true,
             stderr: true,
             timestamps: true,
-            tail: if tail > 0 { tail.to_string() } else { "all".to_string() },
+            tail: if tail > 0 {
+                tail.to_string()
+            } else {
+                "all".to_string()
+            },
             ..Default::default()
         };
 
@@ -153,7 +160,8 @@ impl ContainerProvider for DockerProvider {
             result
                 .map(|log_output| {
                     let content = log_output.to_string();
-                    let is_stderr = matches!(log_output, bollard::container::LogOutput::StdErr { .. });
+                    let is_stderr =
+                        matches!(log_output, bollard::container::LogOutput::StdErr { .. });
                     LogLine {
                         content,
                         is_stderr,

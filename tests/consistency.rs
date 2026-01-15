@@ -3,7 +3,7 @@
 //! These tests verify that the codebase maintains consistent patterns
 //! and that documentation matches implementation.
 
-use phos::{Category, programs};
+use phos::{programs, Category};
 
 /// Test that verifies the total number of built-in programs matches documentation.
 /// Update CLAUDE.md if programs are added or removed.

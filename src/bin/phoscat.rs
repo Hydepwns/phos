@@ -5,7 +5,7 @@
 //!        `PHOS_PROGRAM=docker command | phoscat`
 
 use anyhow::{Context, Result};
-use phos::{Colorizer, Theme, programs};
+use phos::{programs, Colorizer, Theme};
 use std::env;
 use std::io::{self, BufRead, Write};
 

@@ -16,8 +16,11 @@ use std::time::Duration;
 use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::interval;
 
+use super::{
+    provider::{ContainerProvider, LogLine, LogStream, ProviderError},
+    ContainerInfo,
+};
 use crate::programs;
-use super::{ContainerInfo, provider::{ContainerProvider, LogLine, LogStream, ProviderError}};
 
 /// Default dappmanager URL for DAppNode.
 const DEFAULT_DAPPNODE_URL: &str = "http://my.dappnode:80";
@@ -142,7 +145,8 @@ impl SocketIOProvider {
                             }
                         }
                         Payload::Binary(data) => {
-                            let _ = sender.send(Err(format!("Unexpected binary: {} bytes", data.len())));
+                            let _ = sender
+                                .send(Err(format!("Unexpected binary: {} bytes", data.len())));
                         }
                         _ => {
                             let _ = sender.send(Err("Unknown payload type".into()));
@@ -285,9 +289,12 @@ impl ContainerProvider for SocketIOProvider {
         });
 
         // Fetch initial logs
-        let result = self.call("packageLog", vec![
-            json!({ "containerName": container_name, "options": options })
-        ]).await?;
+        let result = self
+            .call(
+                "packageLog",
+                vec![json!({ "containerName": container_name, "options": options })],
+            )
+            .await?;
 
         // Parse the log result - it returns a string of logs
         let logs_str = result.as_str().unwrap_or("");
@@ -344,9 +351,13 @@ impl ContainerProvider for SocketIOProvider {
                     "timestamps": true
                 });
 
-                match provider.call("packageLog", vec![
-                    json!({ "containerName": &container_name_clone, "options": options })
-                ]).await {
+                match provider
+                    .call(
+                        "packageLog",
+                        vec![json!({ "containerName": &container_name_clone, "options": options })],
+                    )
+                    .await
+                {
                     Ok(result) => {
                         let logs_str = result.as_str().unwrap_or("");
                         let lines: Vec<&str> = logs_str.lines().collect();

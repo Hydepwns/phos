@@ -1,14 +1,14 @@
 //! Web server for the log aggregator UI.
 
 use axum::{
-    Json, Router,
     extract::{
-        Path, Query, State,
         ws::{Message, WebSocket, WebSocketUpgrade},
+        Path, Query, State,
     },
     http::StatusCode,
     response::{Html, IntoResponse, Response},
     routing::get,
+    Json, Router,
 };
 use futures::{SinkExt, StreamExt};
 use serde::Deserialize;
@@ -17,9 +17,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tower_http::cors::CorsLayer;
 
-use crate::Theme;
-use crate::alert::AlertCondition;
 use crate::aggregator::{AlertConfig, ContainerProvider, LogStreamer};
+use crate::alert::AlertCondition;
+use crate::Theme;
 
 /// Configuration for the aggregator.
 #[derive(Clone)]
@@ -162,7 +162,9 @@ async fn container_logs_ws(
     Query(query): Query<LogsQuery>,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_logs_ws(socket, container_id, query.program, query.theme, state))
+    ws.on_upgrade(move |socket| {
+        handle_logs_ws(socket, container_id, query.program, query.theme, state)
+    })
 }
 
 /// Handle WebSocket connection for log streaming.
@@ -221,7 +223,7 @@ async fn handle_logs_ws(
 
     let send_task = tokio::spawn(async move {
         use crate::aggregator::html::ansi_to_html;
-        use crate::{Colorizer, programs};
+        use crate::{programs, Colorizer};
 
         // Create colorizer with the requested theme
         let registry = programs::default_registry();
@@ -262,7 +264,11 @@ async fn handle_logs_ws(
                         "html": html
                     });
 
-                    if sender.send(Message::Text(json.to_string().into())).await.is_err() {
+                    if sender
+                        .send(Message::Text(json.to_string().into()))
+                        .await
+                        .is_err()
+                    {
                         break;
                     }
                 }

@@ -8,7 +8,7 @@ pub mod patterns;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use clients::{ALL_CLIENTS, ClientMeta, Layer};
+use clients::{ClientMeta, Layer, ALL_CLIENTS};
 
 use crate::category::Category;
 use crate::colors::Color;

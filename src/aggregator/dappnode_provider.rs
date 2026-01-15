@@ -4,17 +4,20 @@
 //! procedures to list packages and fetch logs.
 
 use async_trait::async_trait;
-use futures::{SinkExt, StreamExt, stream};
+use futures::{stream, SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{mpsc, Mutex};
 use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use super::{
+    provider::{ContainerProvider, LogLine, LogStream, ProviderError},
+    ContainerInfo,
+};
 use crate::programs;
-use super::{ContainerInfo, provider::{ContainerProvider, LogLine, LogStream, ProviderError}};
 
 /// Default WAMP router URL for DAppNode.
 const DEFAULT_WAMP_URL: &str = "ws://my.wamp.dnp.dappnode.eth:8080/ws";
@@ -251,10 +254,7 @@ impl DappnodeProvider {
                     }
                 }
                 Message::Ping(data) => {
-                    conn.sender
-                        .send(Message::Pong(data))
-                        .await
-                        .ok();
+                    conn.sender.send(Message::Pong(data)).await.ok();
                 }
                 _ => {}
             }
@@ -340,7 +340,8 @@ impl ContainerProvider for DappnodeProvider {
                 }
             } else {
                 // Single-container package
-                let name = pkg.container_name
+                let name = pkg
+                    .container_name
                     .or(pkg.dnp_name.clone())
                     .or(pkg.name.clone())
                     .unwrap_or_default();
@@ -386,7 +387,9 @@ impl ContainerProvider for DappnodeProvider {
             "timestamps": true
         });
 
-        let result = self.call("logPackage", vec![json!(container_id), options.clone()]).await?;
+        let result = self
+            .call("logPackage", vec![json!(container_id), options.clone()])
+            .await?;
 
         // Parse the log result - it returns {id, logs} where logs is a string
         let logs_str = result
@@ -438,7 +441,10 @@ impl ContainerProvider for DappnodeProvider {
                     "timestamps": true
                 });
 
-                match provider.call("logPackage", vec![json!(&container_id_clone), options]).await {
+                match provider
+                    .call("logPackage", vec![json!(&container_id_clone), options])
+                    .await
+                {
                     Ok(result) => {
                         let logs_str = result
                             .get("logs")

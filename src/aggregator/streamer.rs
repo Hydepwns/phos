@@ -3,13 +3,13 @@
 use futures::StreamExt;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, broadcast};
+use tokio::sync::{broadcast, Mutex};
 use tokio::task::JoinHandle;
 
 use crate::aggregator::html::ansi_to_html;
 use crate::aggregator::provider::ContainerProvider;
 use crate::alert::AlertCondition;
-use crate::{Colorizer, Theme, programs};
+use crate::{programs, Colorizer, Theme};
 
 /// A colorized log entry ready for display.
 #[derive(Debug, Clone)]
@@ -69,7 +69,11 @@ impl LogStreamer {
     }
 
     /// Create a log streamer with custom max_lines setting.
-    pub fn with_max_lines(provider: Arc<dyn ContainerProvider>, theme: Theme, max_lines: usize) -> Self {
+    pub fn with_max_lines(
+        provider: Arc<dyn ContainerProvider>,
+        theme: Theme,
+        max_lines: usize,
+    ) -> Self {
         Self::with_config(provider, theme, max_lines, None)
     }
 
@@ -140,12 +144,13 @@ impl LogStreamer {
 
             // Create alert manager if configured (wrapped in Arc for thread-safe sharing)
             use crate::alert::AlertManager;
-            let alert_manager: Option<Arc<std::sync::Mutex<AlertManager>>> = alert_config.map(|config| {
-                let manager = AlertManager::new(config.webhook_url)
-                    .with_conditions(config.conditions)
-                    .with_program(&program_id);
-                Arc::new(std::sync::Mutex::new(manager))
-            });
+            let alert_manager: Option<Arc<std::sync::Mutex<AlertManager>>> =
+                alert_config.map(|config| {
+                    let manager = AlertManager::new(config.webhook_url)
+                        .with_conditions(config.conditions)
+                        .with_program(&program_id);
+                    Arc::new(std::sync::Mutex::new(manager))
+                });
 
             // Get log stream from provider
             let mut stream = match provider.get_logs(&container_id, 100, true).await {

@@ -127,13 +127,11 @@ pub fn fail2ban_program() -> Arc<dyn Program> {
 // =============================================================================
 
 fn auditd_rules() -> Vec<Rule> {
-    let mut rules = vec![
-        Rule::new(r"type=\w+")
-            .unwrap()
-            .semantic(SemanticColor::Key)
-            .bold()
-            .build(),
-    ];
+    let mut rules = vec![Rule::new(r"type=\w+")
+        .unwrap()
+        .semantic(SemanticColor::Key)
+        .bold()
+        .build()];
 
     rules.extend([
         Rule::new(r"msg=audit\(\d+\.\d+:\d+\)")

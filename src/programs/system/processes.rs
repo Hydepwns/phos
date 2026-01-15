@@ -126,12 +126,10 @@ pub fn free_program() -> Arc<dyn Program> {
 // =============================================================================
 
 fn top_rules() -> Vec<Rule> {
-    let mut rules = vec![
-        Rule::new(r"load average:\s*(\d+\.\d+,\s*){0,2}\d+\.\d+")
-            .unwrap()
-            .semantic(SemanticColor::Metric)
-            .build(),
-    ];
+    let mut rules = vec![Rule::new(r"load average:\s*(\d+\.\d+,\s*){0,2}\d+\.\d+")
+        .unwrap()
+        .semantic(SemanticColor::Metric)
+        .build()];
 
     rules.extend(common::process_state_rules());
 

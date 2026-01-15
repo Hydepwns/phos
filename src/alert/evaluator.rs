@@ -448,24 +448,20 @@ mod tests {
         let regex = Regex::new(r"error\[E\d{4}\]").unwrap(); // Rust compiler error pattern
         let condition = AlertCondition::Pattern { regex };
 
-        assert!(
-            evaluator
-                .evaluate(
-                    &condition,
-                    "error[E0382]: borrow of moved value",
-                    0,
-                    None,
-                    None,
-                    None
-                )
-                .is_some()
-        );
+        assert!(evaluator
+            .evaluate(
+                &condition,
+                "error[E0382]: borrow of moved value",
+                0,
+                None,
+                None,
+                None
+            )
+            .is_some());
 
-        assert!(
-            evaluator
-                .evaluate(&condition, "warning: unused variable", 0, None, None, None)
-                .is_none()
-        );
+        assert!(evaluator
+            .evaluate(&condition, "warning: unused variable", 0, None, None, None)
+            .is_none());
     }
 
     #[test]
