@@ -116,21 +116,59 @@ pub fn handle_config_action(action: ConfigAction) -> Result<()> {
             // Create config directories
             loader::ensure_config_dirs()?;
 
+            let config_dir = loader::config_dir()
+                .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
             let programs_dir = loader::programs_dir()
                 .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
+            let themes_dir = loader::themes_dir()
+                .ok_or_else(|| anyhow::anyhow!("Could not determine config directory"))?;
 
-            println!("Created configuration directories.");
+            println!("Created configuration directories:\n");
+            println!("  Config:   {}", config_dir.display());
+            println!("  Programs: {}", programs_dir.display());
+            println!("  Themes:   {}", themes_dir.display());
             println!();
-            println!("Programs directory: {}", programs_dir.display());
+
+            // Create global config.yaml
+            let global_config_path = config_dir.join("config.yaml");
+            if global_config_path.exists() {
+                println!("Global config exists: {}", global_config_path.display());
+            } else {
+                let global_config_content = r#"# phos global configuration
+# Settings here apply to all phos invocations
+
+# Default theme (run 'phos themes' to see all 13 options)
+# theme: dracula
+
+# Force color output even when not a TTY
+# color: true
+
+# Statistics settings
+# stats: false
+# stats_export: human  # human, json, prometheus
+# stats_interval: 0    # Print stats every N seconds (0 = end only)
+
+# Alerting defaults
+# alerts:
+#   url: https://discord.com/api/webhooks/xxx/yyy
+#   cooldown: 60
+#   conditions:
+#     - error
+#     - peer-drop:10
+#   # telegram_chat_id: "123456789"  # Required for Telegram webhooks
+"#;
+                std::fs::write(&global_config_path, global_config_content)?;
+                println!("Created: {}", global_config_path.display());
+            }
             println!();
 
             // Create example program config
             let example_path = programs_dir.join("example.yaml");
             if example_path.exists() {
-                println!("Example config already exists: {}", example_path.display());
+                println!("Example program exists: {}", example_path.display());
             } else {
-                let example_content = r"# Example phos program configuration
-# Rename this file and customize for your application
+                let example_content = r#"# Example phos program configuration
+# Rename this file to match your application (e.g., myapp.yaml)
 
 name: MyApp
 description: Example custom application colorization
@@ -148,14 +186,13 @@ semantic_colors:
 
 # Colorization rules (applied in order)
 rules:
-  # Log levels
+  # Log levels (use semantic colors: error, warn, info, debug, trace)
   - regex: '\[ERROR\]'
     colors: [error]
     bold: true
 
   - regex: '\[WARN\]'
     colors: [warn]
-    bold: true
 
   - regex: '\[INFO\]'
     colors: [info]
@@ -163,27 +200,78 @@ rules:
   - regex: '\[DEBUG\]'
     colors: [debug]
 
-  # Custom patterns using domain colors
+  # Custom patterns using domain colors defined above
   - regex: 'request_id=([a-f0-9-]+)'
     colors: [request_id]
 
   - regex: 'user_id=(\d+)'
     colors: [user_id]
 
-  # Timestamps
+  # Use semantic colors: timestamp, number, string, identifier, etc.
   - regex: '\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}'
     colors: [timestamp]
 
-  # Numbers
   - regex: '\b\d+(\.\d+)?\b'
     colors: [number]
-";
+"#;
                 std::fs::write(&example_path, example_content)?;
-                println!("Created example config: {}", example_path.display());
-                println!();
-                println!("Edit this file and rename it to match your application.");
-                println!("Run 'phos config validate' to check your configuration.");
+                println!("Created: {}", example_path.display());
             }
+
+            // Create example theme config
+            let theme_path = themes_dir.join("example.yaml");
+            if theme_path.exists() {
+                println!("Example theme exists: {}", theme_path.display());
+            } else {
+                let theme_content = r#"# Example phos theme configuration
+# Rename this file to use your theme (e.g., mytheme.yaml)
+# Then use: phos -t mytheme -- your-command
+
+name: mytheme
+
+# Color palette (hex colors)
+palette:
+  # Log levels
+  error: '#FF5555'
+  warn: '#FFAA00'
+  info: '#88FF88'
+  debug: '#888888'
+  trace: '#666666'
+
+  # Data types
+  number: '#BD93F9'
+  string: '#F1FA8C'
+  boolean: '#FF79C6'
+
+  # Structure
+  timestamp: '#8BE9FD'
+  key: '#FFB86C'
+  value: '#F8F8F2'
+
+  # Status
+  success: '#50FA7B'
+  failure: '#FF5555'
+
+  # Identifiers
+  identifier: '#8BE9FD'
+  label: '#FF79C6'
+  metric: '#BD93F9'
+"#;
+                std::fs::write(&theme_path, theme_content)?;
+                println!("Created: {}", theme_path.display());
+            }
+
+            println!();
+            println!("Quick start:");
+            println!("  1. Set default theme: edit config.yaml, uncomment 'theme: dracula'");
+            println!("  2. Create custom program: copy example.yaml, rename to myapp.yaml");
+            println!("  3. Create custom theme: copy themes/example.yaml, rename it");
+            println!();
+            println!("Commands:");
+            println!("  phos themes           # List available themes");
+            println!("  phos preview          # Preview all themes");
+            println!("  phos config validate  # Validate your configurations");
+            println!("  phos list             # List all programs");
 
             Ok(())
         }
