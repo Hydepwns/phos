@@ -141,7 +141,11 @@ impl Colorizer {
                     .filter_map(|color| theme.resolve_color(color).to_style().foreground)
                     .fold(Style::new(), |style, fg| style.fg(fg));
 
-                if rule.bold { base.bold() } else { base }
+                if rule.bold {
+                    base.bold()
+                } else {
+                    base
+                }
             })
             .collect()
     }
@@ -361,22 +365,7 @@ impl Colorizer {
     /// Process stdin and write colorized output to stdout.
     /// Lines matching skip rules are not output.
     pub fn process_stdio(&mut self) -> io::Result<()> {
-        let stdin = io::stdin();
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-
-        for line in stdin.lock().lines() {
-            let line = line?;
-            if let Some(colored) = self.colorize_opt(&line) {
-                writeln!(stdout, "{colored}")?;
-            }
-            // Skip rule matched - don't output anything
-        }
-
-        // Reset block state for next stream
-        self.reset();
-
-        Ok(())
+        self.process_stdio_inner(None, None, 0)
     }
 
     /// Process stdin with statistics collection.
@@ -385,26 +374,7 @@ impl Colorizer {
         &mut self,
         stats: &mut crate::stats::StatsCollector,
     ) -> io::Result<()> {
-        let stdin = io::stdin();
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-
-        for line in stdin.lock().lines() {
-            let line = line?;
-            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
-                stats.process_line(&line, had_match);
-                writeln!(stdout, "{colored}")?;
-            } else {
-                // Skip rule matched - count but don't output
-                stats.process_line(&line, true);
-                stats.record_skipped();
-            }
-        }
-
-        // Reset block state for next stream
-        self.reset();
-
-        Ok(())
+        self.process_stdio_inner(Some(stats), None, 0)
     }
 
     /// Process stdin with both statistics collection and alerting.
@@ -413,35 +383,7 @@ impl Colorizer {
         stats: &mut crate::stats::StatsCollector,
         alert_manager: &mut crate::alert::AlertManager,
     ) -> io::Result<()> {
-        let stdin = io::stdin();
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-
-        for line in stdin.lock().lines() {
-            let line = line?;
-            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
-                stats.process_line(&line, had_match);
-
-                // Check alert conditions
-                alert_manager.check_line(
-                    &line,
-                    stats.error_count(),
-                    stats.peer_count(),
-                    stats.slot(),
-                );
-
-                writeln!(stdout, "{colored}")?;
-            } else {
-                // Skip rule matched - count but don't output
-                stats.process_line(&line, true);
-                stats.record_skipped();
-            }
-        }
-
-        // Reset block state for next stream
-        self.reset();
-
-        Ok(())
+        self.process_stdio_inner(Some(stats), Some(alert_manager), 0)
     }
 
     /// Process stdin with statistics and periodic interval output.
@@ -452,36 +394,7 @@ impl Colorizer {
         stats: &mut crate::stats::StatsCollector,
         interval_secs: u64,
     ) -> io::Result<()> {
-        use std::time::Instant;
-
-        let stdin = io::stdin();
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
-        let mut stderr = io::stderr();
-        let mut last_output = Instant::now();
-        let interval = std::time::Duration::from_secs(interval_secs);
-
-        for line in stdin.lock().lines() {
-            let line = line?;
-            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
-                stats.process_line(&line, had_match);
-                writeln!(stdout, "{colored}")?;
-            } else {
-                stats.process_line(&line, true);
-                stats.record_skipped();
-            }
-
-            // Check if interval has elapsed
-            if interval_secs > 0 && last_output.elapsed() >= interval {
-                writeln!(stderr, "{}", stats.to_compact())?;
-                last_output = Instant::now();
-            }
-        }
-
-        // Reset block state for next stream
-        self.reset();
-
-        Ok(())
+        self.process_stdio_inner(Some(stats), None, interval_secs)
     }
 
     /// Process stdin with statistics, alerting, and periodic interval output.
@@ -491,41 +404,69 @@ impl Colorizer {
         alert_manager: &mut crate::alert::AlertManager,
         interval_secs: u64,
     ) -> io::Result<()> {
+        self.process_stdio_inner(Some(stats), Some(alert_manager), interval_secs)
+    }
+
+    /// Core stdin processing implementation.
+    ///
+    /// Handles colorization with optional stats, alerts, and periodic output.
+    fn process_stdio_inner(
+        &mut self,
+        mut stats: Option<&mut crate::stats::StatsCollector>,
+        mut alert_manager: Option<&mut crate::alert::AlertManager>,
+        interval_secs: u64,
+    ) -> io::Result<()> {
         use std::time::Instant;
 
         let stdin = io::stdin();
         let stdout = io::stdout();
         let mut stdout = stdout.lock();
-        let mut stderr = io::stderr();
-        let mut last_output = Instant::now();
+
+        let use_interval = interval_secs > 0 && stats.is_some();
         let interval = std::time::Duration::from_secs(interval_secs);
+        let mut last_output = Instant::now();
 
         for line in stdin.lock().lines() {
             let line = line?;
-            if let Some((colored, had_match)) = self.colorize_opt_with_match_info(&line) {
-                stats.process_line(&line, had_match);
-                alert_manager.check_line(
-                    &line,
-                    stats.error_count(),
-                    stats.peer_count(),
-                    stats.slot(),
-                );
-                writeln!(stdout, "{colored}")?;
-            } else {
-                stats.process_line(&line, true);
-                stats.record_skipped();
+
+            // Process with or without match info based on whether stats are enabled
+            let (output, had_match) = stats
+                .as_ref()
+                .map(|_| {
+                    self.colorize_opt_with_match_info(&line)
+                        .map(|(colored, matched)| (Some(colored), matched))
+                        .unwrap_or((None, true)) // Skip rule matched
+                })
+                .unwrap_or_else(|| (self.colorize_opt(&line), false));
+
+            // Record stats if enabled
+            if let Some(ref mut s) = stats {
+                s.process_line(&line, had_match);
+                if output.is_none() {
+                    s.record_skipped();
+                }
             }
 
-            // Check if interval has elapsed
-            if interval_secs > 0 && last_output.elapsed() >= interval {
-                writeln!(stderr, "{}", stats.to_compact())?;
+            // Check alerts if enabled
+            if let (Some(ref mut alerts), Some(ref s)) = (&mut alert_manager, &stats) {
+                alerts.check_line(&line, s.error_count(), s.peer_count(), s.slot());
+            }
+
+            // Write colorized output
+            if let Some(colored) = output {
+                writeln!(stdout, "{colored}")?;
+            }
+
+            // Periodic stats output
+            if use_interval && last_output.elapsed() >= interval {
+                if let Some(ref s) = stats {
+                    writeln!(io::stderr(), "{}", s.to_compact())?;
+                }
                 last_output = Instant::now();
             }
         }
 
-        // Reset block state for next stream
         self.reset();
-
         Ok(())
     }
 }
@@ -537,24 +478,20 @@ mod tests {
 
     #[test]
     fn test_colorizer_creation() {
-        let rules = vec![
-            Rule::new(r"\berror\b")
-                .unwrap()
-                .semantic(SemanticColor::Error)
-                .build(),
-        ];
+        let rules = vec![Rule::new(r"\berror\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .build()];
         let colorizer = Colorizer::new(rules);
         assert_eq!(colorizer.rules.len(), 1);
     }
 
     #[test]
     fn test_colorize_line() {
-        let rules = vec![
-            Rule::new(r"\berror\b")
-                .unwrap()
-                .semantic(SemanticColor::Error)
-                .build(),
-        ];
+        let rules = vec![Rule::new(r"\berror\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .build()];
         let mut colorizer = Colorizer::new(rules);
         let result = colorizer.colorize("an error occurred");
 
@@ -572,12 +509,10 @@ mod tests {
 
     #[test]
     fn test_no_matches() {
-        let rules = vec![
-            Rule::new(r"\berror\b")
-                .unwrap()
-                .semantic(SemanticColor::Error)
-                .build(),
-        ];
+        let rules = vec![Rule::new(r"\berror\b")
+            .unwrap()
+            .semantic(SemanticColor::Error)
+            .build()];
         let mut colorizer = Colorizer::new(rules);
         let result = colorizer.colorize("all good here");
 
@@ -606,13 +541,11 @@ mod tests {
 
     #[test]
     fn test_replace_rule() {
-        let rules = vec![
-            Rule::new(r"(\d{2}):(\d{2}):(\d{2})")
-                .unwrap()
-                .replace("${1}h${2}m${3}s")
-                .semantic(SemanticColor::Timestamp)
-                .build(),
-        ];
+        let rules = vec![Rule::new(r"(\d{2}):(\d{2}):(\d{2})")
+            .unwrap()
+            .replace("${1}h${2}m${3}s")
+            .semantic(SemanticColor::Timestamp)
+            .build()];
         let mut colorizer = Colorizer::new(rules).with_color_enabled(false);
 
         let result = colorizer.colorize("Time: 12:34:56");
