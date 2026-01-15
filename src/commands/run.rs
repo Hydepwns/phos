@@ -285,6 +285,7 @@ fn run_pty_io_loop(
     let mut stdout = std::io::stdout();
     let mut read_buf = [0u8; 4096];
     let mut line_buffer = String::new();
+    let mut needs_newline = false; // Track if we output \r content without \n
 
     loop {
         // Check if child has terminated
@@ -360,10 +361,11 @@ fn run_pty_io_loop(
                             if !stripped.is_empty() {
                                 let colored = colorizer.colorize(&stripped);
                                 writeln!(stdout, "{}", colored)?;
-                            } else {
-                                // Empty line or \r\n sequence - just output newline
+                            } else if needs_newline {
+                                // After \r content, just move to next line
                                 writeln!(stdout)?;
                             }
+                            needs_newline = false;
 
                             if let Some(ref mut s) = stats {
                                 s.process_line(&stripped, !stripped.is_empty());
@@ -385,9 +387,7 @@ fn run_pty_io_loop(
                                 write!(stdout, "\x1b[2K\r{}", colored)?;
                                 stdout.flush()?;
                                 line_buffer.clear();
-                            } else {
-                                write!(stdout, "\x1b[2K\r")?;
-                                stdout.flush()?;
+                                needs_newline = true;
                             }
                         }
                         _ => {
@@ -413,6 +413,9 @@ fn run_pty_io_loop(
             let colored = colorizer.colorize(&stripped);
             writeln!(stdout, "{}", colored)?;
         }
+    } else if needs_newline {
+        // Ensure output ends with newline after \r content
+        writeln!(stdout)?;
     }
     stdout.flush()?;
 
