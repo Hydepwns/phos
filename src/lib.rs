@@ -108,7 +108,7 @@ pub mod theme;
 pub use alert::{AlertCondition, AlertManager, AlertManagerBuilder, AlertSeverity};
 pub use category::{Category, ParseCategoryError};
 pub use colorizer::Colorizer;
-pub use colors::{parse_hex_rgb, Color, ColorSpec, SemanticColor};
+pub use colors::{contains_ansi, parse_hex_rgb, strip_ansi, Color, ColorSpec, SemanticColor};
 pub use config::{load_config_file, AlertsConfig, Config, FileFormat, GlobalConfig, RuleConfig};
 pub use program::{Program, ProgramInfo, ProgramRegistry};
 pub use rule::Rule;

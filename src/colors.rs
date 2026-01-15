@@ -298,6 +298,61 @@ pub fn parse_hex_rgb(hex: &str) -> Option<(u8, u8, u8)> {
     Some((r, g, b))
 }
 
+// ============================================================================
+// ANSI Escape Sequence Handling
+// ============================================================================
+
+use std::borrow::Cow;
+use std::sync::LazyLock;
+
+/// Regex pattern matching ANSI escape sequences.
+/// Matches: ESC [ (params) (intermediate) final_byte
+/// - CSI sequences: \x1b\[[0-9;]*[a-zA-Z]
+/// - OSC sequences: \x1b\][^\x07]*\x07 (title setting, etc.)
+/// - Simple escapes: \x1b[()][AB0-2] (character set selection)
+static ANSI_REGEX: LazyLock<regex::Regex> = LazyLock::new(|| {
+    regex::Regex::new(
+        r"(?x)
+        \x1b\[[0-9;]*[a-zA-Z]  |  # CSI sequences (colors, cursor, etc.)
+        \x1b\][^\x07]*\x07     |  # OSC sequences (title, etc.)
+        \x1b[()][AB0-2]           # Character set selection
+        ",
+    )
+    .expect("ANSI regex should compile")
+});
+
+/// Strip ANSI escape sequences from a string.
+///
+/// Returns a `Cow<str>` to avoid allocation when the input has no ANSI codes.
+///
+/// # Examples
+///
+/// ```rust
+/// use phos::colors::strip_ansi;
+///
+/// let colored = "\x1b[31mred\x1b[0m text";
+/// let plain = strip_ansi(colored);
+/// assert_eq!(plain, "red text");
+///
+/// let plain_input = "no colors here";
+/// let result = strip_ansi(plain_input);
+/// // Returns borrowed reference (no allocation)
+/// ```
+#[must_use]
+pub fn strip_ansi(s: &str) -> Cow<'_, str> {
+    if s.contains('\x1b') {
+        Cow::Owned(ANSI_REGEX.replace_all(s, "").into_owned())
+    } else {
+        Cow::Borrowed(s)
+    }
+}
+
+/// Check if a string contains ANSI escape sequences.
+#[must_use]
+pub fn contains_ansi(s: &str) -> bool {
+    s.contains('\x1b')
+}
+
 /// Brand colors for Ethereum clients.
 pub mod brands {
     /// Get brand color hex for a client.
