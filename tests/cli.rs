@@ -61,7 +61,7 @@ mod version_help {
         let (stdout, _, success) = run_phos(&["--version"]);
         assert!(success);
         assert!(stdout.contains("phos"));
-        assert!(stdout.contains("0.2.0"));
+        assert!(stdout.contains("0.4.8"));
     }
 
     #[test]
