@@ -309,21 +309,16 @@ impl ProgramRegistry {
     /// Get a program by ID.
     #[must_use]
     pub fn get(&self, id: &str) -> Option<Arc<dyn Program>> {
-        // Try exact match first
-        if let Some(program) = self.programs.get(id) {
-            return Some(Arc::clone(program));
-        }
-
-        // Try matching just the name part (e.g., "lodestar" matches "ethereum.lodestar")
-        for (program_id, program) in &self.programs {
-            if program_id.ends_with(&format!(".{id}"))
-                || program.info().name.eq_ignore_ascii_case(id)
-            {
-                return Some(Arc::clone(program));
-            }
-        }
-
-        None
+        // Try exact match first, then fuzzy match by name suffix or display name
+        self.programs.get(id).cloned().or_else(|| {
+            let suffix = format!(".{id}");
+            self.programs
+                .iter()
+                .find(|(program_id, program)| {
+                    program_id.ends_with(&suffix) || program.info().name.eq_ignore_ascii_case(id)
+                })
+                .map(|(_, program)| Arc::clone(program))
+        })
     }
 
     /// Detect a program from a command string.
@@ -335,24 +330,20 @@ impl ProgramRegistry {
     pub fn detect(&self, cmd: &str) -> Option<Arc<dyn Program>> {
         let cmd_lower = cmd.to_lowercase();
 
-        // Collect all matches with their pattern length for specificity
-        let mut matches: Vec<(usize, Arc<dyn Program>)> = Vec::new();
-
-        for program in self.programs.values() {
-            for pattern in program.detect_patterns() {
-                // Look up cached regex
-                if let Some(re) = self.detection_cache.get(pattern) {
-                    if re.is_match(&cmd_lower) {
-                        matches.push((pattern.len(), Arc::clone(program)));
-                        break; // One match per program is enough
-                    }
-                }
-            }
-        }
-
-        // Return most specific match (longest pattern wins)
-        matches.sort_by(|a, b| b.0.cmp(&a.0));
-        matches.into_iter().next().map(|(_, p)| p)
+        // Find matching programs with pattern length for specificity ranking
+        self.programs
+            .values()
+            .filter_map(|program| {
+                // Find first matching pattern for this program
+                program.detect_patterns().iter().find_map(|pattern| {
+                    self.detection_cache
+                        .get(pattern)
+                        .filter(|re| re.is_match(&cmd_lower))
+                        .map(|_| (pattern.len(), Arc::clone(program)))
+                })
+            })
+            .max_by_key(|(len, _)| *len)
+            .map(|(_, program)| program)
     }
 
     /// List all registered programs.
