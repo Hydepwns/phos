@@ -285,7 +285,6 @@ fn run_pty_io_loop(
     let mut stdout = std::io::stdout();
     let mut read_buf = [0u8; 4096];
     let mut line_buffer = String::new();
-    let mut needs_newline = false; // Track if we output \r content without \n
 
     loop {
         // Check if child has terminated
@@ -353,19 +352,13 @@ fn run_pty_io_loop(
                 }
             } else {
                 // Colorize mode: strip ANSI, colorize, output
-                for &byte in &read_buf[..n] {
+                // Note: we use \r\n because raw mode doesn't translate \n to CRLF
+                read_buf[..n].iter().enumerate().for_each(|(i, &byte)| {
                     match byte {
                         b'\n' => {
-                            // Strip existing ANSI and colorize
                             let stripped = phos::strip_ansi(&line_buffer);
-                            if !stripped.is_empty() {
-                                let colored = colorizer.colorize(&stripped);
-                                writeln!(stdout, "{}", colored)?;
-                            } else if needs_newline {
-                                // After \r content, just move to next line
-                                writeln!(stdout)?;
-                            }
-                            needs_newline = false;
+                            let colored = colorizer.colorize(&stripped);
+                            let _ = write!(stdout, "{}\r\n", colored);
 
                             if let Some(ref mut s) = stats {
                                 s.process_line(&stripped, !stripped.is_empty());
@@ -380,21 +373,16 @@ fn run_pty_io_loop(
                             line_buffer.clear();
                         }
                         b'\r' => {
-                            // Carriage return: clear line and display colorized content
-                            if !line_buffer.is_empty() {
-                                let stripped = phos::strip_ansi(&line_buffer);
-                                let colored = colorizer.colorize(&stripped);
-                                write!(stdout, "\x1b[2K\r{}", colored)?;
-                                stdout.flush()?;
+                            // Check if next byte is \n (CRLF)
+                            let is_crlf = read_buf.get(i + 1) == Some(&b'\n');
+                            if !is_crlf {
+                                // Bare \r: clear line buffer (progress bar update)
                                 line_buffer.clear();
-                                needs_newline = true;
                             }
                         }
-                        _ => {
-                            line_buffer.push(byte as char);
-                        }
+                        _ => line_buffer.push(byte as char),
                     }
-                }
+                });
             }
         }
 
@@ -404,18 +392,17 @@ fn run_pty_io_loop(
         }
     }
 
-    // Flush remaining content with final newline
-    if !line_buffer.is_empty() {
-        let stripped = phos::strip_ansi(&line_buffer);
+    // Flush remaining content (skip whitespace-only leftovers from progress bars)
+    // Use \r\n because raw mode doesn't translate \n to CRLF
+    let trimmed = line_buffer.trim();
+    if !trimmed.is_empty() {
+        let stripped = phos::strip_ansi(trimmed);
         if raw {
-            writeln!(stdout, "{}", line_buffer)?;
+            write!(stdout, "{}\r\n", trimmed)?;
         } else {
             let colored = colorizer.colorize(&stripped);
-            writeln!(stdout, "{}", colored)?;
+            write!(stdout, "{}\r\n", colored)?;
         }
-    } else if needs_newline {
-        // Ensure output ends with newline after \r content
-        writeln!(stdout)?;
     }
     stdout.flush()?;
 
@@ -472,28 +459,51 @@ fn drain_pty_output(
                 }
             }
         } else {
-            // Colorize mode
-            for &byte in &read_buf[..n] {
-                if byte == b'\n' {
-                    let stripped = phos::strip_ansi(line_buffer);
-                    let colored = colorizer.colorize(&stripped);
-                    writeln!(stdout, "{}", colored)?;
+            // Colorize mode with CRLF normalization
+            // Note: we use \r\n because raw mode doesn't translate \n to CRLF
+            read_buf[..n].iter().enumerate().for_each(|(i, &byte)| {
+                match byte {
+                    b'\n' => {
+                        let stripped = phos::strip_ansi(line_buffer);
+                        let colored = colorizer.colorize(&stripped);
+                        let _ = write!(stdout, "{}\r\n", colored);
 
-                    if let Some(ref mut s) = stats {
-                        s.process_line(&stripped, true);
+                        if let Some(ref mut s) = stats {
+                            s.process_line(&stripped, true);
+                        }
+                        if let Some(ref mut a) = alert_manager {
+                            let (err_count, peer_count, slot) = stats
+                                .as_ref()
+                                .map(|s| (s.error_count(), s.peer_count(), s.slot()))
+                                .unwrap_or((0, None, None));
+                            a.check_line(&stripped, err_count, peer_count, slot);
+                        }
+                        line_buffer.clear();
                     }
-                    if let Some(ref mut a) = alert_manager {
-                        let (err_count, peer_count, slot) = stats
-                            .as_ref()
-                            .map(|s| (s.error_count(), s.peer_count(), s.slot()))
-                            .unwrap_or((0, None, None));
-                        a.check_line(&stripped, err_count, peer_count, slot);
+                    b'\r' => {
+                        // Check if next byte is \n (CRLF)
+                        let is_crlf = read_buf.get(i + 1) == Some(&b'\n');
+                        if !is_crlf {
+                            // Bare \r: clear line buffer (progress bar update)
+                            line_buffer.clear();
+                        }
                     }
-                    line_buffer.clear();
-                } else if byte != b'\r' {
-                    line_buffer.push(byte as char);
+                    _ => line_buffer.push(byte as char),
                 }
-            }
+            });
+        }
+    }
+
+    // Flush remaining content (skip whitespace-only leftovers from progress bars)
+    // Use \r\n because raw mode doesn't translate \n to CRLF
+    let trimmed = line_buffer.trim();
+    if !trimmed.is_empty() {
+        let stripped = phos::strip_ansi(trimmed);
+        if raw {
+            write!(stdout, "{}\r\n", trimmed)?;
+        } else {
+            let colored = colorizer.colorize(&stripped);
+            write!(stdout, "{}\r\n", colored)?;
         }
     }
 
