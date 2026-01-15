@@ -40,7 +40,6 @@
 //! ```
 
 use std::collections::HashMap;
-use std::fs;
 use std::path::Path;
 
 use serde::Deserialize;
@@ -101,6 +100,21 @@ pub enum ThemeLoadError {
     JsonError(#[from] serde_json::Error),
     #[error("Unknown file format: {0}")]
     UnknownFormat(String),
+}
+
+impl From<crate::config::ConfigError> for ThemeLoadError {
+    fn from(err: crate::config::ConfigError) -> Self {
+        match err {
+            crate::config::ConfigError::ReadError(e) => Self::ReadError(e),
+            crate::config::ConfigError::YamlError(e) => Self::YamlError(e),
+            crate::config::ConfigError::JsonError(e) => Self::JsonError(e),
+            crate::config::ConfigError::UnknownFormat(ext) => Self::UnknownFormat(ext),
+            crate::config::ConfigError::RegexError(_) => {
+                // Themes don't use regex, so this shouldn't happen
+                Self::UnknownFormat("regex error in theme config".to_string())
+            }
+        }
+    }
 }
 
 /// A theme that maps semantic colors to actual colors.
@@ -515,17 +529,7 @@ impl Theme {
     ///   purple: "#FF88FF"
     /// ```
     pub fn load_from_file<P: AsRef<Path>>(path: P) -> Result<Self, ThemeLoadError> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path)?;
-
-        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-        let config: ThemeConfig = match extension.to_lowercase().as_str() {
-            "yaml" | "yml" => serde_yaml::from_str(&content)?,
-            "json" => serde_json::from_str(&content)?,
-            ext => return Err(ThemeLoadError::UnknownFormat(ext.to_string())),
-        };
-
+        let config: ThemeConfig = crate::config::load_config_file(path.as_ref(), None)?;
         Ok(Self::from_config(config))
     }
 
