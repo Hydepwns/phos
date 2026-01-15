@@ -111,6 +111,10 @@ pub struct Cli {
     #[arg(long)]
     no_pty: bool,
 
+    /// Raw PTY passthrough (no colorization, for full-screen apps like vim)
+    #[arg(long)]
+    raw: bool,
+
     /// Subcommand or command to run
     #[command(subcommand)]
     command: Option<Commands>,
@@ -403,6 +407,7 @@ fn main() -> Result<()> {
                     &cli.args,
                     stats.as_mut(),
                     alert_manager.as_mut(),
+                    cli.raw,
                 )?;
             } else {
                 commands::run_command(
