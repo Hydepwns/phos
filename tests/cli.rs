@@ -730,3 +730,99 @@ mod smoke_tests {
         );
     }
 }
+
+// =============================================================================
+// Command Execution Mode Tests (Unix only)
+// =============================================================================
+
+#[cfg(unix)]
+mod command_mode {
+    use super::*;
+
+    #[test]
+    fn test_raw_flag_recognized() {
+        // Verify --raw flag is recognized (check help output)
+        let (stdout, _, success) = run_phos(&["--help"]);
+        assert!(success);
+        assert!(stdout.contains("--raw"), "Expected --raw in help");
+    }
+
+    #[test]
+    fn test_pty_flag_recognized() {
+        // Verify --pty flag is recognized
+        let (stdout, _, success) = run_phos(&["--help"]);
+        assert!(success);
+        assert!(stdout.contains("--pty"), "Expected --pty in help");
+    }
+
+    #[test]
+    fn test_no_pty_flag_recognized() {
+        // Verify --no-pty flag is recognized
+        let (stdout, _, success) = run_phos(&["--help"]);
+        assert!(success);
+        assert!(stdout.contains("--no-pty"), "Expected --no-pty in help");
+    }
+
+    #[test]
+    fn test_pipe_mode_with_stdin_works() {
+        // Pipe mode (stdin input) should work
+        let (stdout, _, success) = run_phos_with_stdin(&["-p", "cargo", "--color"], "error: test");
+        assert!(success);
+        assert!(stdout.contains("error"));
+    }
+}
+
+// =============================================================================
+// ANSI Stripping Tests
+// =============================================================================
+
+mod ansi_stripping {
+    use phos::colors::{contains_ansi, strip_ansi};
+
+    #[test]
+    fn test_strip_ansi_colors() {
+        let input = "\x1b[31mred\x1b[0m text";
+        let stripped = strip_ansi(input);
+        assert_eq!(stripped, "red text");
+    }
+
+    #[test]
+    fn test_strip_ansi_bold() {
+        let input = "\x1b[1mbold\x1b[0m";
+        let stripped = strip_ansi(input);
+        assert_eq!(stripped, "bold");
+    }
+
+    #[test]
+    fn test_strip_ansi_complex() {
+        let input = "\x1b[1m\x1b[92m    Compiling\x1b[0m foo v1.0";
+        let stripped = strip_ansi(input);
+        assert_eq!(stripped, "    Compiling foo v1.0");
+    }
+
+    #[test]
+    fn test_strip_ansi_no_ansi() {
+        let input = "plain text without colors";
+        let stripped = strip_ansi(input);
+        assert_eq!(stripped, input);
+        // Should return borrowed (no allocation)
+        assert!(matches!(stripped, std::borrow::Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn test_contains_ansi_true() {
+        assert!(contains_ansi("\x1b[31mred\x1b[0m"));
+    }
+
+    #[test]
+    fn test_contains_ansi_false() {
+        assert!(!contains_ansi("plain text"));
+    }
+
+    #[test]
+    fn test_strip_multiple_sequences() {
+        let input = "\x1b[31mred\x1b[0m \x1b[32mgreen\x1b[0m \x1b[34mblue\x1b[0m";
+        let stripped = strip_ansi(input);
+        assert_eq!(stripped, "red green blue");
+    }
+}
