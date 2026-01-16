@@ -156,8 +156,9 @@ pub trait Program: Send + Sync {
 
     /// Get patterns for auto-detecting this program from command lines.
     /// Each pattern is matched against the command being colorized.
-    fn detect_patterns(&self) -> Vec<&'static str> {
-        Vec::new()
+    /// Returns a borrowed slice to avoid allocations on each call.
+    fn detect_patterns(&self) -> &[&str] {
+        &[]
     }
 }
 
@@ -237,8 +238,8 @@ impl Program for SimpleProgram {
         Arc::clone(&self.rules)
     }
 
-    fn detect_patterns(&self) -> Vec<&'static str> {
-        self.detect_patterns.clone()
+    fn detect_patterns(&self) -> &[&str] {
+        &self.detect_patterns
     }
 
     fn domain_colors(&self) -> HashMap<String, Color> {
@@ -271,7 +272,7 @@ pub struct ProgramRegistry {
     programs: HashMap<String, Arc<dyn Program>>,
     /// Cached compiled regexes for detection patterns.
     /// Maps pattern string to compiled Regex.
-    detection_cache: HashMap<&'static str, Regex>,
+    detection_cache: HashMap<String, Regex>,
 }
 
 impl Default for ProgramRegistry {
@@ -294,10 +295,10 @@ impl ProgramRegistry {
     pub fn register(&mut self, program: Arc<dyn Program>) {
         // Cache detection regexes for this program
         for pattern in program.detect_patterns() {
-            if !self.detection_cache.contains_key(pattern) {
+            if !self.detection_cache.contains_key(*pattern) {
                 let regex_pattern = format!(r"(?i)\b{}\b", regex::escape(pattern));
                 if let Ok(re) = Regex::new(&regex_pattern) {
-                    self.detection_cache.insert(pattern, re);
+                    self.detection_cache.insert((*pattern).to_string(), re);
                 }
             }
         }
@@ -337,7 +338,7 @@ impl ProgramRegistry {
                 // Find first matching pattern for this program
                 program.detect_patterns().iter().find_map(|pattern| {
                     self.detection_cache
-                        .get(pattern)
+                        .get(*pattern)
                         .filter(|re| re.is_match(&cmd_lower))
                         .map(|_| (pattern.len(), Arc::clone(program)))
                 })
@@ -364,10 +365,15 @@ impl ProgramRegistry {
 
     /// Get all unique categories that have programs.
     pub fn categories(&self) -> Vec<Category> {
-        let mut categories: Vec<Category> =
-            self.programs.values().map(|p| p.info().category).collect();
+        use std::collections::HashSet;
+        let mut categories: Vec<_> = self
+            .programs
+            .values()
+            .map(|p| p.info().category)
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
         categories.sort_by_key(Category::as_str);
-        categories.dedup();
         categories
     }
 
@@ -445,8 +451,8 @@ mod tests {
             Arc::from([])
         }
 
-        fn detect_patterns(&self) -> Vec<&'static str> {
-            self.detect.clone()
+        fn detect_patterns(&self) -> &[&str] {
+            &self.detect
         }
     }
 

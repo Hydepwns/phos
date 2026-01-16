@@ -126,8 +126,8 @@ impl Program for EthereumProgram {
         self.domain_colors.clone()
     }
 
-    fn detect_patterns(&self) -> Vec<&'static str> {
-        self.detect_patterns.clone()
+    fn detect_patterns(&self) -> &[&str] {
+        &self.detect_patterns
     }
 }
 
