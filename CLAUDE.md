@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-phos is a universal log colorizer with built-in support for 98 programs across multiple domains:
+phos is a universal log colorizer with built-in support for 99 programs across multiple domains:
 
 - **Ethereum**: Lighthouse, Prysm, Teku, Nimbus, Lodestar, Grandine, Lambda, Geth, Nethermind, Besu, Erigon, Reth, Mana, Charon, MEV-Boost (15)
 - **System**: systemd/journalctl, syslog, fail2ban, dmesg, cron, auditd, iptables/nftables, ls, df, du, stat, mount, ps, free, top, uptime, lsof, lsmod, lspci, vmstat, iostat, env, blkid, fdisk, lsblk, dnf (26)
@@ -40,20 +40,30 @@ echo "error: build failed" | cargo run --bin phos -- -p cargo
 
 # Run the pipe-only binary
 echo "Container started" | cargo run --bin phoscat -- docker
+
+# Run the aggregator (web UI)
+cargo run --bin phos-aggregator                        # Docker backend
+PHOS_BACKEND=dappnode cargo run --bin phos-aggregator  # DAppNode backend
 ```
 
 ## Architecture
+
+Three binaries: `phos` (full CLI), `phoscat` (pipe-only), `phos-aggregator` (web UI).
 
 ```
 src/
   lib.rs             # Public API, module exports
   main.rs            # CLI binary (phos)
+  bin/
+    phoscat.rs       # Pipe-only binary with auto-detection
+    phos-aggregator.rs # Web-based log aggregator
   colorizer.rs       # Core colorization engine
   colors.rs          # Color enum, SemanticColor, ANSI codes
   rule.rs            # Rule struct, RuleBuilder, CountMode
   theme.rs           # Theme system (13 built-in themes)
   config.rs          # YAML/JSON configuration loading
   stats.rs           # Log statistics collection and reporting
+  pty.rs             # PTY support for interactive commands (Unix)
   alert/             # Webhook alerting system
     mod.rs           # AlertManager, AlertManagerBuilder, re-exports
     condition.rs     # AlertCondition enum
@@ -64,6 +74,17 @@ src/
     sender.rs        # HTTP webhook delivery
     evaluator.rs     # Condition evaluation logic
     rate_limit.rs    # Rate limiting for alerts
+  aggregator/        # Web-based log aggregator for DAppNode/Docker
+    mod.rs           # Module exports
+    provider.rs      # ContainerProvider trait
+    docker_provider.rs   # Direct Docker socket backend
+    http_provider.rs     # DAppNode HTTP API backend
+    socketio_provider.rs # DAppNode Socket.IO backend
+    dappnode_provider.rs # Legacy WAMP backend (deprecated)
+    streamer.rs      # Log streaming with colorization
+    web.rs           # Axum web server and routes
+    html.rs          # ANSI to HTML conversion
+    discovery.rs     # Container discovery
   program/
     mod.rs           # Program trait, ProgramRegistry, SimpleProgram
     config.rs        # User program config parsing (YAML/JSON)
@@ -178,6 +199,12 @@ WebhookType                // Enum: Discord, Telegram, Generic (auto-detected fr
 // Statistics
 StatsCollector             // Collects log statistics (levels, timestamps, errors, peer counts)
 Stats                      // Raw statistics data (total_lines, log_levels, top_errors, etc.)
+
+// Aggregator
+ContainerProvider          // Trait: list_containers(), stream_logs(), verify_connection()
+ContainerInfo              // Container metadata (id, name, image, status)
+LogStreamer                // Colorized log streaming to web clients
+AppState                   // Axum application state (provider, config, streams)
 ```
 
 ## Key Design Decisions
@@ -242,6 +269,36 @@ phos supports webhook notifications when specific conditions are detected in log
 - Rate limiting prevents alert spam (configurable cooldown)
 - StatsCollector tracks peer counts and slot numbers for Ethereum alerts
 - Alerts fire in main thread while colorization runs in separate threads
+
+## PTY Support (Unix)
+
+phos uses pseudo-terminals for interactive command execution, allowing programs like vim, less, and other TUI apps to work correctly while colorizing output.
+
+**Key components** (`src/pty.rs`):
+- `PtyMaster` - PTY master handle for reading/writing
+- `RawModeGuard` - RAII guard to restore terminal mode on drop
+- `TermSize` - Terminal dimensions with SIGWINCH handling
+- `poll_read()`, `poll_hup()` - Non-blocking I/O helpers
+
+## Log Aggregator (phos-aggregator)
+
+Web-based log aggregator for DAppNode and Docker environments. Serves a web UI that aggregates and colorizes logs from multiple containers.
+
+**Environment variables:**
+- `PHOS_BACKEND`: "docker" (default), "dappnode", "socketio", "wamp"
+- `PHOS_PORT`: Server port (default: 8180)
+- `PHOS_THEME`: Color theme (default: "default-dark")
+- `PHOS_CONTAINER_FILTER`: Container name filter
+- `PHOS_MAX_LINES`: Max buffered lines (default: 10000)
+- `PHOS_ALERT_WEBHOOK`: Discord/Telegram webhook URL
+- `PHOS_ALERT_CONDITIONS`: Comma-separated alert conditions (default: "error")
+- `PHOS_DAPPNODE_URL`: Custom DAppNode URL (default: "http://my.dappnode:80")
+
+**Backend selection:**
+- `docker` - Direct Docker socket access (default, for local development)
+- `dappnode` - HTTP to dappmanager + Docker for logs (recommended for DAppNode)
+- `socketio` - Socket.IO RPC to dappmanager (requires auth)
+- `wamp` - Legacy WAMP RPC (deprecated)
 
 ## Adding a New Program
 
