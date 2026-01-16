@@ -167,7 +167,7 @@ impl SocketIOProvider {
             .await
             .map_err(|_| ProviderError::Rpc("RPC timeout".into()))?
             .map_err(|_| ProviderError::Rpc("Response channel closed".into()))?
-            .map_err(|e| ProviderError::Rpc(e))?;
+            .map_err(ProviderError::Rpc)?;
 
         Ok(result)
     }
@@ -224,52 +224,55 @@ impl ContainerProvider for SocketIOProvider {
             .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {}", e)))?;
 
         let registry = programs::default_registry();
-        let mut containers = Vec::new();
+        let filter = self.filter_pattern.as_deref();
 
-        for pkg in packages {
-            // Handle packages with multiple containers
-            if let Some(pkg_containers) = pkg.containers {
-                for c in pkg_containers {
-                    let name = c.container_name.unwrap_or_default();
-
-                    if let Some(ref pattern) = self.filter_pattern {
-                        if !Self::matches_pattern(&name, pattern) {
-                            continue;
-                        }
-                    }
-
-                    let image = c.image.unwrap_or_default();
-                    let program = Self::detect_program(&registry, &name, &image);
-
-                    containers.push(ContainerInfo {
-                        id: c.container_id.unwrap_or_else(|| name.clone()),
-                        name,
-                        image,
-                        status: c.state.unwrap_or_else(|| "unknown".to_string()),
-                        program,
-                    });
-                }
-            } else {
-                // Single-container package
-                let name = pkg.dnp_name.clone().unwrap_or_default();
-
-                if let Some(ref pattern) = self.filter_pattern {
-                    if !Self::matches_pattern(&name, pattern) {
-                        continue;
-                    }
-                }
-
-                let program = Self::detect_program(&registry, &name, "");
-
-                containers.push(ContainerInfo {
-                    id: name.clone(),
-                    name,
-                    image: String::new(),
-                    status: pkg.state.unwrap_or_else(|| "unknown".to_string()),
-                    program,
-                });
-            }
-        }
+        // Flatten packages into containers using functional iterators
+        let containers = packages
+            .into_iter()
+            .flat_map(|pkg| {
+                pkg.containers
+                    .map(|containers| {
+                        // Multi-container package: map each container
+                        containers
+                            .into_iter()
+                            .filter_map(|c| {
+                                let name = c.container_name.unwrap_or_default();
+                                filter
+                                    .map(|p| Self::matches_pattern(&name, p))
+                                    .unwrap_or(true)
+                                    .then(|| {
+                                        let image = c.image.unwrap_or_default();
+                                        ContainerInfo {
+                                            id: c.container_id.unwrap_or_else(|| name.clone()),
+                                            program: Self::detect_program(&registry, &name, &image),
+                                            name,
+                                            image,
+                                            status: c
+                                                .state
+                                                .unwrap_or_else(|| "unknown".to_string()),
+                                        }
+                                    })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_else(|| {
+                        // Single-container package
+                        let name = pkg.dnp_name.unwrap_or_default();
+                        filter
+                            .map(|p| Self::matches_pattern(&name, p))
+                            .unwrap_or(true)
+                            .then(|| ContainerInfo {
+                                id: name.clone(),
+                                program: Self::detect_program(&registry, &name, ""),
+                                name,
+                                image: String::new(),
+                                status: pkg.state.unwrap_or_else(|| "unknown".to_string()),
+                            })
+                            .into_iter()
+                            .collect()
+                    })
+            })
+            .collect();
 
         Ok(containers)
     }

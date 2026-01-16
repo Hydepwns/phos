@@ -85,7 +85,7 @@ impl LogStreamer {
         alert_config: Option<AlertConfig>,
     ) -> Self {
         // Cap channel size at 10000 to prevent memory issues
-        let channel_size = max_lines.min(10000).max(100);
+        let channel_size = max_lines.clamp(100, 10000);
         let (tx, _) = broadcast::channel(channel_size);
         Self {
             provider,
@@ -175,8 +175,12 @@ impl LogStreamer {
                         let html = ansi_to_html(&colorized);
 
                         // Check for error patterns and update count
-                        let line_lower = line.to_lowercase();
-                        if line_lower.contains("error") || line_lower.contains("err=") {
+                        let is_error = line
+                            .to_lowercase()
+                            .as_str()
+                            .split_whitespace()
+                            .any(|word| word.contains("error") || word.starts_with("err="));
+                        if is_error {
                             error_count = error_count.saturating_add(1);
                         }
 
@@ -186,11 +190,12 @@ impl LogStreamer {
                             let line_owned = line.to_string();
                             let count = error_count;
                             // Spawn blocking to avoid blocking the async runtime
-                            let _ = tokio::task::spawn_blocking(move || {
+                            // Explicitly drop the JoinHandle since we don't need to await it
+                            drop(tokio::task::spawn_blocking(move || {
                                 if let Ok(mut manager) = mgr.lock() {
                                     manager.check_line(&line_owned, count, None, None);
                                 }
-                            });
+                            }));
                         }
 
                         let entry = ColorizedLogEntry {
