@@ -208,7 +208,7 @@ fn poll_for(fd: RawFd, flags: PollFlags, timeout_ms: i32) -> io::Result<bool> {
     loop {
         match poll(&mut poll_fds, timeout) {
             Ok(ready) => {
-                return Ok(ready > 0 && poll_fds[0].revents().map_or(false, |r| r.intersects(flags)))
+                return Ok(ready > 0 && poll_fds[0].revents().is_some_and(|r| r.intersects(flags)))
             }
             Err(nix::Error::EINTR) => continue,
             Err(e) => return Err(io::Error::from_raw_os_error(e as i32)),

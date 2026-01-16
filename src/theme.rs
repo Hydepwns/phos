@@ -113,6 +113,12 @@ impl From<crate::config::ConfigError> for ThemeLoadError {
                 // Themes don't use regex, so this shouldn't happen
                 Self::UnknownFormat("regex error in theme config".to_string())
             }
+            crate::config::ConfigError::PathContext { path, source } => {
+                // Recurse to unwrap the path context
+                let inner_err: ThemeLoadError = (*source).into();
+                // Prefix path info to error message via conversion to generic error
+                Self::UnknownFormat(format!("{path}: {inner_err}"))
+            }
         }
     }
 }

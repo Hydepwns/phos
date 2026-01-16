@@ -27,6 +27,24 @@ pub enum ConfigError {
 
     #[error("Unknown file format: {0}")]
     UnknownFormat(String),
+
+    #[error("{path}: {source}")]
+    PathContext {
+        path: String,
+        #[source]
+        source: Box<ConfigError>,
+    },
+}
+
+impl ConfigError {
+    /// Wrap this error with file path context.
+    #[must_use]
+    pub fn with_path(self, path: impl AsRef<Path>) -> Self {
+        Self::PathContext {
+            path: path.as_ref().display().to_string(),
+            source: Box::new(self),
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -71,11 +89,13 @@ impl FileFormat {
 /// Load and parse a config file, auto-detecting format from extension.
 ///
 /// If the extension is unrecognized, `default_format` is used.
+/// Errors include file path context for easier debugging.
 pub fn load_config_file<T: DeserializeOwned>(
     path: &Path,
     default_format: Option<FileFormat>,
 ) -> Result<T, ConfigError> {
-    let content = fs::read_to_string(path)?;
+    let content = fs::read_to_string(path)
+        .map_err(|e| ConfigError::ReadError(e).with_path(path))?;
     let format = FileFormat::from_path(path)
         .or(default_format)
         .ok_or_else(|| {
@@ -85,8 +105,9 @@ pub fn load_config_file<T: DeserializeOwned>(
                     .unwrap_or("unknown")
                     .to_string(),
             )
+            .with_path(path)
         })?;
-    format.parse(&content)
+    format.parse(&content).map_err(|e| e.with_path(path))
 }
 
 /// Configuration file format.

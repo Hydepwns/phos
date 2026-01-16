@@ -54,7 +54,9 @@ fn escape_markdown(s: &str) -> String {
         '_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!',
     ];
 
-    let mut result = String::with_capacity(s.len() * 2);
+    // Use checked_mul to prevent overflow on extremely large strings
+    let capacity = s.len().checked_mul(2).unwrap_or(s.len());
+    let mut result = String::with_capacity(capacity);
     for c in s.chars() {
         if special_chars.contains(&c) {
             result.push('\\');
