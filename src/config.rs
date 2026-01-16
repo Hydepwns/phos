@@ -94,8 +94,8 @@ pub fn load_config_file<T: DeserializeOwned>(
     path: &Path,
     default_format: Option<FileFormat>,
 ) -> Result<T, ConfigError> {
-    let content = fs::read_to_string(path)
-        .map_err(|e| ConfigError::ReadError(e).with_path(path))?;
+    let content =
+        fs::read_to_string(path).map_err(|e| ConfigError::ReadError(e).with_path(path))?;
     let format = FileFormat::from_path(path)
         .or(default_format)
         .ok_or_else(|| {

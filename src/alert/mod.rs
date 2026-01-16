@@ -382,7 +382,10 @@ mod tests {
             .unwrap()
             .build();
 
-        assert!(matches!(result, Err(AlertBuilderError::MissingTelegramChatId)));
+        assert!(matches!(
+            result,
+            Err(AlertBuilderError::MissingTelegramChatId)
+        ));
     }
 
     #[test]

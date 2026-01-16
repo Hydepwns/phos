@@ -227,28 +227,25 @@ impl ProgramConfig {
             .iter()
             .map(|rule_config| {
                 // Build colors using fold
-                let builder = rule_config
-                    .colors
-                    .iter()
-                    .fold(Rule::new(&rule_config.regex)?, |builder, color_name| {
-                        match ColorSpec::from_name(color_name) {
-                            ColorSpec::Semantic(s) => builder.semantic(s),
-                            ColorSpec::Domain(ref name) => match domain_colors.get(name) {
-                                Some(c) => builder.color(c.clone()),
-                                None => builder.named(name),
-                            },
-                            ColorSpec::Named(ref name) => builder.named(name),
-                            ColorSpec::Hex(ref hex) => builder.hex(hex),
-                        }
-                    });
+                let builder = rule_config.colors.iter().fold(
+                    Rule::new(&rule_config.regex)?,
+                    |builder, color_name| match ColorSpec::from_name(color_name) {
+                        ColorSpec::Semantic(s) => builder.semantic(s),
+                        ColorSpec::Domain(ref name) => match domain_colors.get(name) {
+                            Some(c) => builder.color(c.clone()),
+                            None => builder.named(name),
+                        },
+                        ColorSpec::Named(ref name) => builder.named(name),
+                        ColorSpec::Hex(ref hex) => builder.hex(hex),
+                    },
+                );
 
                 // Apply modifiers conditionally using match for ownership
-                let builder = match rule_config.bold
-                    || rule_config.colors.contains(&"bold".to_string())
-                {
-                    true => builder.bold(),
-                    false => builder,
-                };
+                let builder =
+                    match rule_config.bold || rule_config.colors.contains(&"bold".to_string()) {
+                        true => builder.bold(),
+                        false => builder,
+                    };
 
                 let builder = match rule_config.skip {
                     true => builder.skip(),
