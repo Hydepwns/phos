@@ -181,12 +181,14 @@ impl Colorizer {
 
     /// Colorize a single line of text.
     /// Returns the colorized line, or the original if skipped by a skip rule.
+    #[inline]
     pub fn colorize(&mut self, line: &str) -> String {
         self.colorize_with_match_info(line).0
     }
 
     /// Colorize a single line and return whether it had any matches.
     /// Returns (`colorized_string`, `had_matches`).
+    #[inline]
     pub fn colorize_with_match_info(&mut self, line: &str) -> (String, bool) {
         match self.colorize_opt_with_match_info(line) {
             Some((output, had_match)) => (output, had_match),
@@ -196,6 +198,7 @@ impl Colorizer {
 
     /// Colorize a single line, returning None if the line should be skipped.
     /// Returns `Some((colorized_string`, `had_matches`)) or None if skipped.
+    #[inline]
     pub fn colorize_opt(&mut self, line: &str) -> Option<String> {
         self.colorize_opt_with_match_info(line).map(|(s, _)| s)
     }
@@ -295,10 +298,23 @@ impl Colorizer {
             for m in rule.find_iter(line).take(limit) {
                 let (start, end) = (m.start(), m.end());
 
-                // Check overlap with existing ranges
-                let overlaps = ranges.iter().any(|(s, e, _)| start < *e && end > *s);
-                if !overlaps {
-                    ranges.push((start, end, idx));
+                // Check overlap with existing ranges using binary search on sorted ranges
+                // Find insertion point for this start position
+                let insert_pos = ranges
+                    .binary_search_by_key(&start, |(s, _, _)| *s)
+                    .unwrap_or_else(|pos| pos);
+
+                // Check for overlap with adjacent ranges only (O(1) instead of O(n))
+                let overlaps_prev = insert_pos > 0
+                    && ranges
+                        .get(insert_pos - 1)
+                        .is_some_and(|(_, prev_end, _)| *prev_end > start);
+                let overlaps_next = ranges
+                    .get(insert_pos)
+                    .is_some_and(|(next_start, _, _)| *next_start < end);
+
+                if !overlaps_prev && !overlaps_next {
+                    ranges.insert(insert_pos, (start, end, idx));
                 }
             }
         }
@@ -311,11 +327,14 @@ impl Colorizer {
         use std::fmt::Write;
 
         if ranges.is_empty() {
-            return self.style_segment(line);
+            return self.format_segment(line).into_owned();
         }
 
         // Pre-allocate result buffer (line length + estimated ANSI overhead)
-        let mut result = String::with_capacity(line.len() + ranges.len() * 20);
+        // Use checked_mul to prevent overflow on pathological inputs
+        let ansi_overhead = ranges.len().checked_mul(20).unwrap_or(0);
+        let capacity = line.len().saturating_add(ansi_overhead);
+        let mut result = String::with_capacity(capacity);
 
         // Process each range with fold to track position
         let last_end = ranges
@@ -339,6 +358,7 @@ impl Colorizer {
     }
 
     /// Write a segment to a buffer, applying block style if in block mode.
+    #[inline]
     fn write_segment(&self, buf: &mut String, text: &str) {
         use std::fmt::Write;
         match (&self.block_style, self.in_block) {
@@ -350,16 +370,13 @@ impl Colorizer {
     }
 
     /// Format a text segment, applying block style if in block mode.
-    fn format_segment(&self, text: &str) -> String {
-        self.block_style
-            .as_ref()
-            .filter(|_| self.in_block)
-            .map_or_else(|| text.to_string(), |style| style.paint(text).to_string())
-    }
-
-    /// Style a text segment, applying block style if in block mode.
-    fn style_segment(&self, text: &str) -> String {
-        self.format_segment(text)
+    /// Returns Cow to avoid allocation when no styling is needed.
+    #[inline]
+    fn format_segment<'a>(&self, text: &'a str) -> Cow<'a, str> {
+        match (&self.block_style, self.in_block) {
+            (Some(style), true) => Cow::Owned(style.paint(text).to_string()),
+            _ => Cow::Borrowed(text),
+        }
     }
 
     /// Process stdin and write colorized output to stdout.
