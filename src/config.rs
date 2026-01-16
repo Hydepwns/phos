@@ -3,6 +3,7 @@
 use std::fs;
 use std::path::Path;
 
+use serde::de::DeserializeOwned;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -26,6 +27,87 @@ pub enum ConfigError {
 
     #[error("Unknown file format: {0}")]
     UnknownFormat(String),
+
+    #[error("{path}: {source}")]
+    PathContext {
+        path: String,
+        #[source]
+        source: Box<ConfigError>,
+    },
+}
+
+impl ConfigError {
+    /// Wrap this error with file path context.
+    #[must_use]
+    pub fn with_path(self, path: impl AsRef<Path>) -> Self {
+        Self::PathContext {
+            path: path.as_ref().display().to_string(),
+            source: Box::new(self),
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// File Format Detection and Loading
+// ---------------------------------------------------------------------------
+
+/// File format detected from extension.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FileFormat {
+    Yaml,
+    Json,
+}
+
+impl FileFormat {
+    /// Detect format from file path extension.
+    ///
+    /// Returns `None` for unknown extensions.
+    pub fn from_path(path: &Path) -> Option<Self> {
+        path.extension()
+            .and_then(|e| e.to_str())
+            .and_then(Self::from_extension)
+    }
+
+    /// Detect format from extension string.
+    pub fn from_extension(ext: &str) -> Option<Self> {
+        match ext.to_lowercase().as_str() {
+            "yaml" | "yml" => Some(Self::Yaml),
+            "json" => Some(Self::Json),
+            _ => None,
+        }
+    }
+
+    /// Parse content in this format.
+    pub fn parse<T: DeserializeOwned>(self, content: &str) -> Result<T, ConfigError> {
+        match self {
+            Self::Yaml => Ok(serde_yaml::from_str(content)?),
+            Self::Json => Ok(serde_json::from_str(content)?),
+        }
+    }
+}
+
+/// Load and parse a config file, auto-detecting format from extension.
+///
+/// If the extension is unrecognized, `default_format` is used.
+/// Errors include file path context for easier debugging.
+pub fn load_config_file<T: DeserializeOwned>(
+    path: &Path,
+    default_format: Option<FileFormat>,
+) -> Result<T, ConfigError> {
+    let content =
+        fs::read_to_string(path).map_err(|e| ConfigError::ReadError(e).with_path(path))?;
+    let format = FileFormat::from_path(path)
+        .or(default_format)
+        .ok_or_else(|| {
+            ConfigError::UnknownFormat(
+                path.extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("unknown")
+                    .to_string(),
+            )
+            .with_path(path)
+        })?;
+    format.parse(&content).map_err(|e| e.with_path(path))
 }
 
 /// Configuration file format.
@@ -70,16 +152,7 @@ pub struct RuleConfig {
 impl Config {
     /// Load configuration from a file path.
     pub fn load<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path)?;
-
-        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-
-        match extension.to_lowercase().as_str() {
-            "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
-            "json" => Ok(serde_json::from_str(&content)?),
-            ext => Err(ConfigError::UnknownFormat(ext.to_string())),
-        }
+        load_config_file(path.as_ref(), None)
     }
 
     /// Convert configuration to rules.
@@ -192,33 +265,15 @@ impl GlobalConfig {
             return Ok(None);
         }
 
-        let content = fs::read_to_string(&config_path)?;
-        let extension = config_path
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("yaml");
-
-        let config = match extension.to_lowercase().as_str() {
-            "yaml" | "yml" => serde_yaml::from_str(&content)?,
-            "json" => serde_json::from_str(&content)?,
-            _ => serde_yaml::from_str(&content)?, // Default to YAML
-        };
-
-        Ok(Some(config))
+        Ok(Some(load_config_file(
+            &config_path,
+            Some(FileFormat::Yaml),
+        )?))
     }
 
     /// Load global configuration from a specific path.
     pub fn load_from_path<P: AsRef<Path>>(path: P) -> Result<Self, ConfigError> {
-        let path = path.as_ref();
-        let content = fs::read_to_string(path)?;
-
-        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("yaml");
-
-        match extension.to_lowercase().as_str() {
-            "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
-            "json" => Ok(serde_json::from_str(&content)?),
-            _ => Ok(serde_yaml::from_str(&content)?),
-        }
+        load_config_file(path.as_ref(), Some(FileFormat::Yaml))
     }
 }
 

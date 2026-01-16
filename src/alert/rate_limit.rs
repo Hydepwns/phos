@@ -285,27 +285,21 @@ mod tests {
     fn test_rate_limit_result_is_allowed() {
         assert!(RateLimitResult::Allowed.is_allowed());
 
-        assert!(
-            !RateLimitResult::GlobalCooldown {
-                remaining: Duration::from_secs(1)
-            }
-            .is_allowed()
-        );
+        assert!(!RateLimitResult::GlobalCooldown {
+            remaining: Duration::from_secs(1)
+        }
+        .is_allowed());
 
-        assert!(
-            !RateLimitResult::ConditionCooldown {
-                condition: "error".to_string(),
-                remaining: Duration::from_secs(1)
-            }
-            .is_allowed()
-        );
+        assert!(!RateLimitResult::ConditionCooldown {
+            condition: "error".to_string(),
+            remaining: Duration::from_secs(1)
+        }
+        .is_allowed());
 
-        assert!(
-            !RateLimitResult::HourlyLimitReached {
-                remaining: Duration::from_secs(1)
-            }
-            .is_allowed()
-        );
+        assert!(!RateLimitResult::HourlyLimitReached {
+            remaining: Duration::from_secs(1)
+        }
+        .is_allowed());
     }
 
     #[test]

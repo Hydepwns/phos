@@ -221,53 +221,52 @@ impl ProgramConfig {
             })
             .collect();
 
-        // Parse rules
-        let mut rules = Vec::new();
-        for rule_config in &self.rules {
-            let mut builder = Rule::new(&rule_config.regex)?;
+        // Parse rules using functional fold pattern
+        let rules: Vec<Rule> = self
+            .rules
+            .iter()
+            .map(|rule_config| {
+                // Build colors using fold
+                let builder = rule_config.colors.iter().fold(
+                    Rule::new(&rule_config.regex)?,
+                    |builder, color_name| match ColorSpec::from_name(color_name) {
+                        ColorSpec::Semantic(s) => builder.semantic(s),
+                        ColorSpec::Domain(ref name) => match domain_colors.get(name) {
+                            Some(c) => builder.color(c.clone()),
+                            None => builder.named(name),
+                        },
+                        ColorSpec::Named(ref name) => builder.named(name),
+                        ColorSpec::Hex(ref hex) => builder.hex(hex),
+                    },
+                );
 
-            for color_name in &rule_config.colors {
-                let spec = ColorSpec::from_name(color_name);
-                match spec {
-                    ColorSpec::Semantic(s) => {
-                        builder = builder.semantic(s);
-                    }
-                    ColorSpec::Domain(name) => {
-                        // Look up in domain colors, fallback to named
-                        if let Some(color) = domain_colors.get(&name) {
-                            builder = builder.color(color.clone());
-                        } else {
-                            builder = builder.named(&name);
-                        }
-                    }
-                    ColorSpec::Named(name) => {
-                        builder = builder.named(&name);
-                    }
-                    ColorSpec::Hex(hex) => {
-                        builder = builder.hex(&hex);
-                    }
-                }
-            }
+                // Apply modifiers conditionally using match for ownership
+                let builder =
+                    match rule_config.bold || rule_config.colors.contains(&"bold".to_string()) {
+                        true => builder.bold(),
+                        false => builder,
+                    };
 
-            if rule_config.bold || rule_config.colors.contains(&"bold".to_string()) {
-                builder = builder.bold();
-            }
+                let builder = match rule_config.skip {
+                    true => builder.skip(),
+                    false => builder,
+                };
 
-            // Apply skip if set
-            if rule_config.skip {
-                builder = builder.skip();
-            }
+                let builder = match &rule_config.replace {
+                    Some(r) => builder.replace(r),
+                    None => builder,
+                };
 
-            // Apply replace if set
-            if let Some(ref replacement) = rule_config.replace {
-                builder = builder.replace(replacement);
-            }
+                Ok(builder.build())
+            })
+            .collect::<Result<Vec<_>, ConfigError>>()?;
 
-            rules.push(builder.build());
-        }
-
-        // Convert detect patterns to owned strings
-        let detect_patterns: Vec<String> = self.detect;
+        // Leak detect patterns once at construction time (programs are typically loaded once)
+        let detect_patterns: Vec<&'static str> = self
+            .detect
+            .into_iter()
+            .map(|s| -> &'static str { Box::leak(s.into_boxed_str()) })
+            .collect();
 
         Ok(Arc::new(ConfigProgram {
             info,
@@ -283,7 +282,7 @@ struct ConfigProgram {
     info: ProgramInfo,
     rules: Arc<[Rule]>,
     domain_colors: HashMap<String, Color>,
-    detect_patterns: Vec<String>,
+    detect_patterns: Vec<&'static str>,
 }
 
 impl Program for ConfigProgram {
@@ -299,16 +298,8 @@ impl Program for ConfigProgram {
         self.domain_colors.clone()
     }
 
-    fn detect_patterns(&self) -> Vec<&'static str> {
-        // We need to return static strings, so we leak the strings
-        // This is acceptable since programs are typically loaded once
-        self.detect_patterns
-            .iter()
-            .map(|s| {
-                let leaked: &'static str = Box::leak(s.clone().into_boxed_str());
-                leaked
-            })
-            .collect()
+    fn detect_patterns(&self) -> &[&str] {
+        &self.detect_patterns
     }
 }
 

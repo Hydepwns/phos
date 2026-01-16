@@ -37,11 +37,12 @@ use crate::colors::{Color, SemanticColor};
 ///
 /// Controls whether the rule matches once, multiple times, or affects
 /// subsequent processing.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CountMode {
     /// Apply once per line (first match only)
     Once,
     /// Apply to all matches
+    #[default]
     More,
     /// Stop processing after this rule matches
     Stop,
@@ -49,12 +50,6 @@ pub enum CountMode {
     Block,
     /// End block coloring
     Unblock,
-}
-
-impl Default for CountMode {
-    fn default() -> Self {
-        Self::More
-    }
 }
 
 /// A colorization rule with pattern and styling.
@@ -138,12 +133,14 @@ impl Rule {
     }
 
     /// Check if the rule matches the given text.
+    #[inline]
     #[must_use]
     pub fn is_match(&self, text: &str) -> bool {
         self.regex.is_match(text)
     }
 
     /// Find all matches in the text.
+    #[inline]
     pub fn find_iter<'a>(&'a self, text: &'a str) -> impl Iterator<Item = regex::Match<'a>> {
         self.regex.find_iter(text)
     }

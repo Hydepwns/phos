@@ -15,11 +15,13 @@ pub mod themes;
 
 pub use colors::show_colors;
 pub use completions::generate_completions;
-pub use config::{ConfigAction, handle_config_action};
+pub use config::{handle_config_action, ConfigAction};
 pub use info::show_info;
 pub use list::list_programs;
 pub use man::generate_man_page;
 pub use preview::preview_themes;
 pub use run::run_command;
+#[cfg(unix)]
+pub use run::run_command_pty;
 pub use shell_init::generate_shell_init;
 pub use themes::list_themes;

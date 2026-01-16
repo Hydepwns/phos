@@ -10,8 +10,11 @@ use async_trait::async_trait;
 use futures::stream;
 use serde::Deserialize;
 
+use super::{
+    provider::{ContainerProvider, LogLine, LogStream, ProviderError},
+    ContainerInfo,
+};
 use crate::programs;
-use super::{ContainerInfo, provider::{ContainerProvider, LogLine, LogStream, ProviderError}};
 
 /// Default dappmanager URL for public packages endpoint.
 const DEFAULT_DAPPMANAGER_URL: &str = "http://dappmanager.dappnode";
@@ -118,7 +121,8 @@ impl ContainerProvider for HttpProvider {
     async fn list_containers(&self) -> Result<Vec<ContainerInfo>, ProviderError> {
         let url = format!("{}/public-packages", self.base_url);
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&url)
             .send()
             .await
@@ -195,7 +199,8 @@ impl ContainerProvider for HttpProvider {
         // Verify we can reach the public-packages endpoint
         let url = format!("{}/public-packages", self.base_url);
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&url)
             .send()
             .await

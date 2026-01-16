@@ -116,8 +116,7 @@ pub fn systemd_program() -> Arc<dyn Program> {
 // =============================================================================
 
 fn syslog_rules() -> Vec<Rule> {
-    let mut rules =
-        vec![Rule::new(
+    let mut rules = vec![Rule::new(
         r"\b(kern|user|mail|daemon|auth|syslog|lpr|news|uucp|cron|authpriv|ftp|local[0-7])\b",
     )
     .unwrap()
@@ -194,12 +193,10 @@ pub fn syslog_program() -> Arc<dyn Program> {
 // =============================================================================
 
 fn dmesg_rules() -> Vec<Rule> {
-    let mut rules = vec![
-        Rule::new(r"\[\s*\d+\.\d+\]")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    ];
+    let mut rules = vec![Rule::new(r"\[\s*\d+\.\d+\]")
+        .unwrap()
+        .semantic(SemanticColor::Timestamp)
+        .build()];
 
     rules.extend([
         Rule::new(r"\b(emerg|emergency|EMERG)\b")

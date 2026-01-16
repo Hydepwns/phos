@@ -2,7 +2,7 @@
 //!
 //! These tests verify that colorization rules work correctly on real log samples.
 
-use phos::{Colorizer, Theme, programs};
+use phos::{programs, Colorizer, Theme};
 
 /// Helper to check if output contains ANSI escape codes
 fn has_ansi_codes(s: &str) -> bool {

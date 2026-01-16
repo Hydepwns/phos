@@ -37,6 +37,20 @@ pub use formatter::{AlertPayload, WebhookFormatter, WebhookService};
 pub use rate_limit::{RateLimitResult, RateLimiter};
 pub use sender::{SendError, WebhookSender};
 
+use thiserror::Error;
+
+/// Error returned when building an `AlertManager` fails validation.
+#[derive(Debug, Error)]
+pub enum AlertBuilderError {
+    /// No webhook URL was provided.
+    #[error("No webhook URL provided")]
+    MissingUrl,
+
+    /// Telegram webhook requires a chat_id.
+    #[error("Telegram webhook requires chat_id (use --telegram-chat-id)")]
+    MissingTelegramChatId,
+}
+
 use discord::DiscordFormatter;
 use std::sync::Arc;
 use telegram::TelegramFormatter;
@@ -271,9 +285,20 @@ impl AlertManagerBuilder {
     }
 
     /// Build the `AlertManager`.
-    #[must_use]
-    pub fn build(self) -> Option<AlertManager> {
-        let url = self.url?;
+    ///
+    /// # Errors
+    ///
+    /// Returns `AlertBuilderError::MissingUrl` if no URL was provided.
+    /// Returns `AlertBuilderError::MissingTelegramChatId` if the URL is a Telegram
+    /// webhook but no chat_id was provided.
+    pub fn build(self) -> Result<AlertManager, AlertBuilderError> {
+        let url = self.url.ok_or(AlertBuilderError::MissingUrl)?;
+
+        // Detect service type and validate Telegram has chat_id
+        let service = WebhookService::detect(&url);
+        if matches!(service, WebhookService::Telegram { .. }) && self.chat_id.is_none() {
+            return Err(AlertBuilderError::MissingTelegramChatId);
+        }
 
         let mut manager = AlertManager::new(url);
 
@@ -296,7 +321,7 @@ impl AlertManagerBuilder {
             manager = manager.with_cooldown(cooldown);
         }
 
-        Some(manager)
+        Ok(manager)
     }
 }
 
@@ -322,7 +347,7 @@ mod tests {
             .cooldown_secs(60)
             .build();
 
-        assert!(manager.is_some());
+        assert!(manager.is_ok());
         let manager = manager.unwrap();
         assert_eq!(manager.condition_count(), 2);
         assert_eq!(manager.url(), "https://discord.com/api/webhooks/123/abc");
@@ -330,11 +355,11 @@ mod tests {
 
     #[test]
     fn test_alert_manager_builder_no_url() {
-        let manager = AlertManagerBuilder::new()
+        let result = AlertManagerBuilder::new()
             .condition("error")
             .unwrap()
             .build();
-        assert!(manager.is_none());
+        assert!(matches!(result, Err(AlertBuilderError::MissingUrl)));
     }
 
     #[test]
@@ -346,7 +371,21 @@ mod tests {
             .unwrap()
             .build();
 
-        assert!(manager.is_some());
+        assert!(manager.is_ok());
+    }
+
+    #[test]
+    fn test_alert_manager_builder_telegram_missing_chat_id() {
+        let result = AlertManagerBuilder::new()
+            .url("https://api.telegram.org/bot123:ABC/sendMessage")
+            .condition("error")
+            .unwrap()
+            .build();
+
+        assert!(matches!(
+            result,
+            Err(AlertBuilderError::MissingTelegramChatId)
+        ));
     }
 
     #[test]
@@ -355,7 +394,7 @@ mod tests {
             .url("https://example.com/webhook")
             .build();
 
-        assert!(manager.is_some());
+        assert!(manager.is_ok());
         let manager = manager.unwrap();
         // Should default to error condition
         assert_eq!(manager.condition_count(), 1);

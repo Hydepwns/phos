@@ -34,6 +34,9 @@ use serde::Serialize;
 
 use crate::programs::common::log_levels::ERROR_LEVEL_PATTERN;
 
+/// Type alias for log level pattern matching with associated incrementer.
+type LevelPattern<'a> = (&'a Regex, fn(&mut LogLevelCounts));
+
 // ---------------------------------------------------------------------------
 // Export Format
 // ---------------------------------------------------------------------------
@@ -165,6 +168,72 @@ fn truncate_message(msg: &str, max_len: usize) -> String {
     }
 }
 
+/// Extract a numeric value from a regex capture group.
+///
+/// Matches the pattern against the line and parses the first capture group.
+fn extract_numeric<T: std::str::FromStr>(line: &str, pattern: &Regex) -> Option<T> {
+    pattern
+        .captures(line)
+        .and_then(|caps| caps.get(1))
+        .and_then(|m| m.as_str().parse().ok())
+}
+
+/// Format current time as HH:MM:SS (UTC).
+fn format_time_hms() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let secs = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs() % 86400)
+        .unwrap_or(0);
+
+    format!(
+        "{:02}:{:02}:{:02}",
+        secs / 3600,
+        (secs % 3600) / 60,
+        secs % 60
+    )
+}
+
+/// Prometheus metric types.
+enum MetricType {
+    Counter,
+    Gauge,
+}
+
+impl MetricType {
+    const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Counter => "counter",
+            Self::Gauge => "gauge",
+        }
+    }
+}
+
+/// Append a Prometheus metric to the output string.
+fn append_metric(
+    output: &mut String,
+    name: &str,
+    help: &str,
+    metric_type: MetricType,
+    labels: &str,
+    value: impl std::fmt::Display,
+) {
+    output.push_str(&format!("# HELP {name} {help}\n"));
+    output.push_str(&format!("# TYPE {name} {}\n", metric_type.as_str()));
+    output.push_str(&format!("{name}{{{labels}}} {value}\n"));
+}
+
+/// Append a labeled metric value (without HELP/TYPE headers).
+fn append_metric_value(
+    output: &mut String,
+    name: &str,
+    labels: &str,
+    value: impl std::fmt::Display,
+) {
+    output.push_str(&format!("{name}{{{labels}}} {value}\n"));
+}
+
 /// Statistics collected from log processing.
 #[derive(Debug, Default)]
 pub struct Stats {
@@ -289,40 +358,40 @@ impl Stats {
 
     /// Extract peer count from a line.
     fn extract_peer_count(&mut self, line: &str, patterns: &StatsPatterns) {
-        if let Some(caps) = patterns.peer_count.captures(line) {
-            if let Some(m) = caps.get(1) {
-                if let Ok(count) = m.as_str().parse::<usize>() {
-                    self.last_peer_count = Some(count);
-                }
-            }
+        if let Some(count) = extract_numeric::<usize>(line, &patterns.peer_count) {
+            self.last_peer_count = Some(count);
         }
     }
 
     /// Extract slot number from a line.
     fn extract_slot(&mut self, line: &str, patterns: &StatsPatterns) {
-        if let Some(caps) = patterns.slot.captures(line) {
-            if let Some(m) = caps.get(1) {
-                if let Ok(slot) = m.as_str().parse::<u64>() {
-                    self.last_slot = Some(slot);
-                }
-            }
+        if let Some(slot) = extract_numeric::<u64>(line, &patterns.slot) {
+            self.last_slot = Some(slot);
         }
     }
 
     /// Detect and count log level from a line.
     /// Checks in priority order and extracts error messages for ERROR lines.
     fn detect_log_level(&mut self, line: &str, patterns: &StatsPatterns) {
-        if patterns.error.is_match(line) {
-            self.log_levels.error += 1;
-            self.extract_error_message(line, patterns);
-        } else if patterns.warn.is_match(line) {
-            self.log_levels.warn += 1;
-        } else if patterns.info.is_match(line) {
-            self.log_levels.info += 1;
-        } else if patterns.debug.is_match(line) {
-            self.log_levels.debug += 1;
-        } else if patterns.trace.is_match(line) {
-            self.log_levels.trace += 1;
+        // Priority-ordered pattern checks using find for early exit
+        let level_patterns: &[LevelPattern] = &[
+            (&patterns.error, |c| c.error += 1),
+            (&patterns.warn, |c| c.warn += 1),
+            (&patterns.info, |c| c.info += 1),
+            (&patterns.debug, |c| c.debug += 1),
+            (&patterns.trace, |c| c.trace += 1),
+        ];
+
+        if let Some((idx, _)) = level_patterns
+            .iter()
+            .enumerate()
+            .find(|(_, (pattern, _))| pattern.is_match(line))
+        {
+            level_patterns[idx].1(&mut self.log_levels);
+            // Extract error message only for ERROR level (index 0)
+            if idx == 0 {
+                self.extract_error_message(line, patterns);
+            }
         }
     }
 
@@ -491,70 +560,72 @@ impl Stats {
     #[must_use]
     pub fn to_prometheus(&self, program: Option<&str>) -> String {
         let program_label = program.unwrap_or("unknown");
+        let base_labels = format!("program=\"{program_label}\"");
         let mut output = String::new();
 
         // Line counts
-        output.push_str("# HELP phos_lines_processed_total Total lines processed\n");
-        output.push_str("# TYPE phos_lines_processed_total counter\n");
-        output.push_str(&format!(
-            "phos_lines_processed_total{{program=\"{program_label}\"}} {}\n",
-            self.total_lines
-        ));
+        append_metric(
+            &mut output,
+            "phos_lines_processed_total",
+            "Total lines processed",
+            MetricType::Counter,
+            &base_labels,
+            self.total_lines,
+        );
+        append_metric(
+            &mut output,
+            "phos_lines_matched_total",
+            "Lines that matched colorization rules",
+            MetricType::Counter,
+            &base_labels,
+            self.matched_lines,
+        );
 
-        output.push_str("# HELP phos_lines_matched_total Lines that matched colorization rules\n");
-        output.push_str("# TYPE phos_lines_matched_total counter\n");
-        output.push_str(&format!(
-            "phos_lines_matched_total{{program=\"{program_label}\"}} {}\n",
-            self.matched_lines
-        ));
-
-        // Log levels
+        // Log levels - header once, then values for each level
         output.push_str("# HELP phos_log_level_total Log entries by level\n");
         output.push_str("# TYPE phos_log_level_total counter\n");
-        output.push_str(&format!(
-            "phos_log_level_total{{program=\"{program_label}\",level=\"error\"}} {}\n",
-            self.log_levels.error
-        ));
-        output.push_str(&format!(
-            "phos_log_level_total{{program=\"{program_label}\",level=\"warn\"}} {}\n",
-            self.log_levels.warn
-        ));
-        output.push_str(&format!(
-            "phos_log_level_total{{program=\"{program_label}\",level=\"info\"}} {}\n",
-            self.log_levels.info
-        ));
-        output.push_str(&format!(
-            "phos_log_level_total{{program=\"{program_label}\",level=\"debug\"}} {}\n",
-            self.log_levels.debug
-        ));
-        output.push_str(&format!(
-            "phos_log_level_total{{program=\"{program_label}\",level=\"trace\"}} {}\n",
-            self.log_levels.trace
-        ));
+        for (level, count) in [
+            ("error", self.log_levels.error),
+            ("warn", self.log_levels.warn),
+            ("info", self.log_levels.info),
+            ("debug", self.log_levels.debug),
+            ("trace", self.log_levels.trace),
+        ] {
+            let labels = format!("{base_labels},level=\"{level}\"");
+            append_metric_value(&mut output, "phos_log_level_total", &labels, count);
+        }
 
         // Error rate
-        output.push_str("# HELP phos_error_rate Error rate as percentage\n");
-        output.push_str("# TYPE phos_error_rate gauge\n");
-        output.push_str(&format!(
-            "phos_error_rate{{program=\"{program_label}\"}} {:.2}\n",
-            percentage(self.log_levels.error, self.total_lines)
-        ));
+        append_metric(
+            &mut output,
+            "phos_error_rate",
+            "Error rate as percentage",
+            MetricType::Gauge,
+            &base_labels,
+            format!("{:.2}", percentage(self.log_levels.error, self.total_lines)),
+        );
 
         // Ethereum-specific metrics (if available)
         if let Some(slot) = self.last_slot {
-            output.push_str("# HELP phos_ethereum_slot Last observed slot number\n");
-            output.push_str("# TYPE phos_ethereum_slot gauge\n");
-            output.push_str(&format!(
-                "phos_ethereum_slot{{program=\"{program_label}\"}} {slot}\n"
-            ));
+            append_metric(
+                &mut output,
+                "phos_ethereum_slot",
+                "Last observed slot number",
+                MetricType::Gauge,
+                &base_labels,
+                slot,
+            );
         }
 
         if let Some(peers) = self.last_peer_count {
-            output.push_str("# HELP phos_ethereum_peers Last observed peer count\n");
-            output.push_str("# TYPE phos_ethereum_peers gauge\n");
-            output.push_str(&format!(
-                "phos_ethereum_peers{{program=\"{program_label}\"}} {peers}\n"
-            ));
+            append_metric(
+                &mut output,
+                "phos_ethereum_peers",
+                "Last observed peer count",
+                MetricType::Gauge,
+                &base_labels,
+                peers,
+            );
         }
 
         output
@@ -565,34 +636,25 @@ impl Stats {
     /// Format: `[HH:MM:SS] lines=N err=N warn=N info=N peers=N slot=N`
     #[must_use]
     pub fn to_compact(&self) -> String {
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        // Get current time as HH:MM:SS
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_secs() % 86400) // Seconds since midnight
-            .unwrap_or(0);
-        let hours = now / 3600;
-        let minutes = (now % 3600) / 60;
-        let seconds = now % 60;
-
-        let mut parts = vec![
-            format!("[{hours:02}:{minutes:02}:{seconds:02}]"),
-            format!("lines={}", self.total_lines),
-            format!("err={}", self.log_levels.error),
-            format!("warn={}", self.log_levels.warn),
-            format!("info={}", self.log_levels.info),
-        ];
-
+        use std::fmt::Write;
+        // Pre-allocate typical output size to avoid reallocation
+        let mut output = String::with_capacity(80);
+        let _ = write!(
+            output,
+            "[{}] lines={} err={} warn={} info={}",
+            format_time_hms(),
+            self.total_lines,
+            self.log_levels.error,
+            self.log_levels.warn,
+            self.log_levels.info
+        );
         if let Some(peers) = self.last_peer_count {
-            parts.push(format!("peers={peers}"));
+            let _ = write!(output, " peers={peers}");
         }
-
         if let Some(slot) = self.last_slot {
-            parts.push(format!("slot={slot}"));
+            let _ = write!(output, " slot={slot}");
         }
-
-        parts.join(" ")
+        output
     }
 
     /// Merge statistics from another Stats instance into this one.

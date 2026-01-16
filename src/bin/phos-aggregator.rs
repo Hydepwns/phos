@@ -21,12 +21,12 @@ use std::env;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
-use phos::Theme;
-use phos::alert::AlertCondition;
 use phos::aggregator::{
-    AggregatorConfig, AppState, ContainerProvider,
-    DockerProvider, DappnodeProvider, SocketIOProvider, HttpProvider, create_router,
+    create_router, AggregatorConfig, AppState, ContainerProvider, DappnodeProvider, DockerProvider,
+    HttpProvider, SocketIOProvider,
 };
+use phos::alert::AlertCondition;
+use phos::Theme;
 
 #[tokio::main]
 async fn main() -> Result<()> {

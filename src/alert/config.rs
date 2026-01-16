@@ -232,7 +232,8 @@ pub fn parse_duration(s: &str) -> Option<std::time::Duration> {
     num_str
         .parse::<u64>()
         .ok()
-        .map(|n| std::time::Duration::from_secs(n * unit))
+        .and_then(|n| n.checked_mul(unit))
+        .map(std::time::Duration::from_secs)
 }
 
 #[cfg(test)]

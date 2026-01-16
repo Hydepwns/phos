@@ -18,14 +18,13 @@ path = "src/lib.rs"
 clap = { version = "4.4", features = ["derive", "env"] }
 clap_complete = "4.4"
 clap_mangen = "0.2"
-atty = "0.2"
+is-terminal = "0.4"
 
 # Colors
 nu-ansi-term = "0.50"
 
 # Regex
 regex = "1.10"
-once_cell = "1.19"
 
 # Performance
 smallvec = "1.13"
@@ -51,7 +50,6 @@ bollard = "0.18"
 axum = { version = "0.8", features = ["ws"] }
 tower-http = { version = "0.6", features = ["fs", "cors"] }
 ansi-to-html = "0.2"
-async-stream = "0.3"
 futures = "0.3"
 
 # WAMP/WebSocket for DAppNode integration
@@ -64,6 +62,11 @@ rust_socketio = { version = "0.6", features = ["async"] }
 
 # Vendored OpenSSL for musl/static builds (required by rust_socketio)
 openssl = { version = "0.10", features = ["vendored"] }
+
+# PTY support (Unix only)
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["term", "process", "poll", "fs"] }
+signal-hook = "0.3"
 
 [dev-dependencies]
 criterion = "0.5"
@@ -90,3 +93,6 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[package.metadata.cargo-machete]
+ignored = ["openssl"]  # Required for vendored builds (musl/static)

@@ -1,7 +1,7 @@
 //! Container discovery via Docker API.
 
-use bollard::Docker;
 use bollard::container::ListContainersOptions;
+use bollard::Docker;
 use std::collections::HashMap;
 
 use crate::programs;

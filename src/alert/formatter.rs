@@ -135,13 +135,19 @@ fn days_to_ymd(days: u64) -> (u64, u64, u64) {
     let mut remaining = days as i64;
     let mut year = 1970i64;
 
+    // Cap at year 9999 to prevent overflow on extreme inputs
+    const MAX_YEAR: i64 = 9999;
+
     loop {
+        if year >= MAX_YEAR {
+            break;
+        }
         let days_in_year = if is_leap_year(year) { 366 } else { 365 };
         if remaining < days_in_year {
             break;
         }
         remaining -= days_in_year;
-        year += 1;
+        year = year.saturating_add(1);
     }
 
     let leap = is_leap_year(year);

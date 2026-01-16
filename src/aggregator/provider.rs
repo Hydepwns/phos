@@ -6,8 +6,8 @@
 //! - DAppNode DAPPMANAGER (via WAMP RPC)
 
 use async_trait::async_trait;
-use std::pin::Pin;
 use futures::Stream;
+use std::pin::Pin;
 
 use super::ContainerInfo;
 

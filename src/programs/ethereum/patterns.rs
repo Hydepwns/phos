@@ -712,11 +712,9 @@ mod tests {
         let patterns = execution_patterns();
         assert!(!patterns.is_empty());
         assert!(patterns.iter().any(|r| rule_matches(r, "peers=50")));
-        assert!(
-            patterns
-                .iter()
-                .any(|r| rule_matches(r, "0x1234567890abcdef"))
-        );
+        assert!(patterns
+            .iter()
+            .any(|r| rule_matches(r, "0x1234567890abcdef")));
     }
 
     #[test]
@@ -848,7 +846,7 @@ mod tests {
         let rule = pubkey_rule();
         assert!(rule_matches(&rule, "pubkey=0xabcdef1234567890"));
         assert!(rule_matches(&rule, "pubkey: 0xABCDEF12")); // 8+ hex chars required
-        // Without 0x prefix should not match
+                                                            // Without 0x prefix should not match
         assert!(!rule_matches(&rule, "pubkey=abcdef12345678"));
         // Too few hex chars should not match
         assert!(!rule_matches(&rule, "pubkey=0xABCDEF")); // only 6 chars

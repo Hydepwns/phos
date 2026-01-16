@@ -5,7 +5,8 @@
 //!        `PHOS_PROGRAM=docker command | phoscat`
 
 use anyhow::{Context, Result};
-use phos::{Colorizer, Theme, programs};
+use is_terminal::IsTerminal;
+use phos::{programs, Colorizer, Theme};
 use std::env;
 use std::io::{self, BufRead, Write};
 
@@ -58,7 +59,7 @@ fn main() -> Result<()> {
         };
 
         // Create colorizer and process buffered lines
-        let color_enabled = atty::is(atty::Stream::Stdout);
+        let color_enabled = io::stdout().is_terminal();
         let mut colorizer = Colorizer::new(rules.clone())
             .with_theme(theme.clone())
             .with_color_enabled(color_enabled);
@@ -77,7 +78,7 @@ fn main() -> Result<()> {
     };
 
     // Explicit program: colorize stdin to stdout
-    let color_enabled = atty::is(atty::Stream::Stdout);
+    let color_enabled = io::stdout().is_terminal();
     let mut colorizer = Colorizer::new(rules)
         .with_theme(theme)
         .with_color_enabled(color_enabled);

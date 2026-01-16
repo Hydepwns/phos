@@ -16,9 +16,11 @@ mod commands;
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
+use is_terminal::IsTerminal;
 use phos::alert::AlertManagerBuilder;
 use phos::programs;
 use phos::{Colorizer, Config, GlobalConfig, StatsCollector, StatsExportFormat, Theme};
+use std::io;
 use std::sync::Arc;
 
 /// Version string with git hash
@@ -102,6 +104,18 @@ pub struct Cli {
     /// Alert cooldown in seconds (default: 60)
     #[arg(long, default_value = "60")]
     alert_cooldown: u64,
+
+    /// Use PTY mode for interactive programs (default when both stdin/stdout are TTYs)
+    #[arg(long)]
+    pty: bool,
+
+    /// Force pipe mode (disable PTY even when available)
+    #[arg(long)]
+    no_pty: bool,
+
+    /// Raw PTY passthrough (no colorization, for full-screen apps like vim)
+    #[arg(long)]
+    raw: bool,
 
     /// Subcommand or command to run
     #[command(subcommand)]
@@ -252,7 +266,7 @@ fn main() -> Result<()> {
     }
 
     // Determine if we're reading from stdin or running a command
-    let is_pipe = !atty::is(atty::Stream::Stdin);
+    let is_pipe = !io::stdin().is_terminal();
 
     // Get the theme: CLI > global config > default
     let theme_name = (cli.theme != "default-dark")
@@ -288,7 +302,7 @@ fn main() -> Result<()> {
     };
 
     // Enable colors if: --color flag set OR global config color OR stdout is a TTY
-    let color_enabled = cli.color || global_config.color || atty::is(atty::Stream::Stdout);
+    let color_enabled = cli.color || global_config.color || io::stdout().is_terminal();
 
     let mut colorizer = Colorizer::new(rules)
         .with_theme(theme)
@@ -347,7 +361,13 @@ fn main() -> Result<()> {
             }
         }
 
-        builder.build()
+        match builder.build() {
+            Ok(manager) => Some(manager),
+            Err(e) => {
+                eprintln!("phos: {e}");
+                std::process::exit(1);
+            }
+        }
     } else {
         None
     };
@@ -377,7 +397,37 @@ fn main() -> Result<()> {
             }
         }
     } else if !cli.args.is_empty() {
-        // Run the command
+        // Run the command - choose PTY or pipe mode
+        #[cfg(unix)]
+        {
+            let use_pty = if cli.no_pty {
+                false
+            } else if cli.pty {
+                true
+            } else {
+                // Auto: use PTY when both stdin and stdout are TTYs
+                io::stdin().is_terminal() && io::stdout().is_terminal()
+            };
+
+            if use_pty {
+                commands::run_command_pty(
+                    &mut colorizer,
+                    &cli.args,
+                    stats.as_mut(),
+                    alert_manager.as_mut(),
+                    cli.raw,
+                )?;
+            } else {
+                commands::run_command(
+                    &mut colorizer,
+                    &cli.args,
+                    stats.as_mut(),
+                    alert_manager.as_mut(),
+                )?;
+            }
+        }
+
+        #[cfg(not(unix))]
         commands::run_command(
             &mut colorizer,
             &cli.args,
