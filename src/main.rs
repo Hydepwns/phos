@@ -359,7 +359,13 @@ fn main() -> Result<()> {
             }
         }
 
-        builder.build()
+        match builder.build() {
+            Ok(manager) => Some(manager),
+            Err(e) => {
+                eprintln!("phos: {e}");
+                std::process::exit(1);
+            }
+        }
     } else {
         None
     };
