@@ -34,6 +34,9 @@ use serde::Serialize;
 
 use crate::programs::common::log_levels::ERROR_LEVEL_PATTERN;
 
+/// Type alias for log level pattern matching with associated incrementer.
+type LevelPattern<'a> = (&'a Regex, fn(&mut LogLevelCounts));
+
 // ---------------------------------------------------------------------------
 // Export Format
 // ---------------------------------------------------------------------------
@@ -370,17 +373,25 @@ impl Stats {
     /// Detect and count log level from a line.
     /// Checks in priority order and extracts error messages for ERROR lines.
     fn detect_log_level(&mut self, line: &str, patterns: &StatsPatterns) {
-        if patterns.error.is_match(line) {
-            self.log_levels.error += 1;
-            self.extract_error_message(line, patterns);
-        } else if patterns.warn.is_match(line) {
-            self.log_levels.warn += 1;
-        } else if patterns.info.is_match(line) {
-            self.log_levels.info += 1;
-        } else if patterns.debug.is_match(line) {
-            self.log_levels.debug += 1;
-        } else if patterns.trace.is_match(line) {
-            self.log_levels.trace += 1;
+        // Priority-ordered pattern checks using find for early exit
+        let level_patterns: &[LevelPattern] = &[
+            (&patterns.error, |c| c.error += 1),
+            (&patterns.warn, |c| c.warn += 1),
+            (&patterns.info, |c| c.info += 1),
+            (&patterns.debug, |c| c.debug += 1),
+            (&patterns.trace, |c| c.trace += 1),
+        ];
+
+        if let Some((idx, _)) = level_patterns
+            .iter()
+            .enumerate()
+            .find(|(_, (pattern, _))| pattern.is_match(line))
+        {
+            level_patterns[idx].1(&mut self.log_levels);
+            // Extract error message only for ERROR level (index 0)
+            if idx == 0 {
+                self.extract_error_message(line, patterns);
+            }
         }
     }
 
@@ -625,23 +636,25 @@ impl Stats {
     /// Format: `[HH:MM:SS] lines=N err=N warn=N info=N peers=N slot=N`
     #[must_use]
     pub fn to_compact(&self) -> String {
-        let mut parts = vec![
-            format!("[{}]", format_time_hms()),
-            format!("lines={}", self.total_lines),
-            format!("err={}", self.log_levels.error),
-            format!("warn={}", self.log_levels.warn),
-            format!("info={}", self.log_levels.info),
-        ];
-
+        use std::fmt::Write;
+        // Pre-allocate typical output size to avoid reallocation
+        let mut output = String::with_capacity(80);
+        let _ = write!(
+            output,
+            "[{}] lines={} err={} warn={} info={}",
+            format_time_hms(),
+            self.total_lines,
+            self.log_levels.error,
+            self.log_levels.warn,
+            self.log_levels.info
+        );
         if let Some(peers) = self.last_peer_count {
-            parts.push(format!("peers={peers}"));
+            let _ = write!(output, " peers={peers}");
         }
-
         if let Some(slot) = self.last_slot {
-            parts.push(format!("slot={slot}"));
+            let _ = write!(output, " slot={slot}");
         }
-
-        parts.join(" ")
+        output
     }
 
     /// Merge statistics from another Stats instance into this one.
