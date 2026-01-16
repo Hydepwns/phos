@@ -477,7 +477,7 @@ mod command_execution {
     use super::*;
 
     // Note: Command execution tests are limited because when running as a subprocess,
-    // stdin detection (`atty::is(atty::Stream::Stdin)`) returns false (not a TTY),
+    // stdin detection (`io::stdin().is_terminal()`) returns false (not a TTY),
     // causing phos to try reading from stdin instead of running the command.
     // These tests would work in an interactive terminal but not in automated tests.
 

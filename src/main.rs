@@ -16,9 +16,11 @@ mod commands;
 use anyhow::Result;
 use clap::{Parser, Subcommand, ValueEnum};
 use clap_complete::Shell;
+use is_terminal::IsTerminal;
 use phos::alert::AlertManagerBuilder;
 use phos::programs;
 use phos::{Colorizer, Config, GlobalConfig, StatsCollector, StatsExportFormat, Theme};
+use std::io;
 use std::sync::Arc;
 
 /// Version string with git hash
@@ -264,7 +266,7 @@ fn main() -> Result<()> {
     }
 
     // Determine if we're reading from stdin or running a command
-    let is_pipe = !atty::is(atty::Stream::Stdin);
+    let is_pipe = !io::stdin().is_terminal();
 
     // Get the theme: CLI > global config > default
     let theme_name = (cli.theme != "default-dark")
@@ -300,7 +302,7 @@ fn main() -> Result<()> {
     };
 
     // Enable colors if: --color flag set OR global config color OR stdout is a TTY
-    let color_enabled = cli.color || global_config.color || atty::is(atty::Stream::Stdout);
+    let color_enabled = cli.color || global_config.color || io::stdout().is_terminal();
 
     let mut colorizer = Colorizer::new(rules)
         .with_theme(theme)
@@ -404,7 +406,7 @@ fn main() -> Result<()> {
                 true
             } else {
                 // Auto: use PTY when both stdin and stdout are TTYs
-                atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
+                io::stdin().is_terminal() && io::stdout().is_terminal()
             };
 
             if use_pty {
