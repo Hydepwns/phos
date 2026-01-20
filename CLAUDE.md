@@ -46,6 +46,42 @@ cargo run --bin phos-aggregator                        # Docker backend
 PHOS_BACKEND=dappnode cargo run --bin phos-aggregator  # DAppNode backend
 ```
 
+## Release Process
+
+```bash
+# 1. Bump version in Cargo.toml
+sed -i '' 's/version = ".*"/version = "X.Y.Z"/' Cargo.toml
+
+# 2. Update docs (syncs program count to README)
+./scripts/update-docs.sh
+
+# 3. Commit, tag, push
+git add -A && git commit -m "chore: bump to vX.Y.Z"
+git tag vX.Y.Z
+git push origin main --tags
+
+# 4. Create GitHub release
+gh release create vX.Y.Z --generate-notes
+
+# 5. Publish to crates.io
+cargo publish
+
+# 6. Update Homebrew tap
+./scripts/update-homebrew.sh
+cd /tmp/homebrew-phos && git add phos.rb && git commit -m "phos X.Y.Z" && git push
+```
+
+**Automation scripts:**
+- `scripts/update-docs.sh` - Syncs program count from binary to README
+- `scripts/update-homebrew.sh` - Updates tap with version and SHA256
+
+**Package managers:**
+- crates.io: `cargo publish`
+- Homebrew: `Hydepwns/homebrew-phos` tap
+- AUR: community-maintained
+- Docker Hub: `mfdroo/phos` (manual)
+- Nix: builds from git
+
 ## Architecture
 
 Three binaries: `phos` (full CLI), `phoscat` (pipe-only), `phos-aggregator` (web UI).
