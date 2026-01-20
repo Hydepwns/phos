@@ -245,11 +245,9 @@ impl Colorizer {
             return Some((line.into_owned(), had_matches));
         }
 
-        let mut sorted_ranges = colored_ranges;
-        sorted_ranges.sort_by_key(|(start, _, _)| *start);
-
+        // Note: colored_ranges is already sorted by collect_colored_ranges (binary search insert)
         Some((
-            self.build_colored_output(&line, &sorted_ranges),
+            self.build_colored_output(&line, &colored_ranges),
             had_matches,
         ))
     }

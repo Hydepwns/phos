@@ -160,11 +160,12 @@ fn percentage(part: usize, total: usize) -> f64 {
 
 /// Truncate a message to a maximum length, adding "..." if truncated.
 /// Used for displaying error messages in a fixed-width column.
-fn truncate_message(msg: &str, max_len: usize) -> String {
+/// Returns a Cow to avoid allocation when no truncation is needed.
+fn truncate_message(msg: &str, max_len: usize) -> std::borrow::Cow<'_, str> {
     if msg.len() > max_len {
-        format!("{}...", &msg[..max_len.saturating_sub(3)])
+        format!("{}...", &msg[..max_len.saturating_sub(3)]).into()
     } else {
-        msg.to_string()
+        msg.into()
     }
 }
 
@@ -398,17 +399,18 @@ impl Stats {
     /// Extract error message content for tracking top errors.
     /// Collects up to 2x `max_errors` to ensure we have enough after deduplication.
     fn extract_error_message(&mut self, line: &str, patterns: &StatsPatterns) {
+        // Filter before allocating to avoid unnecessary String creation
         let msg = patterns
             .error_message
             .captures(line)
             .and_then(|caps| caps.get(1))
-            .map(|m| m.as_str().trim().to_string())
+            .map(|m| m.as_str().trim())
             .filter(|m| !m.is_empty());
 
         if let Some(msg) = msg {
             // Collect 2x max to ensure top N after sorting by frequency
             if self.top_errors.len() < self.max_errors * 2 {
-                *self.top_errors.entry(msg).or_insert(0) += 1;
+                *self.top_errors.entry(msg.to_string()).or_insert(0) += 1;
             }
         }
     }
@@ -439,81 +441,76 @@ impl Stats {
     /// Print statistics summary to stderr.
     ///
     /// Output goes to stderr to keep stdout clean for piped log data.
+    /// Write errors are intentionally ignored (stderr failures are unrecoverable).
     pub fn print_summary(&self) {
         let mut stderr = io::stderr().lock();
 
-        writeln!(stderr).ok();
-        writeln!(stderr, "=== Log Statistics ===").ok();
-        writeln!(stderr).ok();
+        // Helper macro - stderr write failures are non-fatal and unrecoverable
+        macro_rules! print_stat {
+            ($($arg:tt)*) => { let _ = writeln!(stderr, $($arg)*); };
+            () => { let _ = writeln!(stderr); };
+        }
+
+        print_stat!();
+        print_stat!("=== Log Statistics ===");
+        print_stat!();
 
         // Basic counts
-        writeln!(stderr, "Lines processed: {}", self.total_lines).ok();
-        writeln!(
-            stderr,
+        print_stat!("Lines processed: {}", self.total_lines);
+        print_stat!(
             "Lines with color: {} ({:.1}%)",
             self.matched_lines,
             percentage(self.matched_lines, self.total_lines)
-        )
-        .ok();
+        );
         if self.skipped_lines > 0 {
-            writeln!(
-                stderr,
+            print_stat!(
                 "Lines skipped:    {} ({:.1}%)",
                 self.skipped_lines,
                 percentage(self.skipped_lines, self.total_lines)
-            )
-            .ok();
+            );
         }
-        writeln!(stderr).ok();
+        print_stat!();
 
         // Time range (if timestamps were found)
         if let (Some(first), Some(last)) = (&self.first_timestamp, &self.last_timestamp) {
-            writeln!(stderr, "Time range:").ok();
-            writeln!(stderr, "  First: {first}").ok();
-            writeln!(stderr, "  Last:  {last}").ok();
-            writeln!(stderr).ok();
+            print_stat!("Time range:");
+            print_stat!("  First: {first}");
+            print_stat!("  Last:  {last}");
+            print_stat!();
         }
 
         // Log levels using iterator
         let level_total = self.log_levels.total();
         if level_total > 0 {
-            writeln!(stderr, "Log levels:").ok();
-            self.log_levels.iter_nonzero().for_each(|(name, count)| {
-                writeln!(
-                    stderr,
+            print_stat!("Log levels:");
+            for (name, count) in self.log_levels.iter_nonzero() {
+                print_stat!(
                     "  {name:5} {:>6} ({:>5.1}%)",
                     count,
                     percentage(count, level_total)
-                )
-                .ok();
-            });
-            writeln!(stderr).ok();
+                );
+            }
+            print_stat!();
         }
 
         // Top errors sorted by frequency
         if !self.top_errors.is_empty() {
-            writeln!(stderr, "Top errors:").ok();
-
-            self.sorted_errors()
-                .iter()
-                .take(self.max_errors)
-                .for_each(|(msg, count)| {
-                    let truncated = truncate_message(msg, 60);
-                    writeln!(stderr, "  {count:>4}x {truncated}").ok();
-                });
-            writeln!(stderr).ok();
+            print_stat!("Top errors:");
+            for (msg, count) in self.sorted_errors().iter().take(self.max_errors) {
+                let truncated = truncate_message(msg, 60);
+                print_stat!("  {count:>4}x {truncated}");
+            }
+            print_stat!();
         }
 
         // Overall error rate
         if self.log_levels.error > 0 && self.total_lines > 0 {
-            writeln!(
-                stderr,
+            print_stat!(
                 "Error rate: {:.2}% ({} errors in {} lines)",
                 percentage(self.log_levels.error, self.total_lines),
                 self.log_levels.error,
                 self.total_lines
-            )
-            .ok();
+            );
         }
     }
 
@@ -683,9 +680,9 @@ impl Stats {
         }
 
         // Merge error message counts
-        other.top_errors.iter().for_each(|(msg, count)| {
+        for (msg, count) in &other.top_errors {
             *self.top_errors.entry(msg.clone()).or_insert(0) += count;
-        });
+        }
     }
 }
 
