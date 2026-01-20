@@ -54,6 +54,16 @@ impl AlertPayload {
         self.fields.insert(key.into(), value.into());
         self
     }
+
+    /// Optionally set the source program.
+    #[must_use]
+    pub fn with_optional_program(self, program: Option<&str>) -> Self {
+        if let Some(p) = program {
+            self.with_program(p)
+        } else {
+            self
+        }
+    }
 }
 
 /// Webhook service types.

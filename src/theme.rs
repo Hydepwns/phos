@@ -592,6 +592,7 @@ impl Theme {
     /// Load a user theme by name from the themes directory.
     ///
     /// Searches `~/.config/phos/themes/` for a file matching the theme name.
+    /// Logs a warning if the theme file exists but fails to load.
     #[must_use]
     pub fn load_user_theme(name: &str) -> Option<Self> {
         let themes_dir = crate::program::loader::themes_dir()?;
@@ -600,14 +601,21 @@ impl Theme {
         }
 
         // Try common extensions
-        for ext in ["yaml", "yml", "json"] {
-            let path = themes_dir.join(format!("{name}.{ext}"));
-            if path.exists() {
-                return Self::load_from_file(&path).ok();
-            }
-        }
-
-        None
+        ["yaml", "yml", "json"]
+            .iter()
+            .map(|ext| themes_dir.join(format!("{name}.{ext}")))
+            .find(|path| path.exists())
+            .and_then(|path| {
+                Self::load_from_file(&path)
+                    .map_err(|e| {
+                        eprintln!(
+                            "phos: warning: failed to load theme from {}: {e}",
+                            path.display()
+                        );
+                        e
+                    })
+                    .ok()
+            })
     }
 
     /// Get a theme by name, checking user themes first, then built-in.
@@ -616,82 +624,88 @@ impl Theme {
         Self::load_user_theme(name).or_else(|| Self::builtin(name))
     }
 
+    // Helper to get a built-in theme, panicking with context if not found
+    fn builtin_unchecked(name: &str) -> Self {
+        Self::builtin(name)
+            .unwrap_or_else(|| panic!("Built-in theme '{name}' not found (corrupted build?)"))
+    }
+
     /// Default dark theme.
     #[must_use]
     pub fn default_dark() -> Self {
-        Self::builtin("default-dark").expect("default-dark theme must exist")
+        Self::builtin_unchecked("default-dark")
     }
 
     /// Dracula theme.
     #[must_use]
     pub fn dracula() -> Self {
-        Self::builtin("dracula").expect("dracula theme must exist")
+        Self::builtin_unchecked("dracula")
     }
 
     /// Nord theme.
     #[must_use]
     pub fn nord() -> Self {
-        Self::builtin("nord").expect("nord theme must exist")
+        Self::builtin_unchecked("nord")
     }
 
     /// Catppuccin Mocha theme.
     #[must_use]
     pub fn catppuccin() -> Self {
-        Self::builtin("catppuccin").expect("catppuccin theme must exist")
+        Self::builtin_unchecked("catppuccin")
     }
 
     /// Synthwave84 retro-futuristic theme.
     #[must_use]
     pub fn synthwave84() -> Self {
-        Self::builtin("synthwave84").expect("synthwave84 theme must exist")
+        Self::builtin_unchecked("synthwave84")
     }
 
     /// Gruvbox dark theme.
     #[must_use]
     pub fn gruvbox() -> Self {
-        Self::builtin("gruvbox").expect("gruvbox theme must exist")
+        Self::builtin_unchecked("gruvbox")
     }
 
     /// Monokai classic theme.
     #[must_use]
     pub fn monokai() -> Self {
-        Self::builtin("monokai").expect("monokai theme must exist")
+        Self::builtin_unchecked("monokai")
     }
 
     /// Solarized dark theme.
     #[must_use]
     pub fn solarized() -> Self {
-        Self::builtin("solarized").expect("solarized theme must exist")
+        Self::builtin_unchecked("solarized")
     }
 
     /// Matrix green monochrome theme.
     #[must_use]
     pub fn matrix() -> Self {
-        Self::builtin("matrix").expect("matrix theme must exist")
+        Self::builtin_unchecked("matrix")
     }
 
     /// Phosphor amber monochrome theme.
     #[must_use]
     pub fn phosphor() -> Self {
-        Self::builtin("phosphor").expect("phosphor theme must exist")
+        Self::builtin_unchecked("phosphor")
     }
 
     /// Tokyo Night theme.
     #[must_use]
     pub fn tokyo_night() -> Self {
-        Self::builtin("tokyo-night").expect("tokyo-night theme must exist")
+        Self::builtin_unchecked("tokyo-night")
     }
 
     /// Horizon theme.
     #[must_use]
     pub fn horizon() -> Self {
-        Self::builtin("horizon").expect("horizon theme must exist")
+        Self::builtin_unchecked("horizon")
     }
 
     /// High contrast theme.
     #[must_use]
     pub fn high_contrast() -> Self {
-        Self::builtin("high-contrast").expect("high-contrast theme must exist")
+        Self::builtin_unchecked("high-contrast")
     }
 }
 

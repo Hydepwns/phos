@@ -21,6 +21,21 @@ use std::io::Read;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 
+// ============================================================================
+// Helpers
+// ============================================================================
+
+/// Retry an operation while it returns EINTR.
+#[cfg(unix)]
+fn retry_eintr<T, F: FnMut() -> std::io::Result<T>>(mut f: F) -> std::io::Result<T> {
+    loop {
+        match f() {
+            Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
+            result => return result,
+        }
+    }
+}
+
 /// Run a command and colorize its output.
 pub fn run_command(
     colorizer: &mut Colorizer,
@@ -73,22 +88,19 @@ pub fn run_command(
         move || {
             let out = std::io::stdout();
             let mut out = out.lock();
-            stdout_reader
-                .lines()
-                .map_while(Result::ok)
-                .for_each(|line| {
-                    let (colored, had_match) = colorizer.colorize_with_match_info(&line);
-                    if let Some(ref stats) = stats_arc {
-                        if let Ok(mut s) = stats.lock() {
-                            s.process_line(&line, had_match);
-                        }
+            for line in stdout_reader.lines().map_while(Result::ok) {
+                let (colored, had_match) = colorizer.colorize_with_match_info(&line);
+                if let Some(ref stats) = stats_arc {
+                    if let Ok(mut s) = stats.lock() {
+                        s.process_line(&line, had_match);
                     }
-                    // Send line for alert processing
-                    if let Some(ref tx) = alert_tx {
-                        let _ = tx.send(line);
-                    }
-                    let _ = writeln!(out, "{colored}");
-                });
+                }
+                // Send line for alert processing
+                if let Some(ref tx) = alert_tx {
+                    let _ = tx.send(line);
+                }
+                let _ = writeln!(out, "{colored}");
+            }
         }
     });
 
@@ -99,22 +111,19 @@ pub fn run_command(
         move || {
             let err = std::io::stderr();
             let mut err = err.lock();
-            stderr_reader
-                .lines()
-                .map_while(Result::ok)
-                .for_each(|line| {
-                    let (colored, had_match) = colorizer.colorize_with_match_info(&line);
-                    if let Some(ref stats) = stats_arc {
-                        if let Ok(mut s) = stats.lock() {
-                            s.process_line(&line, had_match);
-                        }
+            for line in stderr_reader.lines().map_while(Result::ok) {
+                let (colored, had_match) = colorizer.colorize_with_match_info(&line);
+                if let Some(ref stats) = stats_arc {
+                    if let Ok(mut s) = stats.lock() {
+                        s.process_line(&line, had_match);
                     }
-                    // Send line for alert processing
-                    if let Some(ref tx) = alert_tx {
-                        let _ = tx.send(line);
-                    }
-                    let _ = writeln!(err, "{colored}");
-                });
+                }
+                // Send line for alert processing
+                if let Some(ref tx) = alert_tx {
+                    let _ = tx.send(line);
+                }
+                let _ = writeln!(err, "{colored}");
+            }
         }
     });
 
@@ -135,16 +144,20 @@ pub fn run_command(
         }
     }
 
-    stdout_handle.join().ok();
-    stderr_handle.join().ok();
+    // Log thread panics (should not happen in normal operation)
+    if let Err(e) = stdout_handle.join() {
+        eprintln!("phos: warning: stdout handler panicked: {e:?}");
+    }
+    if let Err(e) = stderr_handle.join() {
+        eprintln!("phos: warning: stderr handler panicked: {e:?}");
+    }
 
     // Merge thread-collected stats back into the caller's collector
     if let (Some(stats), Some(stats_arc)) = (stats, stats_arc) {
-        if let Ok(thread_stats) = Arc::try_unwrap(stats_arc) {
-            if let Ok(thread_stats) = thread_stats.into_inner() {
-                stats.stats_mut().merge(thread_stats.stats());
-            }
-        }
+        let _ = Arc::try_unwrap(stats_arc)
+            .ok()
+            .and_then(|mutex| mutex.into_inner().ok())
+            .map(|thread_stats| stats.stats_mut().merge(thread_stats.stats()));
     }
 
     child.wait()?;
@@ -155,34 +168,60 @@ pub fn run_command(
 // PTY-based Execution (Unix only)
 // ============================================================================
 
-/// Process a line for stats collection and alert checking.
-///
-/// This consolidates the common pattern of updating stats and checking alerts
-/// that appears throughout the PTY I/O handling code.
+/// Process stats and alerts for a completed line.
 #[cfg(unix)]
 #[inline]
-fn process_line_for_stats_and_alerts(
+fn process_line_stats(
     line: &str,
     stats: &mut Option<&mut StatsCollector>,
-    alert_manager: &mut Option<&mut AlertManager>,
+    alerts: &mut Option<&mut AlertManager>,
     had_match: bool,
 ) {
-    if let Some(ref mut s) = stats {
+    if let Some(s) = stats.as_mut() {
         s.process_line(line, had_match);
     }
-    if let Some(ref mut a) = alert_manager {
-        let (err_count, peer_count, slot) = stats
-            .as_ref()
-            .map(|s| (s.error_count(), s.peer_count(), s.slot()))
-            .unwrap_or((0, None, None));
-        a.check_line(line, err_count, peer_count, slot);
+    if let Some(a) = alerts.as_mut() {
+        let (err, peer, slot) = stats.as_ref().map_or((0, None, None), |s| {
+            (s.error_count(), s.peer_count(), s.slot())
+        });
+        a.check_line(line, err, peer, slot);
     }
 }
 
-/// Flush any remaining content in the line buffer to stdout.
-///
-/// Handles both raw and colorize modes, skipping whitespace-only content
-/// (common from progress bars). Uses CRLF since raw mode doesn't translate.
+/// Process PTY bytes into lines, handling CR/LF and outputting colorized content.
+#[cfg(unix)]
+fn process_pty_bytes(
+    buf: &[u8],
+    line_buffer: &mut String,
+    colorizer: &mut Colorizer,
+    stdout: &mut std::io::Stdout,
+    stats: &mut Option<&mut StatsCollector>,
+    alerts: &mut Option<&mut AlertManager>,
+    raw: bool,
+) -> std::io::Result<()> {
+    if raw {
+        stdout.write_all(buf)?;
+    }
+
+    for (i, &byte) in buf.iter().enumerate() {
+        match byte {
+            b'\n' => {
+                let stripped = phos::strip_ansi(line_buffer);
+                if !raw {
+                    writeln!(stdout, "{}", colorizer.colorize(&stripped))?;
+                }
+                process_line_stats(&stripped, stats, alerts, !stripped.is_empty());
+                line_buffer.clear();
+            }
+            b'\r' if buf.get(i + 1) != Some(&b'\n') => line_buffer.clear(),
+            b'\r' => {}
+            _ => line_buffer.push(byte as char),
+        }
+    }
+    stdout.flush()
+}
+
+/// Flush remaining line buffer content.
 #[cfg(unix)]
 fn flush_line_buffer(
     line_buffer: &str,
@@ -194,10 +233,9 @@ fn flush_line_buffer(
     if !trimmed.is_empty() {
         let stripped = phos::strip_ansi(trimmed);
         if raw {
-            write!(stdout, "{}\r\n", trimmed)?;
+            writeln!(stdout, "{}", stripped)?;
         } else {
-            let colored = colorizer.colorize(&stripped);
-            write!(stdout, "{}\r\n", colored)?;
+            writeln!(stdout, "{}", colorizer.colorize(&stripped))?;
         }
     }
     stdout.flush()
@@ -208,34 +246,31 @@ mod pty_helpers {
     use super::*;
 
     /// Convert a `WaitStatus` to a process exit code.
-    ///
-    /// - `Exited`: returns the exit code directly
-    /// - `Signaled`: returns 128 + signal number (Unix convention)
-    /// - Other states: returns `None`
     pub fn wait_status_to_exit_code(status: WaitStatus) -> Option<i32> {
         match status {
             WaitStatus::Exited(_, code) => Some(code),
-            WaitStatus::Signaled(_, sig, _) => {
-                // Use saturating_add to prevent overflow (signals are typically 1-64)
-                Some(128i32.saturating_add(sig as i32))
-            }
+            WaitStatus::Signaled(_, sig, _) => Some(128i32.saturating_add(sig as i32)),
             _ => None,
         }
     }
 
-    /// Check if a child process has terminated without blocking.
-    ///
-    /// Uses `WNOHANG` to poll the child status. Automatically retries on `EINTR`.
-    ///
-    /// Returns:
-    /// - `Ok(None)` if child is still running
-    /// - `Ok(Some(code))` if child has exited
-    /// - `Err` on system error
+    /// Check if child has terminated (non-blocking, retries on EINTR).
     pub fn check_child_status(child: Pid) -> Result<Option<i32>> {
         loop {
             match waitpid(child, Some(WaitPidFlag::WNOHANG)) {
                 Ok(WaitStatus::StillAlive) => return Ok(None),
-                Ok(other) => return Ok(wait_status_to_exit_code(other)),
+                Ok(status) => return Ok(wait_status_to_exit_code(status)),
+                Err(nix::Error::EINTR) => continue,
+                Err(e) => return Err(e.into()),
+            }
+        }
+    }
+
+    /// Wait for child to fully exit (blocking, retries on EINTR).
+    pub fn wait_child(child: Pid) -> Result<WaitStatus> {
+        loop {
+            match waitpid(child, None) {
+                Ok(status) => return Ok(status),
                 Err(nix::Error::EINTR) => continue,
                 Err(e) => return Err(e.into()),
             }
@@ -335,193 +370,101 @@ fn run_pty_io_loop(
     mut pty: phos::pty::PtyMaster,
     child: Pid,
     stats: &mut Option<&mut StatsCollector>,
-    alert_manager: &mut Option<&mut AlertManager>,
+    alerts: &mut Option<&mut AlertManager>,
     raw: bool,
 ) -> Result<i32> {
-    use pty_helpers::{check_child_status, wait_status_to_exit_code};
+    use is_terminal::IsTerminal;
+    use pty_helpers::{check_child_status, wait_child, wait_status_to_exit_code};
 
-    let _raw_guard = RawModeGuard::new()?;
+    let stdin_is_tty = std::io::stdin().is_terminal();
+    let _raw_guard = stdin_is_tty.then(RawModeGuard::new).transpose()?;
 
     let stdin_fd = std::io::stdin().as_raw_fd();
     let pty_fd = pty.as_raw_fd();
     let mut stdout = std::io::stdout();
-    let mut read_buf = [0u8; 4096];
+    let mut buf = [0u8; 4096];
     let mut line_buffer = String::new();
 
     loop {
-        // Check if child has terminated
-        if let Some(exit_code) = check_child_status(child)? {
-            drain_pty_output(
+        // Child terminated - drain remaining output and return
+        if let Some(code) = check_child_status(child)? {
+            drain_pty_to_stdout(
                 &mut pty,
+                &mut line_buffer,
                 colorizer,
                 &mut stdout,
-                &mut line_buffer,
                 stats,
-                alert_manager,
+                alerts,
                 raw,
             )?;
-            return Ok(exit_code);
+            return Ok(code);
         }
 
-        // Forward stdin to PTY (retry on EINTR)
-        if poll_read(stdin_fd, 0)? {
-            let n = loop {
-                match std::io::stdin().read(&mut read_buf) {
-                    Ok(n) => break n,
-                    Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
-                    Err(e) => return Err(e.into()),
-                }
-            };
+        // Forward stdin to PTY if available
+        if stdin_is_tty && poll_read(stdin_fd, 0)? {
+            let n = retry_eintr(|| std::io::stdin().read(&mut buf))?;
             if n > 0 {
-                pty.write_all(&read_buf[..n])?;
+                pty.write_all(&buf[..n])?;
             }
         }
 
-        // Read and process PTY output (retry on EINTR)
+        // Process PTY output
         if poll_read(pty_fd, 10)? {
-            let n = match pty.read(&mut read_buf) {
+            match pty.read(&mut buf) {
                 Ok(0) => break,
-                Ok(n) => n,
+                Ok(n) => process_pty_bytes(
+                    &buf[..n],
+                    &mut line_buffer,
+                    colorizer,
+                    &mut stdout,
+                    stats,
+                    alerts,
+                    raw,
+                )?,
                 Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
                 Err(e) if e.raw_os_error() == Some(libc::EIO) => break,
                 Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
                 Err(e) => return Err(e.into()),
-            };
-
-            if raw {
-                // Raw mode: pass through without colorization
-                stdout.write_all(&read_buf[..n])?;
-                stdout.flush()?;
-
-                // Track lines for stats/alerts (strip ANSI for accurate matching)
-                for &byte in &read_buf[..n] {
-                    if byte == b'\n' {
-                        let stripped = phos::strip_ansi(&line_buffer);
-                        process_line_for_stats_and_alerts(
-                            &stripped,
-                            stats,
-                            alert_manager,
-                            !stripped.is_empty(),
-                        );
-                        line_buffer.clear();
-                    } else if byte != b'\r' {
-                        line_buffer.push(byte as char);
-                    }
-                }
-            } else {
-                // Colorize mode: strip ANSI, colorize, output
-                // Note: we use \r\n because raw mode doesn't translate \n to CRLF
-                for (i, &byte) in read_buf[..n].iter().enumerate() {
-                    match byte {
-                        b'\n' => {
-                            let stripped = phos::strip_ansi(&line_buffer);
-                            let colored = colorizer.colorize(&stripped);
-                            let _ = write!(stdout, "{}\r\n", colored);
-                            process_line_for_stats_and_alerts(
-                                &stripped,
-                                stats,
-                                alert_manager,
-                                !stripped.is_empty(),
-                            );
-                            line_buffer.clear();
-                        }
-                        b'\r' => {
-                            // Check if next byte is \n (CRLF)
-                            let is_crlf = read_buf.get(i + 1) == Some(&b'\n');
-                            if !is_crlf {
-                                // Bare \r: clear line buffer (progress bar update)
-                                line_buffer.clear();
-                            }
-                        }
-                        _ => line_buffer.push(byte as char),
-                    }
-                }
             }
         }
 
-        // Check for PTY hangup
         if poll_hup(pty_fd, 0)? {
             break;
         }
     }
 
     flush_line_buffer(&line_buffer, colorizer, &mut stdout, raw)?;
-
-    // Wait for child to fully exit (handles EINTR)
-    loop {
-        match waitpid(child, None) {
-            Ok(status) => return Ok(wait_status_to_exit_code(status).unwrap_or(0)),
-            Err(nix::Error::EINTR) => continue,
-            Err(e) => return Err(e.into()),
-        }
-    }
+    wait_child(child).map(|s| wait_status_to_exit_code(s).unwrap_or(0))
 }
 
-/// Drain remaining output from PTY after child exits.
+/// Drain remaining PTY output after child exits.
 #[cfg(unix)]
-fn drain_pty_output(
+fn drain_pty_to_stdout(
     pty: &mut phos::pty::PtyMaster,
+    line_buffer: &mut String,
     colorizer: &mut Colorizer,
     stdout: &mut std::io::Stdout,
-    line_buffer: &mut String,
     stats: &mut Option<&mut StatsCollector>,
-    alert_manager: &mut Option<&mut AlertManager>,
+    alerts: &mut Option<&mut AlertManager>,
     raw: bool,
 ) -> Result<()> {
-    let mut read_buf = [0u8; 4096];
+    let mut buf = [0u8; 4096];
     let pty_fd = pty.as_raw_fd();
 
-    while poll_read(pty_fd, 10)? {
-        let n = match pty.read(&mut read_buf) {
+    while poll_read(pty_fd, 100)? {
+        match pty.read(&mut buf) {
             Ok(0) | Err(_) => break,
-            Ok(n) => n,
-        };
-
-        if raw {
-            // Raw mode: pass through
-            stdout.write_all(&read_buf[..n])?;
-
-            for &byte in &read_buf[..n] {
-                if byte == b'\n' {
-                    let stripped = phos::strip_ansi(line_buffer);
-                    process_line_for_stats_and_alerts(
-                        &stripped,
-                        stats,
-                        alert_manager,
-                        !stripped.is_empty(),
-                    );
-                    line_buffer.clear();
-                } else if byte != b'\r' {
-                    line_buffer.push(byte as char);
-                }
-            }
-        } else {
-            // Colorize mode with CRLF normalization
-            // Note: we use \r\n because raw mode doesn't translate \n to CRLF
-            for (i, &byte) in read_buf[..n].iter().enumerate() {
-                match byte {
-                    b'\n' => {
-                        let stripped = phos::strip_ansi(line_buffer);
-                        let colored = colorizer.colorize(&stripped);
-                        let _ = write!(stdout, "{}\r\n", colored);
-                        process_line_for_stats_and_alerts(&stripped, stats, alert_manager, true);
-                        line_buffer.clear();
-                    }
-                    b'\r' => {
-                        // Check if next byte is \n (CRLF)
-                        let is_crlf = read_buf.get(i + 1) == Some(&b'\n');
-                        if !is_crlf {
-                            // Bare \r: clear line buffer (progress bar update)
-                            line_buffer.clear();
-                        }
-                    }
-                    _ => line_buffer.push(byte as char),
-                }
-            }
+            Ok(n) => process_pty_bytes(
+                &buf[..n],
+                line_buffer,
+                colorizer,
+                stdout,
+                stats,
+                alerts,
+                raw,
+            )?,
         }
     }
-
     flush_line_buffer(line_buffer, colorizer, stdout, raw)?;
-
     Ok(())
 }

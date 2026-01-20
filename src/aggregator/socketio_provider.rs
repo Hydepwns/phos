@@ -17,6 +17,7 @@ use tokio::sync::{mpsc, oneshot, Mutex};
 use tokio::time::interval;
 
 use super::{
+    discovery::matches_glob,
     provider::{ContainerProvider, LogLine, LogStream, ProviderError},
     ContainerInfo,
 };
@@ -171,47 +172,6 @@ impl SocketIOProvider {
 
         Ok(result)
     }
-
-    /// Check if a container name matches a glob-like pattern.
-    fn matches_pattern(name: &str, pattern: &str) -> bool {
-        if pattern.is_empty() {
-            return true;
-        }
-
-        if let Some(suffix) = pattern.strip_prefix('*') {
-            name.ends_with(suffix)
-        } else if let Some(prefix) = pattern.strip_suffix('*') {
-            name.starts_with(prefix)
-        } else {
-            name.contains(pattern)
-        }
-    }
-
-    /// Detect phos program from container name or image.
-    fn detect_program(
-        registry: &crate::ProgramRegistry,
-        name: &str,
-        image: &str,
-    ) -> Option<String> {
-        if let Some(program) = registry.detect(name) {
-            return Some(program.info().id.to_string());
-        }
-
-        if let Some(program) = registry.detect(image) {
-            return Some(program.info().id.to_string());
-        }
-
-        let base_name = name
-            .split('.')
-            .next()
-            .unwrap_or(name)
-            .replace("-beacon", "")
-            .replace("-validator", "")
-            .replace("-bn", "")
-            .replace("-vc", "");
-
-        registry.detect(&base_name).map(|p| p.info().id.to_string())
-    }
 }
 
 #[async_trait]
@@ -221,10 +181,10 @@ impl ContainerProvider for SocketIOProvider {
         let result = self.call("packagesGet", vec![]).await?;
 
         let packages: Vec<DappnodePackage> = serde_json::from_value(result)
-            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {}", e)))?;
+            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {e}")))?;
 
         let registry = programs::default_registry();
-        let filter = self.filter_pattern.as_deref();
+        let pattern = self.filter_pattern.as_deref().unwrap_or("");
 
         // Flatten packages into containers using functional iterators
         let containers = packages
@@ -237,36 +197,30 @@ impl ContainerProvider for SocketIOProvider {
                             .into_iter()
                             .filter_map(|c| {
                                 let name = c.container_name.unwrap_or_default();
-                                filter
-                                    .map(|p| Self::matches_pattern(&name, p))
-                                    .unwrap_or(true)
-                                    .then(|| {
-                                        let image = c.image.unwrap_or_default();
-                                        ContainerInfo {
-                                            id: c.container_id.unwrap_or_else(|| name.clone()),
-                                            program: Self::detect_program(&registry, &name, &image),
-                                            name,
-                                            image,
-                                            status: c
-                                                .state
-                                                .unwrap_or_else(|| "unknown".to_string()),
-                                        }
-                                    })
+                                matches_glob(&name, pattern).then(|| {
+                                    ContainerInfo::new(
+                                        &registry,
+                                        c.container_id.unwrap_or_else(|| name.clone()),
+                                        name,
+                                        c.image.unwrap_or_default(),
+                                        c.state.unwrap_or_else(|| "unknown".to_string()),
+                                    )
+                                })
                             })
                             .collect::<Vec<_>>()
                     })
                     .unwrap_or_else(|| {
                         // Single-container package
                         let name = pkg.dnp_name.unwrap_or_default();
-                        filter
-                            .map(|p| Self::matches_pattern(&name, p))
-                            .unwrap_or(true)
-                            .then(|| ContainerInfo {
-                                id: name.clone(),
-                                program: Self::detect_program(&registry, &name, ""),
-                                name,
-                                image: String::new(),
-                                status: pkg.state.unwrap_or_else(|| "unknown".to_string()),
+                        matches_glob(&name, pattern)
+                            .then(|| {
+                                ContainerInfo::new(
+                                    &registry,
+                                    name.clone(),
+                                    name,
+                                    "",
+                                    pkg.state.unwrap_or_else(|| "unknown".to_string()),
+                                )
                             })
                             .into_iter()
                             .collect()

@@ -377,26 +377,7 @@ fn main() -> Result<()> {
         stats = Some(StatsCollector::new());
     }
 
-    if is_pipe {
-        // Read from stdin
-        match (&mut stats, &mut alert_manager, stats_interval > 0) {
-            (Some(stats), Some(alerts), true) => {
-                colorizer.process_stdio_with_alerts_interval(stats, alerts, stats_interval)?;
-            }
-            (Some(stats), Some(alerts), false) => {
-                colorizer.process_stdio_with_alerts(stats, alerts)?;
-            }
-            (Some(stats), None, true) => {
-                colorizer.process_stdio_with_stats_interval(stats, stats_interval)?;
-            }
-            (Some(stats), None, false) => {
-                colorizer.process_stdio_with_stats(stats)?;
-            }
-            _ => {
-                colorizer.process_stdio()?;
-            }
-        }
-    } else if !cli.args.is_empty() {
+    if !cli.args.is_empty() {
         // Run the command - choose PTY or pipe mode
         #[cfg(unix)]
         {
@@ -434,6 +415,25 @@ fn main() -> Result<()> {
             stats.as_mut(),
             alert_manager.as_mut(),
         )?;
+    } else if is_pipe {
+        // Read from stdin
+        match (&mut stats, &mut alert_manager, stats_interval > 0) {
+            (Some(stats), Some(alerts), true) => {
+                colorizer.process_stdio_with_alerts_interval(stats, alerts, stats_interval)?;
+            }
+            (Some(stats), Some(alerts), false) => {
+                colorizer.process_stdio_with_alerts(stats, alerts)?;
+            }
+            (Some(stats), None, true) => {
+                colorizer.process_stdio_with_stats_interval(stats, stats_interval)?;
+            }
+            (Some(stats), None, false) => {
+                colorizer.process_stdio_with_stats(stats)?;
+            }
+            _ => {
+                colorizer.process_stdio()?;
+            }
+        }
     } else {
         // No input - show help
         eprintln!("Usage: phos -p <program> -- <command>");

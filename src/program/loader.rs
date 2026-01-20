@@ -1,7 +1,5 @@
 //! Configuration directory discovery and loading.
 
-#![allow(clippy::format_push_string)]
-
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -22,37 +20,29 @@ impl LoadResult {
     /// Format the error with file context.
     #[must_use]
     pub fn format(&self) -> String {
-        let path_str = self.path.display().to_string();
+        let path = self.path.display();
         match &self.error {
             ConfigError::YamlError(e) => {
-                let mut msg = format!("{path_str}: YAML parse error");
-                if let Some(loc) = e.location() {
-                    msg.push_str(&format!(" at line {}", loc.line()));
-                }
-                msg.push_str(&format!(": {e}"));
-                msg
+                let location = e
+                    .location()
+                    .map_or(String::new(), |loc| format!(" at line {}", loc.line()));
+                format!("{path}: YAML parse error{location}: {e}")
             }
             ConfigError::JsonError(e) => {
                 format!(
-                    "{path_str}: JSON parse error at line {}, column {}: {e}",
+                    "{path}: JSON parse error at line {}, column {}: {e}",
                     e.line(),
                     e.column()
                 )
             }
             ConfigError::RegexError(e) => {
-                format!(
-                    "{path_str}: invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, )"
-                )
+                format!("{path}: invalid regex pattern: {e}\n  Hint: Check for unescaped special characters like \\, [, ], (, )")
             }
-            ConfigError::ReadError(e) => {
-                format!("{path_str}: failed to read file: {e}")
-            }
+            ConfigError::ReadError(e) => format!("{path}: failed to read file: {e}"),
             ConfigError::UnknownFormat(ext) => {
-                format!(
-                    "{path_str}: unknown file format '.{ext}'\n  Hint: Use .yaml, .yml, or .json"
-                )
+                format!("{path}: unknown file format '.{ext}'\n  Hint: Use .yaml, .yml, or .json")
             }
-            _ => format!("{path_str}: {}", self.error),
+            _ => format!("{path}: {}", self.error),
         }
     }
 }
@@ -191,17 +181,13 @@ mod tests {
 
     #[test]
     fn test_config_dir() {
-        let dir = config_dir();
-        assert!(dir.is_some());
-        let dir = dir.unwrap();
+        let dir = config_dir().expect("config_dir should return Some on supported platforms");
         assert!(dir.to_string_lossy().contains("phos"));
     }
 
     #[test]
     fn test_programs_dir() {
-        let dir = programs_dir();
-        assert!(dir.is_some());
-        let dir = dir.unwrap();
+        let dir = programs_dir().expect("programs_dir should return Some on supported platforms");
         assert!(dir.to_string_lossy().contains("programs"));
     }
 }

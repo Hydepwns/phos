@@ -2,8 +2,6 @@
 //!
 //! Generates shell scripts that wrap supported commands with phos.
 
-#![allow(clippy::format_push_string)]
-
 use crate::ProgramRegistry;
 
 /// Programs suitable for shell aliasing (direct command wrappers).
@@ -72,10 +70,7 @@ pub fn generate_script(shell: ShellType, registry: &ProgramRegistry) -> String {
     }
 }
 
-/// Generate bash shell integration script.
-fn generate_bash(registry: &ProgramRegistry) -> String {
-    let mut script = String::from(
-        r#"# phos shell integration for bash
+const BASH_PREAMBLE: &str = r#"# phos shell integration for bash
 # Add to ~/.bashrc: eval "$(phos shell-init bash)"
 #
 # Note: phos automatically uses PTY mode for interactive commands
@@ -98,30 +93,28 @@ __phos_wrap() {
 # Short alias for phos
 alias p='phos'
 
-"#,
-    );
+"#;
 
-    // Generate aliases for each program
-    ALIASABLE_PROGRAMS
+/// Generate bash shell integration script.
+fn generate_bash(registry: &ProgramRegistry) -> String {
+    let aliases: String = ALIASABLE_PROGRAMS
         .iter()
         .filter(|(program, _)| registry.get(program).is_some())
         .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
-        .for_each(|(program, cmd)| {
-            script.push_str(&format!(
+        .map(|(program, cmd)| {
+            format!(
                 r"if command -v {cmd} &>/dev/null && ! alias {cmd} &>/dev/null 2>&1; then
     alias {cmd}='__phos_wrap {program}'
 fi
 "
-            ));
-        });
+            )
+        })
+        .collect();
 
-    script
+    format!("{BASH_PREAMBLE}{aliases}")
 }
 
-/// Generate zsh shell integration script.
-fn generate_zsh(registry: &ProgramRegistry) -> String {
-    let mut script = String::from(
-        r#"# phos shell integration for zsh
+const ZSH_PREAMBLE: &str = r#"# phos shell integration for zsh
 # Add to ~/.zshrc: eval "$(phos shell-init zsh)"
 #
 # Note: phos automatically uses PTY mode for interactive commands
@@ -137,30 +130,28 @@ fn generate_zsh(registry: &ProgramRegistry) -> String {
 # Short alias for phos
 alias p='phos'
 
-"#,
-    );
+"#;
 
-    // Generate functions for each program (zsh functions preserve completions better)
-    ALIASABLE_PROGRAMS
+/// Generate zsh shell integration script.
+fn generate_zsh(registry: &ProgramRegistry) -> String {
+    let functions: String = ALIASABLE_PROGRAMS
         .iter()
         .filter(|(program, _)| registry.get(program).is_some())
         .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
-        .for_each(|(program, cmd)| {
-            script.push_str(&format!(
+        .map(|(program, cmd)| {
+            format!(
                 r#"if (( $+commands[{cmd}] )) && ! (( $+functions[{cmd}] )) && ! (( $+aliases[{cmd}] )); then
     {cmd}() {{ phos -p {program} -- $commands[{cmd}] "$@" }}
 fi
 "#
-            ));
-        });
+            )
+        })
+        .collect();
 
-    script
+    format!("{ZSH_PREAMBLE}{functions}")
 }
 
-/// Generate fish shell integration script.
-fn generate_fish(registry: &ProgramRegistry) -> String {
-    let mut script = String::from(
-        r"# phos shell integration for fish
+const FISH_PREAMBLE: &str = r"# phos shell integration for fish
 # Add to ~/.config/fish/config.fish: phos shell-init fish | source
 #
 # Note: phos automatically uses PTY mode for interactive commands
@@ -176,26 +167,27 @@ set -q PHOS_NO_ALIASES; and return
 # Short alias for phos
 alias p='phos'
 
-",
-    );
+";
 
-    // Generate functions for each program
-    ALIASABLE_PROGRAMS
+/// Generate fish shell integration script.
+fn generate_fish(registry: &ProgramRegistry) -> String {
+    let functions: String = ALIASABLE_PROGRAMS
         .iter()
         .filter(|(program, _)| registry.get(program).is_some())
         .flat_map(|(program, commands)| commands.iter().map(move |cmd| (program, cmd)))
-        .for_each(|(program, cmd)| {
-            script.push_str(&format!(
+        .map(|(program, cmd)| {
+            format!(
                 r"if type -q {cmd}; and not functions -q {cmd}
     function {cmd} --wraps={cmd} --description 'phos-wrapped {cmd}'
         phos -p {program} -- (command -v {cmd}) $argv
     end
 end
 "
-            ));
-        });
+            )
+        })
+        .collect();
 
-    script
+    format!("{FISH_PREAMBLE}{functions}")
 }
 
 /// List all programs that would be aliased.

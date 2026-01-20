@@ -770,6 +770,57 @@ mod command_mode {
         assert!(success);
         assert!(stdout.contains("error"));
     }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_pty_mode_provides_tty_to_child() {
+        // Run a command that checks if it has a TTY
+        // `test -t 0` returns 0 if stdin is a terminal
+        let output = phos_bin()
+            .args([
+                "--pty",
+                "-p",
+                "git",
+                "--",
+                "sh",
+                "-c",
+                "test -t 0 && echo TTY || echo NOTTY",
+            ])
+            .output()
+            .expect("Failed to execute phos");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("TTY"),
+            "Child process should see a TTY with --pty flag, got: {}",
+            stdout
+        );
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_no_pty_flag_forces_pipe_mode() {
+        // With --no-pty, child should not see a TTY
+        let output = phos_bin()
+            .args([
+                "--no-pty",
+                "-p",
+                "git",
+                "--",
+                "sh",
+                "-c",
+                "test -t 0 && echo TTY || echo NOTTY",
+            ])
+            .output()
+            .expect("Failed to execute phos");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(
+            stdout.contains("NOTTY"),
+            "Child process should NOT see a TTY with --no-pty flag, got: {}",
+            stdout
+        );
+    }
 }
 
 // =============================================================================

@@ -14,6 +14,7 @@ use tokio::time::interval;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
 use super::{
+    discovery::matches_glob,
     provider::{ContainerProvider, LogLine, LogStream, ProviderError},
     ContainerInfo,
 };
@@ -254,52 +255,13 @@ impl DappnodeProvider {
                     }
                 }
                 Message::Ping(data) => {
-                    conn.sender.send(Message::Pong(data)).await.ok();
+                    if let Err(e) = conn.sender.send(Message::Pong(data)).await {
+                        eprintln!("phos: warning: failed to send WebSocket pong: {e}");
+                    }
                 }
                 _ => {}
             }
         }
-    }
-
-    /// Check if a container name matches a glob-like pattern.
-    fn matches_pattern(name: &str, pattern: &str) -> bool {
-        if pattern.is_empty() {
-            return true;
-        }
-
-        if let Some(suffix) = pattern.strip_prefix('*') {
-            name.ends_with(suffix)
-        } else if let Some(prefix) = pattern.strip_suffix('*') {
-            name.starts_with(prefix)
-        } else {
-            name.contains(pattern)
-        }
-    }
-
-    /// Detect phos program from container name or image.
-    fn detect_program(
-        registry: &crate::ProgramRegistry,
-        name: &str,
-        image: &str,
-    ) -> Option<String> {
-        if let Some(program) = registry.detect(name) {
-            return Some(program.info().id.to_string());
-        }
-
-        if let Some(program) = registry.detect(image) {
-            return Some(program.info().id.to_string());
-        }
-
-        let base_name = name
-            .split('.')
-            .next()
-            .unwrap_or(name)
-            .replace("-beacon", "")
-            .replace("-validator", "")
-            .replace("-bn", "")
-            .replace("-vc", "");
-
-        registry.detect(&base_name).map(|p| p.info().id.to_string())
     }
 }
 
@@ -310,60 +272,57 @@ impl ContainerProvider for DappnodeProvider {
         let result = self.call("listPackages", vec![]).await?;
 
         let packages: Vec<DappnodePackage> = serde_json::from_value(result)
-            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {}", e)))?;
+            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {e}")))?;
 
         let registry = programs::default_registry();
-        let mut containers = Vec::new();
+        let pattern = self.filter_pattern.as_deref().unwrap_or("");
 
-        for pkg in packages {
-            // Handle packages with multiple containers
-            if let Some(pkg_containers) = pkg.containers {
-                for c in pkg_containers {
-                    let name = c.container_name.unwrap_or_default();
+        // Flatten packages into containers using functional iterators
+        let containers = packages
+            .into_iter()
+            .flat_map(|pkg| {
+                pkg.containers
+                    .map(|pkg_containers| {
+                        // Multi-container package
+                        pkg_containers
+                            .into_iter()
+                            .filter_map(|c| {
+                                let name = c.container_name.unwrap_or_default();
+                                matches_glob(&name, pattern).then(|| {
+                                    ContainerInfo::new(
+                                        &registry,
+                                        c.container_id.unwrap_or_else(|| name.clone()),
+                                        name,
+                                        c.image.unwrap_or_default(),
+                                        c.state.unwrap_or_else(|| "unknown".to_string()),
+                                    )
+                                })
+                            })
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_else(|| {
+                        // Single-container package
+                        let name = pkg
+                            .container_name
+                            .or(pkg.dnp_name.clone())
+                            .or(pkg.name.clone())
+                            .unwrap_or_default();
 
-                    if let Some(ref pattern) = self.filter_pattern {
-                        if !Self::matches_pattern(&name, pattern) {
-                            continue;
-                        }
-                    }
-
-                    let image = c.image.unwrap_or_default();
-                    let program = Self::detect_program(&registry, &name, &image);
-
-                    containers.push(ContainerInfo {
-                        id: c.container_id.unwrap_or_else(|| name.clone()),
-                        name,
-                        image,
-                        status: c.state.unwrap_or_else(|| "unknown".to_string()),
-                        program,
-                    });
-                }
-            } else {
-                // Single-container package
-                let name = pkg
-                    .container_name
-                    .or(pkg.dnp_name.clone())
-                    .or(pkg.name.clone())
-                    .unwrap_or_default();
-
-                if let Some(ref pattern) = self.filter_pattern {
-                    if !Self::matches_pattern(&name, pattern) {
-                        continue;
-                    }
-                }
-
-                let image = pkg.image.unwrap_or_default();
-                let program = Self::detect_program(&registry, &name, &image);
-
-                containers.push(ContainerInfo {
-                    id: pkg.container_id.unwrap_or_else(|| name.clone()),
-                    name,
-                    image,
-                    status: pkg.state.unwrap_or_else(|| "unknown".to_string()),
-                    program,
-                });
-            }
-        }
+                        matches_glob(&name, pattern)
+                            .then(|| {
+                                ContainerInfo::new(
+                                    &registry,
+                                    pkg.container_id.unwrap_or_else(|| name.clone()),
+                                    name,
+                                    pkg.image.unwrap_or_default(),
+                                    pkg.state.unwrap_or_else(|| "unknown".to_string()),
+                                )
+                            })
+                            .into_iter()
+                            .collect()
+                    })
+            })
+            .collect();
 
         Ok(containers)
     }

@@ -62,7 +62,8 @@ async fn main() -> Result<()> {
                 HttpProvider::with_url(url)
             } else {
                 HttpProvider::new()
-            };
+            }
+            .expect("Failed to create HTTP provider");
 
             if let Some(ref f) = filter {
                 provider = provider.with_filter(f);

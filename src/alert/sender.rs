@@ -29,6 +29,17 @@ pub struct WebhookSender {
     timeout: Duration,
 }
 
+/// Build an HTTP client with the given timeout, logging errors.
+fn build_client(timeout: Duration) -> Client {
+    Client::builder()
+        .timeout(timeout)
+        .build()
+        .unwrap_or_else(|e| {
+            eprintln!("phos: warning: failed to build HTTP client: {e}, using default");
+            Client::new()
+        })
+}
+
 impl WebhookSender {
     /// Create a new webhook sender.
     pub fn new(
@@ -36,17 +47,13 @@ impl WebhookSender {
         service: WebhookService,
         formatter: Arc<dyn WebhookFormatter>,
     ) -> Self {
-        let client = Client::builder()
-            .timeout(Duration::from_secs(5))
-            .build()
-            .unwrap_or_default();
-
+        let timeout = Duration::from_secs(5);
         Self {
-            client,
+            client: build_client(timeout),
             url: url.into(),
             service,
             formatter,
-            timeout: Duration::from_secs(5),
+            timeout,
         }
     }
 
@@ -54,10 +61,7 @@ impl WebhookSender {
     #[must_use]
     pub fn with_timeout(mut self, timeout: Duration) -> Self {
         self.timeout = timeout;
-        self.client = Client::builder()
-            .timeout(timeout)
-            .build()
-            .unwrap_or_default();
+        self.client = build_client(timeout);
         self
     }
 
@@ -133,10 +137,7 @@ async fn process_alerts(
     service: WebhookService,
     formatter: Arc<dyn WebhookFormatter>,
 ) {
-    let client = Client::builder()
-        .timeout(Duration::from_secs(5))
-        .build()
-        .unwrap_or_default();
+    let client = build_client(Duration::from_secs(5));
 
     while let Some(msg) = rx.recv().await {
         let body = formatter.format(&msg.payload, &service);

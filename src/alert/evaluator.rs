@@ -94,9 +94,11 @@ impl ConditionEvaluator {
 
         if self.error_pattern.is_match(line) {
             self.error_fired = true;
-            let payload =
-                AlertPayload::new("Error Detected", line).with_severity(AlertSeverity::Error);
-            Some(add_program(payload, program))
+            Some(
+                AlertPayload::new("Error Detected", line)
+                    .with_severity(AlertSeverity::Error)
+                    .with_optional_program(program),
+            )
         } else {
             None
         }
@@ -111,11 +113,12 @@ impl ConditionEvaluator {
     ) -> Option<AlertPayload> {
         // Fire when error count first reaches threshold
         if error_count == threshold && self.error_pattern.is_match(line) {
-            let payload =
+            Some(
                 AlertPayload::new(format!("Error Threshold Reached: {threshold} errors"), line)
                     .with_severity(AlertSeverity::Error)
-                    .with_field("error_count", error_count.to_string());
-            Some(add_program(payload, program))
+                    .with_field("error_count", error_count.to_string())
+                    .with_optional_program(program),
+            )
         } else {
             None
         }
@@ -128,23 +131,17 @@ impl ConditionEvaluator {
         threshold: usize,
         program: Option<&str>,
     ) -> Option<AlertPayload> {
-        let current = peer_count?;
-
-        // Fire when peers drop below threshold
-        if current < threshold {
-            if let Some(last) = self.last_peer_count {
-                if last >= threshold {
-                    // Just crossed below threshold
-                    let payload =
-                        AlertPayload::new(format!("Peer Count Dropped Below {threshold}"), line)
-                            .with_severity(AlertSeverity::Warning)
-                            .with_field("previous", last.to_string())
-                            .with_field("current", current.to_string());
-                    return Some(add_program(payload, program));
-                }
-            }
-        }
-        None
+        peer_count.and_then(|current| {
+            self.last_peer_count
+                .filter(|&last| current < threshold && last >= threshold)
+                .map(|last| {
+                    AlertPayload::new(format!("Peer Count Dropped Below {threshold}"), line)
+                        .with_severity(AlertSeverity::Warning)
+                        .with_field("previous", last.to_string())
+                        .with_field("current", current.to_string())
+                        .with_optional_program(program)
+                })
+        })
     }
 
     fn evaluate_sync_stall(
@@ -155,40 +152,31 @@ impl ConditionEvaluator {
     ) -> Option<AlertPayload> {
         // Fire after 100 lines with no slot change (rough heuristic)
         // In practice, would use time-based detection
-        if self.lines_since_slot_change > 100 {
-            if let Some(last_slot) = self.last_slot {
+        (self.lines_since_slot_change > 100)
+            .then_some(self.last_slot)
+            .flatten()
+            .map(|last_slot| {
                 self.lines_since_slot_change = 0; // Reset to avoid repeated alerts
-                let payload = AlertPayload::new("Sync Stall Detected", line)
+                AlertPayload::new("Sync Stall Detected", line)
                     .with_severity(AlertSeverity::Warning)
-                    .with_field("last_slot", last_slot.to_string());
-                return Some(add_program(payload, program));
-            }
-        }
-        None
+                    .with_field("last_slot", last_slot.to_string())
+                    .with_optional_program(program)
+            })
     }
 }
 
 fn evaluate_pattern(line: &str, regex: &Regex, program: Option<&str>) -> Option<AlertPayload> {
-    if regex.is_match(line) {
-        let payload = AlertPayload::new("Pattern Match", line)
+    regex.is_match(line).then(|| {
+        AlertPayload::new("Pattern Match", line)
             .with_severity(AlertSeverity::Warning)
-            .with_field("pattern", regex.as_str().to_string());
-        Some(add_program(payload, program))
-    } else {
-        None
-    }
+            .with_field("pattern", regex.as_str().to_string())
+            .with_optional_program(program)
+    })
 }
 
 impl Default for ConditionEvaluator {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-fn add_program(payload: AlertPayload, program: Option<&str>) -> AlertPayload {
-    match program {
-        Some(p) => payload.with_program(p),
-        None => payload,
     }
 }
 

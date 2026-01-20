@@ -21,39 +21,39 @@ pub mod colors {
     use crate::colors::Color;
     use std::collections::HashMap;
 
+    /// Color definitions for Ethereum domain concepts.
+    const DOMAIN_COLOR_DEFS: &[(&str, &str)] = &[
+        // Core Ethereum concepts
+        ("hash", "#88AAFF"),
+        ("address", "#FFAA88"),
+        ("slot", "#88FFAA"),
+        ("epoch", "#AAFFFF"),
+        ("block_number", "#FFAAFF"),
+        ("peer_id", "#AAAAFF"),
+        // Validator operations
+        ("validator", "#AA88FF"),
+        ("pubkey", "#88DDFF"),
+        ("duty", "#FFBB55"),
+        ("committee", "#88AADD"),
+        // Consensus state
+        ("finality", "#88FF88"),
+        ("root", "#88DDFF"),
+        ("attestation", "#FF88DD"),
+        // MEV
+        ("mev_value", "#FFDD55"),
+        ("relay", "#999999"),
+        ("builder", "#FF99BB"),
+        // Status
+        ("syncing", "#FFFF55"),
+    ];
+
     /// Get Ethereum domain color definitions.
     #[must_use]
     pub fn domain_colors() -> HashMap<String, Color> {
-        let mut colors = HashMap::new();
-
-        // Core Ethereum concepts
-        colors.insert("hash".to_string(), Color::hex("#88AAFF"));
-        colors.insert("address".to_string(), Color::hex("#FFAA88"));
-        colors.insert("slot".to_string(), Color::hex("#88FFAA"));
-        colors.insert("epoch".to_string(), Color::hex("#AAFFFF"));
-        colors.insert("block_number".to_string(), Color::hex("#FFAAFF"));
-        colors.insert("peer_id".to_string(), Color::hex("#AAAAFF"));
-
-        // Validator operations
-        colors.insert("validator".to_string(), Color::hex("#AA88FF"));
-        colors.insert("pubkey".to_string(), Color::hex("#88DDFF"));
-        colors.insert("duty".to_string(), Color::hex("#FFBB55"));
-        colors.insert("committee".to_string(), Color::hex("#88AADD"));
-
-        // Consensus state
-        colors.insert("finality".to_string(), Color::hex("#88FF88"));
-        colors.insert("root".to_string(), Color::hex("#88DDFF"));
-        colors.insert("attestation".to_string(), Color::hex("#FF88DD"));
-
-        // MEV
-        colors.insert("mev_value".to_string(), Color::hex("#FFDD55"));
-        colors.insert("relay".to_string(), Color::hex("#999999"));
-        colors.insert("builder".to_string(), Color::hex("#FF99BB"));
-
-        // Status
-        colors.insert("syncing".to_string(), Color::hex("#FFFF55"));
-
-        colors
+        DOMAIN_COLOR_DEFS
+            .iter()
+            .map(|(name, hex)| ((*name).to_string(), Color::hex(hex)))
+            .collect()
     }
 }
 

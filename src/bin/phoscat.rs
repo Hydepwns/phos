@@ -13,6 +13,18 @@ use std::io::{self, BufRead, Write};
 /// Number of lines to buffer for auto-detection
 const AUTO_DETECT_LINES: usize = 10;
 
+/// Process lines through a colorizer, writing to the given output.
+fn colorize_lines<'a, I, W>(colorizer: &mut Colorizer, lines: I, out: &mut W) -> Result<()>
+where
+    I: Iterator<Item = &'a str>,
+    W: Write,
+{
+    for line in lines {
+        writeln!(out, "{}", colorizer.colorize(line))?;
+    }
+    Ok(())
+}
+
 fn main() -> Result<()> {
     // Get program name from arg or env (optional now)
     let program_name = env::args().nth(1).or_else(|| env::var("PHOS_PROGRAM").ok());
@@ -37,8 +49,6 @@ fn main() -> Result<()> {
     } else {
         // Auto-detect: buffer initial lines
         let stdin = io::stdin();
-        let stdout = io::stdout();
-        let mut stdout = stdout.lock();
         let mut buffer: Vec<String> = Vec::with_capacity(AUTO_DETECT_LINES);
 
         for line in stdin.lock().lines().take(AUTO_DETECT_LINES) {
@@ -49,29 +59,33 @@ fn main() -> Result<()> {
         let line_refs: Vec<&str> = buffer.iter().map(String::as_str).collect();
         let detected = registry.detect_from_lines(&line_refs);
 
-        let rules = if let Some(program) = detected {
-            eprintln!("phoscat: auto-detected program: {}", program.info().id);
-            program.rules()
-        } else {
-            // Fall back to generic log coloring
-            eprintln!("phoscat: no program detected, using generic coloring");
-            registry.get("cargo").map(|p| p.rules()).unwrap_or_default()
-        };
+        let rules = detected.map_or_else(
+            || {
+                eprintln!("phoscat: no program detected, using generic coloring");
+                registry.get("cargo").map(|p| p.rules()).unwrap_or_default()
+            },
+            |program| {
+                eprintln!("phoscat: auto-detected program: {}", program.info().id);
+                program.rules()
+            },
+        );
 
-        // Create colorizer and process buffered lines
+        // Create colorizer and process buffered + remaining lines
         let color_enabled = io::stdout().is_terminal();
-        let mut colorizer = Colorizer::new(rules.clone())
-            .with_theme(theme.clone())
+        let mut colorizer = Colorizer::new(rules)
+            .with_theme(theme)
             .with_color_enabled(color_enabled);
 
-        for line in &buffer {
-            writeln!(stdout, "{}", colorizer.colorize(line))?;
-        }
+        let stdout = io::stdout();
+        let mut out = stdout.lock();
 
-        // Continue processing rest of stdin
+        // Process buffered lines
+        colorize_lines(&mut colorizer, buffer.iter().map(String::as_str), &mut out)?;
+
+        // Process remaining stdin
         for line in stdin.lock().lines() {
             let line = line.context("Failed to read stdin")?;
-            writeln!(stdout, "{}", colorizer.colorize(&line))?;
+            writeln!(out, "{}", colorizer.colorize(&line))?;
         }
 
         return Ok(());
