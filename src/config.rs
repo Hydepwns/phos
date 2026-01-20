@@ -226,6 +226,46 @@ pub struct GlobalConfig {
     /// Default alerting configuration
     #[serde(default)]
     pub alerts: AlertsConfig,
+
+    /// PTY configuration
+    #[serde(default)]
+    pub pty: PtyConfig,
+}
+
+/// PTY (pseudo-terminal) configuration.
+#[derive(Debug, Deserialize)]
+pub struct PtyConfig {
+    /// Drain timeout in milliseconds after child exits.
+    /// Higher values ensure all output is captured for fast-exiting processes.
+    #[serde(default = "default_drain_timeout")]
+    pub drain_timeout_ms: i32,
+
+    /// Maximum drain retries before giving up.
+    #[serde(default = "default_drain_retries")]
+    pub drain_max_retries: u32,
+
+    /// Additional commands to treat as interactive (requiring PTY).
+    /// These are added to the built-in list (vim, less, htop, etc.).
+    #[serde(default)]
+    pub interactive_commands: Vec<String>,
+}
+
+impl Default for PtyConfig {
+    fn default() -> Self {
+        Self {
+            drain_timeout_ms: default_drain_timeout(),
+            drain_max_retries: default_drain_retries(),
+            interactive_commands: Vec::new(),
+        }
+    }
+}
+
+fn default_drain_timeout() -> i32 {
+    100
+}
+
+fn default_drain_retries() -> u32 {
+    3
 }
 
 /// Alerting configuration section.
@@ -302,5 +342,75 @@ rules:
         assert_eq!(parse_semantic_color("error"), Some(SemanticColor::Error));
         assert_eq!(parse_semantic_color("WARN"), Some(SemanticColor::Warn));
         assert_eq!(parse_semantic_color("unknown"), None);
+    }
+
+    // -------------------------------------------------------------------------
+    // PtyConfig Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_pty_config_default() {
+        let config = PtyConfig::default();
+        assert_eq!(config.drain_timeout_ms, 100);
+        assert_eq!(config.drain_max_retries, 3);
+        assert!(config.interactive_commands.is_empty());
+    }
+
+    #[test]
+    fn test_pty_config_parse_yaml() {
+        let yaml = r"
+drain_timeout_ms: 200
+drain_max_retries: 5
+interactive_commands:
+  - mycli
+  - mytool
+";
+        let config: PtyConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.drain_timeout_ms, 200);
+        assert_eq!(config.drain_max_retries, 5);
+        assert_eq!(config.interactive_commands, vec!["mycli", "mytool"]);
+    }
+
+    #[test]
+    fn test_pty_config_parse_partial() {
+        // Only specify some fields, others should use defaults
+        let yaml = r"
+drain_timeout_ms: 150
+";
+        let config: PtyConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.drain_timeout_ms, 150);
+        assert_eq!(config.drain_max_retries, 3); // default
+        assert!(config.interactive_commands.is_empty()); // default
+    }
+
+    #[test]
+    fn test_global_config_with_pty() {
+        let yaml = r"
+theme: dracula
+pty:
+  drain_timeout_ms: 250
+  interactive_commands:
+    - fzf
+    - bat
+";
+        let config: GlobalConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.theme, Some("dracula".to_string()));
+        assert_eq!(config.pty.drain_timeout_ms, 250);
+        assert_eq!(config.pty.interactive_commands, vec!["fzf", "bat"]);
+    }
+
+    #[test]
+    fn test_global_config_without_pty_uses_defaults() {
+        let yaml = r"
+theme: nord
+stats: true
+";
+        let config: GlobalConfig = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(config.theme, Some("nord".to_string()));
+        assert!(config.stats);
+        // PTY config should use defaults
+        assert_eq!(config.pty.drain_timeout_ms, 100);
+        assert_eq!(config.pty.drain_max_retries, 3);
+        assert!(config.pty.interactive_commands.is_empty());
     }
 }
