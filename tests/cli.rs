@@ -61,7 +61,11 @@ mod version_help {
         let (stdout, _, success) = run_phos(&["--version"]);
         assert!(success);
         assert!(stdout.contains("phos"));
-        assert!(stdout.contains("0.4.8"));
+        // Check for semver pattern instead of hardcoded version
+        assert!(
+            stdout.contains(env!("CARGO_PKG_VERSION")),
+            "Version output should contain current crate version"
+        );
     }
 
     #[test]

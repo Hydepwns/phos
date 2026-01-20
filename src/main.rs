@@ -105,17 +105,22 @@ pub struct Cli {
     #[arg(long, default_value = "60")]
     alert_cooldown: u64,
 
-    /// Use PTY mode for interactive programs (default when both stdin/stdout are TTYs)
+    /// Force PTY mode (default for vim, nano, less, etc.)
     #[arg(long)]
     pty: bool,
 
-    /// Force pipe mode (disable PTY even when available)
+    /// Force pipe mode (disable PTY even for interactive commands)
     #[arg(long)]
     no_pty: bool,
 
     /// Raw PTY passthrough (no colorization, for full-screen apps like vim)
     #[arg(long)]
     raw: bool,
+
+    /// Treat command as interactive (force PTY mode like vim/less)
+    /// Use this for commands that need a TTY but aren't auto-detected
+    #[arg(long, short = 'i')]
+    interactive: bool,
 
     /// Subcommand or command to run
     #[command(subcommand)]
@@ -383,11 +388,21 @@ fn main() -> Result<()> {
         {
             let use_pty = if cli.no_pty {
                 false
-            } else if cli.pty {
-                true
+            } else if cli.pty || cli.raw || cli.interactive {
+                true // Explicit request or raw mode (which implies PTY)
+            } else if !cli.args.is_empty() {
+                // Auto: use PTY for known interactive commands (vim, nano, less, etc.)
+                // Also detects git subcommands that spawn editors (git commit, git rebase -i, etc.)
+                // Also check user-configured interactive commands
+                commands::needs_pty(&cli.args)
+                    || global_config.pty.interactive_commands.iter().any(|cmd| {
+                        std::path::Path::new(&cli.args[0])
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .is_some_and(|base| base == cmd)
+                    })
             } else {
-                // Auto: use PTY when both stdin and stdout are TTYs
-                io::stdin().is_terminal() && io::stdout().is_terminal()
+                false
             };
 
             if use_pty {
@@ -397,6 +412,7 @@ fn main() -> Result<()> {
                     stats.as_mut(),
                     alert_manager.as_mut(),
                     cli.raw,
+                    &global_config.pty,
                 )?;
             } else {
                 commands::run_command(
