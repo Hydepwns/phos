@@ -2,6 +2,9 @@
 //!
 //! Provides Program implementations for all 15 supported Ethereum clients.
 
+#[macro_use]
+mod macros;
+
 pub mod clients;
 pub mod patterns;
 
@@ -77,7 +80,15 @@ impl EthereumProgram {
             Category::Ethereum,
         );
 
-        let rules: Arc<[Rule]> = clients::rules_for(meta.name).unwrap_or_default().into();
+        let rules: Arc<[Rule]> = clients::rules_for(meta.name)
+            .map(|result| {
+                result.unwrap_or_else(|e| {
+                    eprintln!("phos: rule compilation error for {}: {e}", meta.name);
+                    Vec::new()
+                })
+            })
+            .unwrap_or_default()
+            .into();
 
         Self {
             info,

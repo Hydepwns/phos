@@ -28,13 +28,14 @@ pub struct ClientMeta {
 // CLIENT METADATA
 // =============================================================================
 
-pub const LIGHTHOUSE: ClientMeta = ClientMeta {
-    name: "Lighthouse",
-    description: "Ethereum consensus client in Rust",
-    layer: Layer::Consensus,
-    language: "Rust",
-    website: "https://lighthouse.sigmaprime.io/",
-    detect_patterns: &[
+define_client!(
+    LIGHTHOUSE,
+    "Lighthouse",
+    "Ethereum consensus client in Rust",
+    Layer::Consensus,
+    "Rust",
+    "https://lighthouse.sigmaprime.io/",
+    [
         "lighthouse",
         "lighthouse-bn",
         "lighthouse-vc",
@@ -42,18 +43,19 @@ pub const LIGHTHOUSE: ClientMeta = ClientMeta {
         "lighthouse_beacon",
         "lighthouse_validator",
         "lighthouse-consensus",
-        "lighthouse.log",
+        "lighthouse.log"
     ],
-    brand_color: "#9933FF",
-};
+    "#9933FF"
+);
 
-pub const PRYSM: ClientMeta = ClientMeta {
-    name: "Prysm",
-    description: "Ethereum consensus client in Go",
-    layer: Layer::Consensus,
-    language: "Go",
-    website: "https://prysmaticlabs.com/",
-    detect_patterns: &[
+define_client!(
+    PRYSM,
+    "Prysm",
+    "Ethereum consensus client in Go",
+    Layer::Consensus,
+    "Go",
+    "https://prysmaticlabs.com/",
+    [
         "prysm",
         "beacon-chain",
         "validator",
@@ -62,36 +64,38 @@ pub const PRYSM: ClientMeta = ClientMeta {
         "prysm_beacon",
         "prysm_validator",
         "prysm-consensus",
-        "prysm.log",
+        "prysm.log"
     ],
-    brand_color: "#22CC88",
-};
+    "#22CC88"
+);
 
-pub const TEKU: ClientMeta = ClientMeta {
-    name: "Teku",
-    description: "Ethereum consensus client in Java",
-    layer: Layer::Consensus,
-    language: "Java",
-    website: "https://consensys.net/knowledge-base/ethereum-2/teku/",
-    detect_patterns: &[
+define_client!(
+    TEKU,
+    "Teku",
+    "Ethereum consensus client in Java",
+    Layer::Consensus,
+    "Java",
+    "https://consensys.net/knowledge-base/ethereum-2/teku/",
+    [
         "teku",
         "teku-bn",
         "teku-vc",
         "teku_beacon",
         "teku_validator",
         "teku-consensus",
-        "teku.log",
+        "teku.log"
     ],
-    brand_color: "#3366FF",
-};
+    "#3366FF"
+);
 
-pub const NIMBUS: ClientMeta = ClientMeta {
-    name: "Nimbus",
-    description: "Ethereum consensus client in Nim",
-    layer: Layer::Consensus,
-    language: "Nim",
-    website: "https://nimbus.team/",
-    detect_patterns: &[
+define_client!(
+    NIMBUS,
+    "Nimbus",
+    "Ethereum consensus client in Nim",
+    Layer::Consensus,
+    "Nim",
+    "https://nimbus.team/",
+    [
         "nimbus",
         "nimbus-bn",
         "nimbus-vc",
@@ -99,157 +103,168 @@ pub const NIMBUS: ClientMeta = ClientMeta {
         "nimbus_validator",
         "nimbus-eth2",
         "nimbus-consensus",
-        "nimbus.log",
+        "nimbus.log"
     ],
-    brand_color: "#CC9933",
-};
+    "#CC9933"
+);
 
-pub const LODESTAR: ClientMeta = ClientMeta {
-    name: "Lodestar",
-    description: "Ethereum consensus client in TypeScript",
-    layer: Layer::Consensus,
-    language: "TypeScript",
-    website: "https://lodestar.chainsafe.io/",
-    detect_patterns: &[
+define_client!(
+    LODESTAR,
+    "Lodestar",
+    "Ethereum consensus client in TypeScript",
+    Layer::Consensus,
+    "TypeScript",
+    "https://lodestar.chainsafe.io/",
+    [
         "lodestar",
         "lodestar-bn",
         "lodestar-vc",
         "lodestar_beacon",
         "lodestar_validator",
         "lodestar-consensus",
-        "lodestar.log",
+        "lodestar.log"
     ],
-    brand_color: "#AA44FF",
-};
+    "#AA44FF"
+);
 
-pub const GRANDINE: ClientMeta = ClientMeta {
-    name: "Grandine",
-    description: "High-performance consensus client in Rust",
-    layer: Layer::Consensus,
-    language: "Rust",
-    website: "https://grandine.io/",
-    detect_patterns: &[
+define_client!(
+    GRANDINE,
+    "Grandine",
+    "High-performance consensus client in Rust",
+    Layer::Consensus,
+    "Rust",
+    "https://grandine.io/",
+    [
         "grandine",
         "grandine-bn",
         "grandine-vc",
         "grandine_beacon",
         "grandine-consensus",
-        "grandine.log",
+        "grandine.log"
     ],
-    brand_color: "#FF6633",
-};
+    "#FF6633"
+);
 
-pub const LAMBDA: ClientMeta = ClientMeta {
-    name: "Lambda",
-    description: "Ethereum consensus client in Elixir",
-    layer: Layer::Consensus,
-    language: "Elixir",
-    website: "https://github.com/lambdaclass/lambda_ethereum_consensus",
-    detect_patterns: &[
+define_client!(
+    LAMBDA,
+    "Lambda",
+    "Ethereum consensus client in Elixir",
+    Layer::Consensus,
+    "Elixir",
+    "https://github.com/lambdaclass/lambda_ethereum_consensus",
+    [
         "lambda_ethereum",
         "lambda-bn",
         "lambda-consensus",
-        "lambda.log",
+        "lambda.log"
     ],
-    brand_color: "#9966FF",
-};
+    "#9966FF"
+);
 
-pub const GETH: ClientMeta = ClientMeta {
-    name: "Geth",
-    description: "Go Ethereum - the official Go implementation",
-    layer: Layer::Execution,
-    language: "Go",
-    website: "https://geth.ethereum.org/",
-    detect_patterns: &[
+define_client!(
+    GETH,
+    "Geth",
+    "Go Ethereum - the official Go implementation",
+    Layer::Execution,
+    "Go",
+    "https://geth.ethereum.org/",
+    [
         "geth",
         "geth-el",
         "geth_execution",
         "go-ethereum",
-        "geth.log",
+        "geth.log"
     ],
-    brand_color: "#6699FF",
-};
+    "#6699FF"
+);
 
-pub const NETHERMIND: ClientMeta = ClientMeta {
-    name: "Nethermind",
-    description: "Ethereum client in .NET",
-    layer: Layer::Execution,
-    language: ".NET",
-    website: "https://nethermind.io/",
-    detect_patterns: &[
+define_client!(
+    NETHERMIND,
+    "Nethermind",
+    "Ethereum client in .NET",
+    Layer::Execution,
+    ".NET",
+    "https://nethermind.io/",
+    [
         "nethermind",
         "nethermind-el",
         "nethermind_execution",
-        "nethermind.log",
+        "nethermind.log"
     ],
-    brand_color: "#33CCCC",
-};
+    "#33CCCC"
+);
 
-pub const BESU: ClientMeta = ClientMeta {
-    name: "Besu",
-    description: "Hyperledger Besu - enterprise Ethereum client",
-    layer: Layer::Execution,
-    language: "Java",
-    website: "https://besu.hyperledger.org/",
-    detect_patterns: &[
+define_client!(
+    BESU,
+    "Besu",
+    "Hyperledger Besu - enterprise Ethereum client",
+    Layer::Execution,
+    "Java",
+    "https://besu.hyperledger.org/",
+    [
         "besu",
         "besu-el",
         "besu_execution",
         "hyperledger-besu",
-        "besu.log",
+        "besu.log"
     ],
-    brand_color: "#009999",
-};
+    "#009999"
+);
 
-pub const ERIGON: ClientMeta = ClientMeta {
-    name: "Erigon",
-    description: "Efficiency-focused Ethereum client",
-    layer: Layer::Execution,
-    language: "Go",
-    website: "https://github.com/erigontech/erigon",
-    detect_patterns: &["erigon", "erigon-el", "erigon_execution", "erigon.log"],
-    brand_color: "#66CC33",
-};
+define_client!(
+    ERIGON,
+    "Erigon",
+    "Efficiency-focused Ethereum client",
+    Layer::Execution,
+    "Go",
+    "https://github.com/erigontech/erigon",
+    ["erigon", "erigon-el", "erigon_execution", "erigon.log"],
+    "#66CC33"
+);
 
-pub const RETH: ClientMeta = ClientMeta {
-    name: "Reth",
-    description: "Modular Ethereum client in Rust by Paradigm",
-    layer: Layer::Execution,
-    language: "Rust",
-    website: "https://paradigmxyz.github.io/reth/",
-    detect_patterns: &["reth", "reth-el", "reth_execution", "reth.log"],
-    brand_color: "#FF9966",
-};
+define_client!(
+    RETH,
+    "Reth",
+    "Modular Ethereum client in Rust by Paradigm",
+    Layer::Execution,
+    "Rust",
+    "https://paradigmxyz.github.io/reth/",
+    ["reth", "reth-el", "reth_execution", "reth.log"],
+    "#FF9966"
+);
 
-pub const MANA: ClientMeta = ClientMeta {
-    name: "Mana",
-    description: "Full Ethereum client (EL+CL) in Elixir with distributed features",
-    layer: Layer::Full,
-    language: "Elixir",
-    website: "https://github.com/axol-io/mana",
-    detect_patterns: &["mana", "mana-el", "mana-cl", "mana_node", "mana.log"],
-    brand_color: "#CC66FF",
-};
+define_client!(
+    MANA,
+    "Mana",
+    "Full Ethereum client (EL+CL) in Elixir with distributed features",
+    Layer::Full,
+    "Elixir",
+    "https://github.com/axol-io/mana",
+    ["mana", "mana-el", "mana-cl", "mana_node", "mana.log"],
+    "#CC66FF"
+);
 
-pub const CHARON: ClientMeta = ClientMeta {
-    name: "Charon",
-    description: "Obol distributed validator middleware",
-    layer: Layer::Middleware,
-    language: "Go",
-    website: "https://obol.tech/",
-    detect_patterns: &["charon", "charon-dv", "obol-charon", "charon.log"],
-    brand_color: "#6633FF",
-};
+define_client!(
+    CHARON,
+    "Charon",
+    "Obol distributed validator middleware",
+    Layer::Middleware,
+    "Go",
+    "https://obol.tech/",
+    ["charon", "charon-dv", "obol-charon", "charon.log"],
+    "#6633FF"
+);
 
-pub const MEVBOOST: ClientMeta = ClientMeta {
-    name: "MEV-Boost",
-    description: "Flashbots MEV relay",
-    layer: Layer::Middleware,
-    language: "Go",
-    website: "https://boost.flashbots.net/",
-    detect_patterns: &["mev-boost", "mev_boost", "mevboost", "mev-boost.log"],
-    brand_color: "#FF6699",
-};
+define_client!(
+    MEVBOOST,
+    "MEV-Boost",
+    "Flashbots MEV relay",
+    Layer::Middleware,
+    "Go",
+    "https://boost.flashbots.net/",
+    ["mev-boost", "mev_boost", "mevboost", "mev-boost.log"],
+    "#FF6699"
+);
 
 /// All client metadata in order.
 pub const ALL_CLIENTS: &[&ClientMeta] = &[
@@ -274,91 +289,79 @@ pub const ALL_CLIENTS: &[&ClientMeta] = &[
 // CONSENSUS LAYER CLIENTS
 // =============================================================================
 
-#[must_use]
-pub fn lodestar_rules() -> Vec<Rule> {
-    let mut rules = patterns::lodestar_log_levels();
-    // Lodestar-specific patterns
-    rules.extend([
-        Rule::new(r"Eph\s+\d+/\d+")
-            .unwrap()
+pub fn lodestar_rules() -> Result<Vec<Rule>, regex::Error> {
+    let lodestar_specific = vec![
+        Rule::new(r"Eph\s+\d+/\d+")?
             .hex(patterns::EPOCH_COLOR)
             .build(),
-        Rule::new(r"slot=\d+")
-            .unwrap()
-            .hex(patterns::SLOT_COLOR)
-            .build(),
-        Rule::new(r"epoch=\d+")
-            .unwrap()
-            .hex(patterns::EPOCH_COLOR)
-            .build(),
-        Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")
-            .unwrap()
+        Rule::new(r"slot=\d+")?.hex(patterns::SLOT_COLOR).build(),
+        Rule::new(r"epoch=\d+")?.hex(patterns::EPOCH_COLOR).build(),
+        Rule::new(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}")?
             .semantic(SemanticColor::Timestamp)
             .build(),
-    ]);
-    rules.extend(patterns::consensus_patterns());
-    rules
+    ];
+
+    Ok(patterns::lodestar_log_levels()?
+        .into_iter()
+        .chain(lodestar_specific)
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn lighthouse_rules() -> Vec<Rule> {
-    let mut rules = patterns::lighthouse_log_levels();
-    rules.push(
-        Rule::new(r"\w{3}\s+\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
-    rules.extend(patterns::consensus_patterns());
-    rules
+pub fn lighthouse_rules() -> Result<Vec<Rule>, regex::Error> {
+    let timestamp = Rule::new(r"\w{3}\s+\d{2}\s+\d{2}:\d{2}:\d{2}\.\d{3}")?
+        .semantic(SemanticColor::Timestamp)
+        .build();
+
+    Ok(patterns::lighthouse_log_levels()?
+        .into_iter()
+        .chain(std::iter::once(timestamp))
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn prysm_rules() -> Vec<Rule> {
-    let mut rules = patterns::prysm_log_levels();
-    rules.extend([
-        Rule::new(r#"msg="[^"]*""#)
-            .unwrap()
+pub fn prysm_rules() -> Result<Vec<Rule>, regex::Error> {
+    let prysm_specific = vec![
+        Rule::new(r#"msg="[^"]*""#)?
             .semantic(SemanticColor::String)
             .build(),
-        Rule::new(r#"prefix="[^"]*""#)
-            .unwrap()
-            .named("cyan")
-            .build(),
-    ]);
-    rules.extend(patterns::consensus_patterns());
-    rules
+        Rule::new(r#"prefix="[^"]*""#)?.named("cyan").build(),
+    ];
+
+    Ok(patterns::prysm_log_levels()?
+        .into_iter()
+        .chain(prysm_specific)
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn teku_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    rules.push(
-        Rule::new(r"\d{2}:\d{2}:\d{2}\.\d{3}")
-            .unwrap()
-            .semantic(SemanticColor::Timestamp)
-            .build(),
-    );
-    rules.extend(patterns::consensus_patterns());
-    rules
+pub fn teku_rules() -> Result<Vec<Rule>, regex::Error> {
+    let timestamp = Rule::new(r"\d{2}:\d{2}:\d{2}\.\d{3}")?
+        .semantic(SemanticColor::Timestamp)
+        .build();
+
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(std::iter::once(timestamp))
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn nimbus_rules() -> Vec<Rule> {
-    let mut rules = patterns::nimbus_log_levels();
-    rules.extend(patterns::consensus_patterns());
-    rules
+pub fn nimbus_rules() -> Result<Vec<Rule>, regex::Error> {
+    Ok(patterns::nimbus_log_levels()?
+        .into_iter()
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn grandine_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    rules.extend(patterns::consensus_patterns());
-    rules
+pub fn grandine_rules() -> Result<Vec<Rule>, regex::Error> {
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn lambda_rules() -> Vec<Rule> {
+pub fn lambda_rules() -> Result<Vec<Rule>, regex::Error> {
     elixir_common_rules()
 }
 
@@ -366,247 +369,206 @@ pub fn lambda_rules() -> Vec<Rule> {
 // EXECUTION LAYER CLIENTS
 // =============================================================================
 
-#[must_use]
-pub fn geth_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    // Geth-specific patterns
-    rules.extend([
-        // Geth timestamp: [10-03|15:34:01.336]
-        Rule::new(r"\[\d{2}-\d{2}\|\d{2}:\d{2}:\d{2}\.\d{3}\]")
-            .unwrap()
+pub fn geth_rules() -> Result<Vec<Rule>, regex::Error> {
+    let geth_specific = vec![
+        Rule::new(r"\[\d{2}-\d{2}\|\d{2}:\d{2}:\d{2}\.\d{3}\]")?
             .semantic(SemanticColor::Timestamp)
             .build(),
-        // Block number
-        Rule::new(r"number=\d+")
-            .unwrap()
+        Rule::new(r"number=\d+")?
             .hex(patterns::BLOCK_NUMBER_COLOR)
             .build(),
-        // Transaction count
-        Rule::new(r"txs=\d+")
-            .unwrap()
+        Rule::new(r"txs=\d+")?
             .semantic(SemanticColor::Number)
             .build(),
-        // Forkchoice
-        Rule::new(r"\b(forkchoice|FCU)\b")
-            .unwrap()
+        Rule::new(r"\b(forkchoice|FCU)\b")?
             .hex(patterns::FINALITY_COLOR)
             .bold()
             .build(),
-    ]);
-    rules.extend(patterns::execution_patterns());
-    rules
+    ];
+
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(geth_specific)
+        .chain(patterns::execution_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn nethermind_rules() -> Vec<Rule> {
-    let mut rules = patterns::dotnet_log_levels();
-    rules.push(
-        Rule::new(r"number=\d+")
-            .unwrap()
-            .hex(patterns::BLOCK_NUMBER_COLOR)
-            .build(),
-    );
-    rules.extend(patterns::execution_patterns());
-    rules
+pub fn nethermind_rules() -> Result<Vec<Rule>, regex::Error> {
+    let block_num = Rule::new(r"number=\d+")?
+        .hex(patterns::BLOCK_NUMBER_COLOR)
+        .build();
+
+    Ok(patterns::dotnet_log_levels()?
+        .into_iter()
+        .chain(std::iter::once(block_num))
+        .chain(patterns::execution_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn besu_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    rules.push(
-        Rule::new(r"Block #\d+")
-            .unwrap()
-            .hex(patterns::BLOCK_NUMBER_COLOR)
-            .build(),
-    );
-    rules.extend(patterns::execution_patterns());
-    rules
+pub fn besu_rules() -> Result<Vec<Rule>, regex::Error> {
+    let block_num = Rule::new(r"Block #\d+")?
+        .hex(patterns::BLOCK_NUMBER_COLOR)
+        .build();
+
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(std::iter::once(block_num))
+        .chain(patterns::execution_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn erigon_rules() -> Vec<Rule> {
-    let mut rules = patterns::erigon_log_levels();
-    rules.push(
-        Rule::new(r"number=\d+")
-            .unwrap()
-            .hex(patterns::BLOCK_NUMBER_COLOR)
-            .build(),
-    );
-    rules.extend(patterns::execution_patterns());
-    rules
+pub fn erigon_rules() -> Result<Vec<Rule>, regex::Error> {
+    let block_num = Rule::new(r"number=\d+")?
+        .hex(patterns::BLOCK_NUMBER_COLOR)
+        .build();
+
+    Ok(patterns::erigon_log_levels()?
+        .into_iter()
+        .chain(std::iter::once(block_num))
+        .chain(patterns::execution_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn reth_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    // Reth-specific patterns
-    rules.extend([
-        Rule::new(r"stage=\w+")
-            .unwrap()
+pub fn reth_rules() -> Result<Vec<Rule>, regex::Error> {
+    let reth_specific = vec![
+        Rule::new(r"stage=\w+")?
             .semantic(SemanticColor::Key)
             .build(),
-        Rule::new(r"progress=\d+\.\d+%")
-            .unwrap()
+        Rule::new(r"progress=\d+\.\d+%")?
             .semantic(SemanticColor::Number)
             .build(),
-        Rule::new(r"number=\d+")
-            .unwrap()
+        Rule::new(r"number=\d+")?
             .hex(patterns::BLOCK_NUMBER_COLOR)
             .build(),
-    ]);
-    rules.extend(patterns::execution_patterns());
-    rules
+    ];
+
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(reth_specific)
+        .chain(patterns::execution_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn mana_rules() -> Vec<Rule> {
-    let mut rules = elixir_common_rules();
-    // Mana-specific patterns
-    rules.extend([
-        Rule::new(r"\b(Blockchain|EVM|ExWire|MerklePatriciaTree|JSONRPC2)\b")
-            .unwrap()
+pub fn mana_rules() -> Result<Vec<Rule>, regex::Error> {
+    let mana_specific = vec![
+        Rule::new(r"\b(Blockchain|EVM|ExWire|MerklePatriciaTree|JSONRPC2)\b")?
             .semantic(SemanticColor::Key)
             .bold()
             .build(),
-        Rule::new(r"\b(L2|layer2|rollup|optimistic|zk-?proof)\b")
-            .unwrap()
+        Rule::new(r"\b(L2|layer2|rollup|optimistic|zk-?proof)\b")?
             .hex(patterns::BUILDER_COLOR)
             .build(),
-        Rule::new(r"\b(verkle|crdt|antidote|distributed)\b")
-            .unwrap()
+        Rule::new(r"\b(verkle|crdt|antidote|distributed)\b")?
             .hex(patterns::COMMITTEE_COLOR)
             .build(),
-        Rule::new(r"\b(eth_\w+|web3_\w+|net_\w+)\b")
-            .unwrap()
+        Rule::new(r"\b(eth_\w+|web3_\w+|net_\w+)\b")?
             .semantic(SemanticColor::Value)
             .build(),
-    ]);
-    rules
+    ];
+
+    Ok(elixir_common_rules()?
+        .into_iter()
+        .chain(mana_specific)
+        .collect())
 }
 
 // =============================================================================
 // MIDDLEWARE
 // =============================================================================
 
-#[must_use]
-pub fn charon_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    // Charon-specific patterns
-    rules.extend([
-        // QBFT consensus
-        Rule::new(r"\bQBFT\b")
-            .unwrap()
+pub fn charon_rules() -> Result<Vec<Rule>, regex::Error> {
+    let charon_specific = vec![
+        Rule::new(r"\bQBFT\b")?
             .hex(patterns::COMMITTEE_COLOR)
             .bold()
             .build(),
-        Rule::new(r"\b(pre-prepare|prepare|commit|round-change)\b")
-            .unwrap()
+        Rule::new(r"\b(pre-prepare|prepare|commit|round-change)\b")?
             .hex(patterns::COMMITTEE_COLOR)
             .build(),
-        // Threshold signatures
-        Rule::new(r"\bthreshold\b")
-            .unwrap()
+        Rule::new(r"\bthreshold\b")?
             .hex(patterns::ATTESTATION_COLOR)
             .build(),
-        Rule::new(r"partial[_\s]?sig")
-            .unwrap()
+        Rule::new(r"partial[_\s]?sig")?
             .hex(patterns::ATTESTATION_COLOR)
             .build(),
-        // Peer/node info
-        Rule::new(r"peer=\w+")
-            .unwrap()
-            .hex(patterns::PEER_ID_COLOR)
-            .build(),
-        Rule::new(r"node=\d+")
-            .unwrap()
+        Rule::new(r"peer=\w+")?.hex(patterns::PEER_ID_COLOR).build(),
+        Rule::new(r"node=\d+")?
             .semantic(SemanticColor::Number)
             .build(),
-    ]);
-    rules.extend(patterns::consensus_patterns());
-    rules
+    ];
+
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(charon_specific)
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
-#[must_use]
-pub fn mevboost_rules() -> Vec<Rule> {
-    let mut rules = patterns::rust_log_levels();
-    // MEV-Boost-specific patterns
-    rules.extend([
-        Rule::new(r"slot=\d+")
-            .unwrap()
-            .hex(patterns::SLOT_COLOR)
-            .build(),
-        Rule::new(r"value=[\d\.]+")
-            .unwrap()
+pub fn mevboost_rules() -> Result<Vec<Rule>, regex::Error> {
+    let mevboost_specific = vec![
+        Rule::new(r"slot=\d+")?.hex(patterns::SLOT_COLOR).build(),
+        Rule::new(r"value=[\d\.]+")?
             .hex(patterns::MEV_VALUE_COLOR)
             .bold()
             .build(),
-        Rule::new(r"bid=[\d\.]+")
-            .unwrap()
+        Rule::new(r"bid=[\d\.]+")?
             .hex(patterns::MEV_VALUE_COLOR)
             .bold()
             .build(),
-        Rule::new(r"block_value=[\d\.]+")
-            .unwrap()
+        Rule::new(r"block_value=[\d\.]+")?
             .hex(patterns::MEV_VALUE_COLOR)
             .bold()
             .build(),
-        Rule::new(r"relay=\S+")
-            .unwrap()
-            .hex(patterns::RELAY_COLOR)
-            .build(),
-        Rule::new(r"builder=\S+")
-            .unwrap()
+        Rule::new(r"relay=\S+")?.hex(patterns::RELAY_COLOR).build(),
+        Rule::new(r"builder=\S+")?
             .hex(patterns::BUILDER_COLOR)
             .build(),
-        Rule::new(r"builder_pubkey=0x[a-fA-F0-9]+")
-            .unwrap()
+        Rule::new(r"builder_pubkey=0x[a-fA-F0-9]+")?
             .hex(patterns::BUILDER_COLOR)
             .build(),
-        patterns::hash_rule(),
-        patterns::success_rule(),
-        patterns::failure_rule(),
-    ]);
-    rules.extend(patterns::mev_patterns());
-    rules.push(patterns::number_rule());
-    rules
+        patterns::hash_rule()?,
+        patterns::success_rule()?,
+        patterns::failure_rule()?,
+    ];
+
+    Ok(patterns::rust_log_levels()?
+        .into_iter()
+        .chain(mevboost_specific)
+        .chain(patterns::mev_patterns()?)
+        .chain(std::iter::once(patterns::number_rule()?))
+        .collect())
 }
 
 // =============================================================================
 // ELIXIR CLIENT PATTERNS
 // =============================================================================
 
-fn elixir_common_rules() -> Vec<Rule> {
-    let mut rules = patterns::elixir_log_levels();
-    // Elixir-specific patterns
-    rules.extend([
-        Rule::new(r"\d{2}:\d{2}:\d{2}\.\d{3}")
-            .unwrap()
+fn elixir_common_rules() -> Result<Vec<Rule>, regex::Error> {
+    let elixir_specific = vec![
+        Rule::new(r"\d{2}:\d{2}:\d{2}\.\d{3}")?
             .semantic(SemanticColor::Timestamp)
             .build(),
-        Rule::new(r"\b[A-Z][a-zA-Z0-9]*(\.[A-Z][a-zA-Z0-9]*)+")
-            .unwrap()
+        Rule::new(r"\b[A-Z][a-zA-Z0-9]*(\.[A-Z][a-zA-Z0-9]*)+")?
             .semantic(SemanticColor::Key)
             .build(),
-        Rule::new(r"#PID<[\d\.]+>")
-            .unwrap()
+        Rule::new(r"#PID<[\d\.]+>")?
             .hex(patterns::PEER_ID_COLOR)
             .build(),
-        Rule::new(r":\w+")
-            .unwrap()
-            .semantic(SemanticColor::Value)
-            .build(),
-        Rule::new(r#""[^"]*""#)
-            .unwrap()
+        Rule::new(r":\w+")?.semantic(SemanticColor::Value).build(),
+        Rule::new(r#""[^"]*""#)?
             .semantic(SemanticColor::String)
             .build(),
-    ]);
-    rules.extend(patterns::consensus_patterns());
-    rules
+    ];
+
+    Ok(patterns::elixir_log_levels()?
+        .into_iter()
+        .chain(elixir_specific)
+        .chain(patterns::consensus_patterns()?)
+        .collect())
 }
 
 /// Get rules for a client by name (case-insensitive).
-#[must_use]
-pub fn rules_for(name: &str) -> Option<Vec<Rule>> {
+pub fn rules_for(name: &str) -> Option<Result<Vec<Rule>, regex::Error>> {
     match name.to_lowercase().as_str() {
         "lighthouse" => Some(lighthouse_rules()),
         "prysm" => Some(prysm_rules()),
@@ -654,19 +616,13 @@ pub fn meta_for(name: &str) -> Option<&'static ClientMeta> {
 mod tests {
     use super::*;
 
-    // Helper: check if rules colorize the input (any rule matches)
     fn rules_match(rules: &[Rule], input: &str) -> bool {
         rules.iter().any(|r| r.is_match(input))
     }
 
-    // =========================================================================
-    // CONSENSUS CLIENTS
-    // =========================================================================
-
     #[test]
     fn test_lodestar_rules_match_real_logs() {
-        let rules = lodestar_rules();
-        // Lodestar format: timestamp[] level: message
+        let rules = lodestar_rules().unwrap();
         assert!(rules_match(
             &rules,
             "Dec 05 00:12:36.557[] info: Synced - slot 5375712 - Peers 47"
@@ -675,15 +631,14 @@ mod tests {
             &rules,
             "Dec 05 00:12:36.000[] error: Failed to connect"
         ));
-        assert!(rules_match(&rules, "Eph 167991/6")); // Epoch/slot format
+        assert!(rules_match(&rules, "Eph 167991/6"));
         assert!(rules_match(&rules, "slot=12345"));
         assert!(rules_match(&rules, "epoch=385"));
     }
 
     #[test]
     fn test_lighthouse_rules_match_real_logs() {
-        let rules = lighthouse_rules();
-        // Lighthouse format: timestamp LEVEL message
+        let rules = lighthouse_rules().unwrap();
         assert!(rules_match(
             &rules,
             "Dec 05 00:12:36.557 INFO Synced slot: 12345, epoch: 385"
@@ -705,8 +660,7 @@ mod tests {
 
     #[test]
     fn test_prysm_rules_match_real_logs() {
-        let rules = prysm_rules();
-        // Prysm format: logrus-style with level=X
+        let rules = prysm_rules().unwrap();
         assert!(rules_match(
             &rules,
             "level=info msg=\"Synced to slot 12345\""
@@ -718,8 +672,7 @@ mod tests {
 
     #[test]
     fn test_teku_rules_match_real_logs() {
-        let rules = teku_rules();
-        // Teku uses standard log levels
+        let rules = teku_rules().unwrap();
         assert!(rules_match(
             &rules,
             "10:30:45.123 INFO Synced to slot 12345"
@@ -730,8 +683,7 @@ mod tests {
 
     #[test]
     fn test_nimbus_rules_match_real_logs() {
-        let rules = nimbus_rules();
-        // Nimbus uses short log levels: INF, WRN, ERR, etc.
+        let rules = nimbus_rules().unwrap();
         assert!(rules_match(&rules, "INF 2024-01-15 Synced"));
         assert!(rules_match(&rules, "ERR Connection failed"));
         assert!(rules_match(&rules, "WRN Low peer count"));
@@ -740,8 +692,7 @@ mod tests {
 
     #[test]
     fn test_grandine_rules_match_real_logs() {
-        let rules = grandine_rules();
-        // Grandine uses Rust log levels
+        let rules = grandine_rules().unwrap();
         assert!(rules_match(&rules, "INFO: Syncing blocks"));
         assert!(rules_match(&rules, "ERROR: Failed to sync"));
         assert!(rules_match(&rules, "slot=12345"));
@@ -749,36 +700,29 @@ mod tests {
 
     #[test]
     fn test_lambda_rules_match_real_logs() {
-        let rules = lambda_rules();
-        // Lambda uses Elixir logger format
+        let rules = lambda_rules().unwrap();
         assert!(rules_match(&rules, "[info] Syncing from peer"));
         assert!(rules_match(&rules, "[error] GenServer crashed"));
-        assert!(rules_match(&rules, "12:34:56.789")); // Elixir timestamp
-        assert!(rules_match(&rules, "Lambda.Beacon.Node")); // Module name
+        assert!(rules_match(&rules, "12:34:56.789"));
+        assert!(rules_match(&rules, "Lambda.Beacon.Node"));
     }
-
-    // =========================================================================
-    // EXECUTION CLIENTS
-    // =========================================================================
 
     #[test]
     fn test_geth_rules_match_real_logs() {
-        let rules = geth_rules();
-        // Geth format: LEVEL [MM-DD|HH:MM:SS.mmm] message
+        let rules = geth_rules().unwrap();
         assert!(rules_match(
             &rules,
             "INFO [12-05|10:30:45.123] Imported new chain segment number=19630289"
         ));
-        assert!(rules_match(&rules, "[12-05|10:30:45.123]")); // Timestamp
-        assert!(rules_match(&rules, "number=19630289")); // Block number
-        assert!(rules_match(&rules, "txs=150")); // Transaction count
-        assert!(rules_match(&rules, "forkchoice updated")); // FCU
+        assert!(rules_match(&rules, "[12-05|10:30:45.123]"));
+        assert!(rules_match(&rules, "number=19630289"));
+        assert!(rules_match(&rules, "txs=150"));
+        assert!(rules_match(&rules, "forkchoice updated"));
     }
 
     #[test]
     fn test_nethermind_rules_match_real_logs() {
-        let rules = nethermind_rules();
-        // Nethermind uses .NET style logging
+        let rules = nethermind_rules().unwrap();
         assert!(rules_match(&rules, "Info Processed block"));
         assert!(rules_match(&rules, "Error Connection failed"));
         assert!(rules_match(&rules, "number=19630289"));
@@ -786,17 +730,15 @@ mod tests {
 
     #[test]
     fn test_besu_rules_match_real_logs() {
-        let rules = besu_rules();
-        // Besu uses standard log levels
+        let rules = besu_rules().unwrap();
         assert!(rules_match(&rules, "INFO Processing transactions"));
         assert!(rules_match(&rules, "ERROR Block validation failed"));
-        assert!(rules_match(&rules, "Block #19630289")); // Block number format
+        assert!(rules_match(&rules, "Block #19630289"));
     }
 
     #[test]
     fn test_erigon_rules_match_real_logs() {
-        let rules = erigon_rules();
-        // Erigon uses lvl=X format
+        let rules = erigon_rules().unwrap();
         assert!(rules_match(&rules, "lvl=info msg=\"Syncing\""));
         assert!(rules_match(&rules, "lvl=eror msg=\"Error\""));
         assert!(rules_match(&rules, "lvl=warn msg=\"Warning\""));
@@ -805,8 +747,7 @@ mod tests {
 
     #[test]
     fn test_reth_rules_match_real_logs() {
-        let rules = reth_rules();
-        // Reth uses Rust tracing format
+        let rules = reth_rules().unwrap();
         assert!(rules_match(&rules, "INFO reth::node Syncing"));
         assert!(rules_match(&rules, "ERROR Failed to connect"));
         assert!(rules_match(&rules, "stage=Headers"));
@@ -816,23 +757,17 @@ mod tests {
 
     #[test]
     fn test_mana_rules_match_real_logs() {
-        let rules = mana_rules();
-        // Mana uses Elixir format with specific module patterns
+        let rules = mana_rules().unwrap();
         assert!(rules_match(&rules, "[info] Block imported"));
         assert!(rules_match(&rules, "[error] EVM execution failed"));
         assert!(rules_match(&rules, "Blockchain.Block"));
         assert!(rules_match(&rules, "MerklePatriciaTree"));
-        assert!(rules_match(&rules, "eth_getBlockByNumber")); // JSON-RPC
+        assert!(rules_match(&rules, "eth_getBlockByNumber"));
     }
-
-    // =========================================================================
-    // MIDDLEWARE
-    // =========================================================================
 
     #[test]
     fn test_charon_rules_match_real_logs() {
-        let rules = charon_rules();
-        // Charon DVT middleware
+        let rules = charon_rules().unwrap();
         assert!(rules_match(&rules, "INFO QBFT consensus reached"));
         assert!(rules_match(&rules, "pre-prepare message received"));
         assert!(rules_match(&rules, "prepare phase complete"));
@@ -844,8 +779,7 @@ mod tests {
 
     #[test]
     fn test_mevboost_rules_match_real_logs() {
-        let rules = mevboost_rules();
-        // MEV-Boost relay logs
+        let rules = mevboost_rules().unwrap();
         assert!(rules_match(&rules, "slot=12345"));
         assert!(rules_match(&rules, "value=1.234"));
         assert!(rules_match(&rules, "bid=0.5"));
@@ -853,16 +787,11 @@ mod tests {
         assert!(rules_match(&rules, "relay=flashbots"));
         assert!(rules_match(&rules, "builder=builder0x69"));
         assert!(rules_match(&rules, "builder_pubkey=0xabcdef1234567890"));
-        assert!(rules_match(&rules, "1.5 ETH")); // MEV value
+        assert!(rules_match(&rules, "1.5 ETH"));
     }
-
-    // =========================================================================
-    // METADATA AND LOOKUP
-    // =========================================================================
 
     #[test]
     fn test_rules_for_all_clients() {
-        // All clients should return rules
         for client in ALL_CLIENTS {
             let rules = rules_for(client.name);
             assert!(
@@ -870,8 +799,9 @@ mod tests {
                 "rules_for({}) should return Some",
                 client.name
             );
+            let rules = rules.unwrap().unwrap();
             assert!(
-                !rules.unwrap().is_empty(),
+                !rules.is_empty(),
                 "rules for {} should not be empty",
                 client.name
             );
@@ -880,7 +810,6 @@ mod tests {
 
     #[test]
     fn test_meta_for_all_clients() {
-        // All clients should have metadata
         for client in ALL_CLIENTS {
             let meta = meta_for(client.name);
             assert!(
@@ -901,7 +830,6 @@ mod tests {
 
     #[test]
     fn test_rules_for_mevboost_aliases() {
-        // MEV-Boost has multiple name variants
         assert!(rules_for("mev-boost").is_some());
         assert!(rules_for("mevboost").is_some());
         assert!(rules_for("mev_boost").is_some());
@@ -915,13 +843,11 @@ mod tests {
 
     #[test]
     fn test_all_clients_count() {
-        // Verify we have exactly 15 clients
         assert_eq!(ALL_CLIENTS.len(), 15);
     }
 
     #[test]
     fn test_client_metadata_fields() {
-        // Spot check metadata completeness
         assert_eq!(LIGHTHOUSE.name, "Lighthouse");
         assert_eq!(LIGHTHOUSE.layer, Layer::Consensus);
         assert!(!LIGHTHOUSE.detect_patterns.is_empty());
