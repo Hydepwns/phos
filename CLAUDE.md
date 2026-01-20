@@ -69,16 +69,21 @@ cargo publish
 # 6. Update Homebrew tap
 ./scripts/update-homebrew.sh
 cd /tmp/homebrew-phos && git add phos.rb && git commit -m "phos X.Y.Z" && git push
+
+# 7. Update AUR package
+./scripts/update-aur.sh
+cd /tmp/aur-phos && git add PKGBUILD .SRCINFO && git commit -m "Update to X.Y.Z" && git push
 ```
 
 **Automation scripts:**
 - `scripts/update-docs.sh` - Syncs program count from binary to README
 - `scripts/update-homebrew.sh` - Updates tap with version and SHA256
+- `scripts/update-aur.sh` - Updates PKGBUILD and .SRCINFO for AUR
 
 **Package managers:**
 - crates.io: `cargo publish`
 - Homebrew: `Hydepwns/homebrew-phos` tap
-- AUR: community-maintained
+- AUR: `aur.archlinux.org/phos` (use `scripts/update-aur.sh`)
 - Docker Hub: `mfdroo/phos` (manual)
 - Nix: builds from git
 
