@@ -11,6 +11,7 @@ use futures::stream;
 use serde::Deserialize;
 
 use super::{
+    discovery::matches_glob,
     provider::{ContainerProvider, LogLine, LogStream, ProviderError},
     ContainerInfo,
 };
@@ -34,6 +35,14 @@ struct PublicPackageData {
     ip: Option<String>,
 }
 
+/// Build the HTTP client with standard timeout.
+fn build_http_client() -> Result<reqwest::Client, ProviderError> {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| ProviderError::Connection(format!("Failed to create HTTP client: {e}")))
+}
+
 /// DAppNode HTTP provider.
 pub struct HttpProvider {
     base_url: String,
@@ -43,76 +52,36 @@ pub struct HttpProvider {
 
 impl HttpProvider {
     /// Create a new HTTP provider with default dappmanager URL.
-    pub fn new() -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns `ProviderError::Connection` if the HTTP client cannot be created.
+    pub fn new() -> Result<Self, ProviderError> {
+        Ok(Self {
             base_url: DEFAULT_DAPPMANAGER_URL.to_string(),
             filter_pattern: None,
-            http_client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(10))
-                .build()
-                .expect("Failed to create HTTP client"),
-        }
+            http_client: build_http_client()?,
+        })
     }
 
     /// Create with a custom base URL.
-    pub fn with_url(url: impl Into<String>) -> Self {
-        Self {
+    ///
+    /// # Errors
+    ///
+    /// Returns `ProviderError::Connection` if the HTTP client cannot be created.
+    pub fn with_url(url: impl Into<String>) -> Result<Self, ProviderError> {
+        Ok(Self {
             base_url: url.into(),
             filter_pattern: None,
-            http_client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(10))
-                .build()
-                .expect("Failed to create HTTP client"),
-        }
+            http_client: build_http_client()?,
+        })
     }
 
     /// Set a name filter pattern.
+    #[must_use]
     pub fn with_filter(mut self, pattern: impl Into<String>) -> Self {
         self.filter_pattern = Some(pattern.into());
         self
-    }
-
-    /// Check if a container name matches a glob-like pattern.
-    fn matches_pattern(name: &str, pattern: &str) -> bool {
-        if pattern.is_empty() {
-            return true;
-        }
-
-        if let Some(suffix) = pattern.strip_prefix('*') {
-            name.ends_with(suffix)
-        } else if let Some(prefix) = pattern.strip_suffix('*') {
-            name.starts_with(prefix)
-        } else {
-            name.contains(pattern)
-        }
-    }
-
-    /// Detect phos program from container name or image.
-    fn detect_program(
-        registry: &crate::ProgramRegistry,
-        name: &str,
-        image: &str,
-    ) -> Option<String> {
-        if let Some(program) = registry.detect(name) {
-            return Some(program.info().id.to_string());
-        }
-
-        if let Some(program) = registry.detect(image) {
-            return Some(program.info().id.to_string());
-        }
-
-        let base_name = name
-            .split('.')
-            .next()
-            .unwrap_or(name)
-            .replace("-beacon", "")
-            .replace("-validator", "")
-            .replace("-bn", "")
-            .replace("-vc", "")
-            .replace("DAppNodePackage-", "")
-            .replace("DAppNodeCore-", "");
-
-        registry.detect(&base_name).map(|p| p.info().id.to_string())
     }
 }
 
@@ -126,7 +95,7 @@ impl ContainerProvider for HttpProvider {
             .get(&url)
             .send()
             .await
-            .map_err(|e| ProviderError::Connection(format!("HTTP request failed: {}", e)))?;
+            .map_err(|e| ProviderError::Connection(format!("HTTP request failed: {e}")))?;
 
         if !response.status().is_success() {
             return Err(ProviderError::Connection(format!(
@@ -138,36 +107,26 @@ impl ContainerProvider for HttpProvider {
         let packages: Vec<PublicPackageData> = response
             .json()
             .await
-            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {}", e)))?;
+            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {e}")))?;
 
         let registry = programs::default_registry();
-        let mut containers = Vec::new();
+        let pattern = self.filter_pattern.as_deref().unwrap_or("");
 
-        for pkg in packages {
-            let name = pkg.name.unwrap_or_default();
-
-            if name.is_empty() {
-                continue;
-            }
-
-            if let Some(ref pattern) = self.filter_pattern {
-                if !Self::matches_pattern(&name, pattern) {
-                    continue;
-                }
-            }
-
-            // Generate a display name from package name (e.g., "geth.dnp.dappnode.eth" -> "geth")
-            let display_name = name.split('.').next().unwrap_or(&name).to_string();
-            let program = Self::detect_program(&registry, &name, &display_name);
-
-            containers.push(ContainerInfo {
-                id: name.clone(),
-                name,
-                image: pkg.version.unwrap_or_default(),
-                status: pkg.state.unwrap_or_else(|| "unknown".to_string()),
-                program,
-            });
-        }
+        let containers = packages
+            .into_iter()
+            .filter_map(|pkg| {
+                let name = pkg.name.filter(|n| !n.is_empty())?;
+                matches_glob(&name, pattern).then(|| {
+                    ContainerInfo::new(
+                        &registry,
+                        name.clone(),
+                        name,
+                        pkg.version.unwrap_or_default(),
+                        pkg.state.unwrap_or_else(|| "unknown".to_string()),
+                    )
+                })
+            })
+            .collect();
 
         Ok(containers)
     }
@@ -204,7 +163,7 @@ impl ContainerProvider for HttpProvider {
             .get(&url)
             .send()
             .await
-            .map_err(|e| ProviderError::Connection(format!("HTTP request failed: {}", e)))?;
+            .map_err(|e| ProviderError::Connection(format!("HTTP request failed: {e}")))?;
 
         if !response.status().is_success() {
             return Err(ProviderError::Connection(format!(
@@ -217,7 +176,7 @@ impl ContainerProvider for HttpProvider {
         let _packages: Vec<PublicPackageData> = response
             .json()
             .await
-            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {}", e)))?;
+            .map_err(|e| ProviderError::Rpc(format!("Failed to parse packages: {e}")))?;
 
         println!("  Note: Log streaming requires DAPPMANAGER authentication (not yet implemented)");
 
@@ -226,11 +185,5 @@ impl ContainerProvider for HttpProvider {
 
     fn name(&self) -> &'static str {
         "dappnode-http"
-    }
-}
-
-impl Default for HttpProvider {
-    fn default() -> Self {
-        Self::new()
     }
 }

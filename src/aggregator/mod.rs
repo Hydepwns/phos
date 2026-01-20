@@ -26,7 +26,9 @@ mod streamer;
 mod web;
 
 pub use dappnode_provider::DappnodeProvider;
-pub use discovery::{ContainerDiscovery, ContainerInfo};
+pub use discovery::{
+    detect_program, matches_glob, normalize_container_name, ContainerDiscovery, ContainerInfo,
+};
 pub use docker_provider::DockerProvider;
 pub use html::ansi_to_html;
 pub use http_provider::HttpProvider;
