@@ -13,7 +13,10 @@ use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
 #[cfg(unix)]
 use nix::unistd::{close, dup2, execvp, fork, setsid, ForkResult, Pid};
 #[cfg(unix)]
-use phos::pty::{create_pty, poll_hup, poll_read, setup_sigwinch_handler, RawModeGuard, TermSize};
+use phos::pty::{
+    create_pty, poll_events, poll_read, setup_sigwinch_handler, RawModeGuard, SignalForwarder,
+    TermSize,
+};
 #[cfg(unix)]
 use std::ffi::CString;
 #[cfg(unix)]
@@ -33,6 +36,86 @@ fn retry_eintr<T, F: FnMut() -> std::io::Result<T>>(mut f: F) -> std::io::Result
             Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
             result => return result,
         }
+    }
+}
+
+/// I/O error classification for PTY reads.
+#[cfg(unix)]
+enum ReadOutcome {
+    /// Successful read with data
+    Data(usize),
+    /// End of file (read returned 0 or EIO)
+    Eof,
+    /// Transient error, should retry (EINTR, EAGAIN, WouldBlock)
+    Retry,
+    /// Fatal error that should propagate
+    Error(std::io::Error),
+}
+
+#[cfg(unix)]
+impl ReadOutcome {
+    /// Classify a read result into an outcome.
+    fn from_read_result(result: std::io::Result<usize>) -> Self {
+        match result {
+            Ok(0) => Self::Eof,
+            Ok(n) => Self::Data(n),
+            Err(e) if e.raw_os_error() == Some(libc::EIO) => Self::Eof,
+            Err(e) if e.raw_os_error() == Some(libc::EINTR) => Self::Retry,
+            Err(e) if e.raw_os_error() == Some(libc::EAGAIN) => Self::Retry,
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => Self::Retry,
+            Err(e) => Self::Error(e),
+        }
+    }
+}
+
+// ============================================================================
+// PTY Constants
+// ============================================================================
+
+/// Poll timeout in milliseconds during active I/O.
+#[cfg(unix)]
+const PTY_POLL_TIMEOUT_MS: i32 = 10;
+
+// ============================================================================
+// PTY Child Setup Helpers
+// ============================================================================
+
+/// Set up the PTY slave as the controlling terminal for the child process.
+/// Logs warnings on failure but continues execution (some environments may not support these).
+#[cfg(unix)]
+fn setup_controlling_terminal(slave_fd: i32) {
+    // Create new session - required for controlling terminal
+    setsid()
+        .map_err(|_| eprintln!("phos: warning: setsid failed"))
+        .ok();
+
+    // Set controlling terminal - required for interactive programs
+    let tiocsctty_result = {
+        #[cfg(target_os = "macos")]
+        {
+            unsafe { libc::ioctl(slave_fd, libc::TIOCSCTTY as libc::c_ulong, 0) }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            unsafe { libc::ioctl(slave_fd, libc::TIOCSCTTY, 0) }
+        }
+    };
+
+    if tiocsctty_result == -1 {
+        eprintln!("phos: warning: TIOCSCTTY failed");
+    }
+}
+
+/// Redirect standard file descriptors to the PTY slave.
+#[cfg(unix)]
+fn redirect_stdio_to_slave(slave_fd: i32) {
+    [0, 1, 2].iter().for_each(|&fd| {
+        let _ = dup2(slave_fd, fd);
+    });
+
+    // Close original slave fd if it's not one of the standard fds
+    if slave_fd > 2 {
+        let _ = close(slave_fd);
     }
 }
 
@@ -160,7 +243,12 @@ pub fn run_command(
             .map(|thread_stats| stats.stats_mut().merge(thread_stats.stats()));
     }
 
-    child.wait()?;
+    // Wait for child and propagate exit code
+    let status = child.wait()?;
+    if let Some(code) = status.code().filter(|&code| code != 0) {
+        std::process::exit(code);
+    }
+
     Ok(())
 }
 
@@ -284,6 +372,7 @@ mod pty_helpers {
 /// allowing interactive programs like vim, less, and editors to work correctly.
 ///
 /// If `raw` is true, output is passed through without colorization (for vim, etc.).
+/// The `pty_config` provides configurable timeouts and other PTY settings.
 #[cfg(unix)]
 pub fn run_command_pty(
     colorizer: &mut Colorizer,
@@ -291,6 +380,7 @@ pub fn run_command_pty(
     mut stats: Option<&mut StatsCollector>,
     mut alert_manager: Option<&mut AlertManager>,
     raw: bool,
+    pty_config: &phos::PtyConfig,
 ) -> Result<()> {
     let (cmd, cmd_args) = args.split_first().context("No command specified")?;
 
@@ -316,27 +406,8 @@ pub fn run_command_pty(
         ForkResult::Child => {
             // Child process: set up PTY slave as controlling terminal
             let _ = close(master_fd);
-            let _ = setsid();
-
-            // Set controlling terminal
-            // Note: ioctl request type differs by platform (c_ulong on macOS, c_int on Linux)
-            #[cfg(target_os = "macos")]
-            unsafe {
-                libc::ioctl(slave_fd, libc::TIOCSCTTY as libc::c_ulong, 0);
-            }
-            #[cfg(target_os = "linux")]
-            unsafe {
-                libc::ioctl(slave_fd, libc::TIOCSCTTY, 0);
-            }
-
-            // Redirect stdin/stdout/stderr to PTY slave
-            let _ = dup2(slave_fd, 0);
-            let _ = dup2(slave_fd, 1);
-            let _ = dup2(slave_fd, 2);
-
-            if slave_fd > 2 {
-                let _ = close(slave_fd);
-            }
+            setup_controlling_terminal(slave_fd);
+            redirect_stdio_to_slave(slave_fd);
 
             // Execute the command (never returns on success)
             let _ = execvp(&c_cmd, &c_args);
@@ -347,8 +418,9 @@ pub fn run_command_pty(
             // Parent: close slave, run I/O loop
             drop(pty_pair.slave);
 
-            // Set up SIGWINCH handler for terminal resize
+            // Set up signal handlers
             let _sigwinch_handle = setup_sigwinch_handler(master_fd);
+            let _signal_forwarder = SignalForwarder::new(child.as_raw());
 
             // Run I/O loop
             let exit_code = run_pty_io_loop(
@@ -358,6 +430,7 @@ pub fn run_command_pty(
                 &mut stats,
                 &mut alert_manager,
                 raw,
+                pty_config,
             )?;
 
             if exit_code != 0 {
@@ -370,6 +443,9 @@ pub fn run_command_pty(
 }
 
 /// Main I/O loop: forward stdin to PTY, colorize PTY output to stdout.
+///
+/// This loop reads until EOF/EIO from the PTY, not just until the child exits.
+/// This prevents output truncation when the child produces output and exits quickly.
 #[cfg(unix)]
 fn run_pty_io_loop(
     colorizer: &mut Colorizer,
@@ -378,6 +454,7 @@ fn run_pty_io_loop(
     stats: &mut Option<&mut StatsCollector>,
     alerts: &mut Option<&mut AlertManager>,
     raw: bool,
+    pty_config: &phos::PtyConfig,
 ) -> Result<i32> {
     use is_terminal::IsTerminal;
     use pty_helpers::{check_child_status, wait_child, wait_status_to_exit_code};
@@ -391,34 +468,54 @@ fn run_pty_io_loop(
     let mut buf = [0u8; 4096];
     let mut line_buffer = String::new();
 
+    // Track child exit state - we continue reading PTY even after child exits
+    let mut exit_code: Option<i32> = None;
+
     loop {
-        // Child terminated - drain remaining output and return
-        if let Some(code) = check_child_status(child)? {
-            drain_pty_to_stdout(
-                &mut pty,
-                &mut line_buffer,
-                colorizer,
-                &mut stdout,
-                stats,
-                alerts,
-                raw,
-            )?;
-            return Ok(code);
+        // Check child status (non-blocking) - capture exit code but continue reading
+        let child_exited = exit_code.is_some()
+            || check_child_status(child)?
+                .inspect(|code| exit_code = Some(*code))
+                .is_some();
+
+        // Forward stdin to PTY only if child is still running
+        if !child_exited && stdin_is_tty && poll_read(stdin_fd, 0)? {
+            retry_eintr(|| std::io::stdin().read(&mut buf))
+                .ok()
+                .filter(|&n| n > 0)
+                .map(|n| pty.write_all(&buf[..n]))
+                .transpose()?;
         }
 
-        // Forward stdin to PTY if available
-        if stdin_is_tty && poll_read(stdin_fd, 0)? {
-            let n = retry_eintr(|| std::io::stdin().read(&mut buf))?;
-            if n > 0 {
-                pty.write_all(&buf[..n])?;
+        // Poll with longer timeout after child exits to ensure drain completes
+        let timeout = if child_exited {
+            pty_config.drain_timeout_ms
+        } else {
+            PTY_POLL_TIMEOUT_MS
+        };
+        let events = poll_events(pty_fd, timeout)?;
+
+        if events.is_readable() {
+            match ReadOutcome::from_read_result(pty.read(&mut buf)) {
+                ReadOutcome::Data(n) => {
+                    process_pty_bytes(
+                        &buf[..n],
+                        &mut line_buffer,
+                        colorizer,
+                        &mut stdout,
+                        stats,
+                        alerts,
+                        raw,
+                    )?;
+                }
+                ReadOutcome::Eof => break,
+                ReadOutcome::Retry => continue,
+                ReadOutcome::Error(e) => return Err(e.into()),
             }
-        }
-
-        // Process PTY output
-        if poll_read(pty_fd, 10)? {
-            match pty.read(&mut buf) {
-                Ok(0) => break,
-                Ok(n) => process_pty_bytes(
+        } else if events.is_eof() {
+            // POLLHUP without POLLIN - do final read attempt
+            if let ReadOutcome::Data(n) = ReadOutcome::from_read_result(pty.read(&mut buf)) {
+                process_pty_bytes(
                     &buf[..n],
                     &mut line_buffer,
                     colorizer,
@@ -426,26 +523,44 @@ fn run_pty_io_loop(
                     stats,
                     alerts,
                     raw,
-                )?,
-                Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => continue,
-                Err(e) if e.raw_os_error() == Some(libc::EIO) => break,
-                Err(e) if e.raw_os_error() == Some(libc::EINTR) => continue,
-                Err(e) => return Err(e.into()),
+                )?;
             }
-        }
-
-        if poll_hup(pty_fd, 0)? {
+            break;
+        } else if events.error || (child_exited && events.is_timeout()) {
+            // Error or child exited with no more events - drain and exit
+            if child_exited {
+                drain_remaining(
+                    &mut pty,
+                    &mut line_buffer,
+                    colorizer,
+                    &mut stdout,
+                    stats,
+                    alerts,
+                    raw,
+                    pty_config,
+                )?;
+            }
             break;
         }
+        // else: timeout with no events and child running, continue loop
     }
 
     flush_line_buffer(&line_buffer, colorizer, &mut stdout, raw)?;
-    wait_child(child).map(|s| wait_status_to_exit_code(s).unwrap_or(0))
+
+    // Return captured exit code or wait for child
+    exit_code.map_or_else(
+        || wait_child(child).map(|s| wait_status_to_exit_code(s).unwrap_or(0)),
+        Ok,
+    )
 }
 
-/// Drain remaining PTY output after child exits.
+/// Drain remaining PTY output after child exits (robust version with retry logic).
+///
+/// Uses `poll_events` for proper POLLIN/POLLHUP detection and retries on
+/// transient errors. Gives up after configured max retries consecutive timeouts.
 #[cfg(unix)]
-fn drain_pty_to_stdout(
+#[allow(clippy::too_many_arguments)]
+fn drain_remaining(
     pty: &mut phos::pty::PtyMaster,
     line_buffer: &mut String,
     colorizer: &mut Colorizer,
@@ -453,24 +568,115 @@ fn drain_pty_to_stdout(
     stats: &mut Option<&mut StatsCollector>,
     alerts: &mut Option<&mut AlertManager>,
     raw: bool,
+    pty_config: &phos::PtyConfig,
 ) -> Result<()> {
     let mut buf = [0u8; 4096];
     let pty_fd = pty.as_raw_fd();
+    let mut consecutive_timeouts = 0u32;
 
-    while poll_read(pty_fd, 100)? {
-        match pty.read(&mut buf) {
-            Ok(0) | Err(_) => break,
-            Ok(n) => process_pty_bytes(
-                &buf[..n],
-                line_buffer,
-                colorizer,
-                stdout,
-                stats,
-                alerts,
-                raw,
-            )?,
+    // Use half the drain timeout for retry polling
+    let retry_timeout = pty_config.drain_timeout_ms / 2;
+
+    loop {
+        let events = poll_events(pty_fd, retry_timeout)?;
+
+        if events.is_readable() {
+            consecutive_timeouts = 0;
+            match ReadOutcome::from_read_result(pty.read(&mut buf)) {
+                ReadOutcome::Data(n) => {
+                    process_pty_bytes(
+                        &buf[..n],
+                        line_buffer,
+                        colorizer,
+                        stdout,
+                        stats,
+                        alerts,
+                        raw,
+                    )?;
+                }
+                ReadOutcome::Eof => break,
+                ReadOutcome::Retry => continue,
+                ReadOutcome::Error(_) => break, // Don't propagate errors during drain
+            }
+        } else if events.hangup {
+            // POLLHUP - do final read attempt and exit
+            if let ReadOutcome::Data(n) = ReadOutcome::from_read_result(pty.read(&mut buf)) {
+                process_pty_bytes(
+                    &buf[..n],
+                    line_buffer,
+                    colorizer,
+                    stdout,
+                    stats,
+                    alerts,
+                    raw,
+                )?;
+            }
+            break;
+        } else {
+            // Timeout - increment counter and check if we should give up
+            consecutive_timeouts += 1;
+            if consecutive_timeouts >= pty_config.drain_max_retries {
+                break;
+            }
         }
     }
-    flush_line_buffer(line_buffer, colorizer, stdout, raw)?;
+
     Ok(())
+}
+
+// ============================================================================
+// Tests
+// ============================================================================
+
+#[cfg(test)]
+mod tests {
+    #[cfg(unix)]
+    use super::*;
+
+    // ReadOutcome tests (require private access)
+    #[cfg(unix)]
+    #[test]
+    fn test_read_outcome_data() {
+        let outcome = ReadOutcome::from_read_result(Ok(100));
+        assert!(matches!(outcome, ReadOutcome::Data(100)));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_read_outcome_eof_on_zero() {
+        let outcome = ReadOutcome::from_read_result(Ok(0));
+        assert!(matches!(outcome, ReadOutcome::Eof));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_read_outcome_eof_on_eio() {
+        let err = std::io::Error::from_raw_os_error(libc::EIO);
+        let outcome = ReadOutcome::from_read_result(Err(err));
+        assert!(matches!(outcome, ReadOutcome::Eof));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_read_outcome_retry_on_eintr() {
+        let err = std::io::Error::from_raw_os_error(libc::EINTR);
+        let outcome = ReadOutcome::from_read_result(Err(err));
+        assert!(matches!(outcome, ReadOutcome::Retry));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_read_outcome_retry_on_eagain() {
+        let err = std::io::Error::from_raw_os_error(libc::EAGAIN);
+        let outcome = ReadOutcome::from_read_result(Err(err));
+        assert!(matches!(outcome, ReadOutcome::Retry));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn test_read_outcome_error_on_other() {
+        let err = std::io::Error::from_raw_os_error(libc::EBADF);
+        let outcome = ReadOutcome::from_read_result(Err(err));
+        assert!(matches!(outcome, ReadOutcome::Error(_)));
+    }
 }
