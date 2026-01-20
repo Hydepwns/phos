@@ -319,8 +319,14 @@ pub fn run_command_pty(
             let _ = setsid();
 
             // Set controlling terminal
+            // Note: ioctl request type differs by platform (c_ulong on macOS, c_int on Linux)
+            #[cfg(target_os = "macos")]
             unsafe {
                 libc::ioctl(slave_fd, libc::TIOCSCTTY as libc::c_ulong, 0);
+            }
+            #[cfg(target_os = "linux")]
+            unsafe {
+                libc::ioctl(slave_fd, libc::TIOCSCTTY, 0);
             }
 
             // Redirect stdin/stdout/stderr to PTY slave
