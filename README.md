@@ -2,7 +2,7 @@
 
 > Greek: φως "light"
 
-A fast, universal log colorizer. 98 programs built-in, 13 themes, webhook alerts.
+A fast, universal log colorizer. 99 programs built-in, 13 themes, webhook alerts.
 
 ## Install
 
@@ -69,14 +69,14 @@ docker logs mycontainer | phoscat docker
 ## Commands
 
 ```bash
-phos list                    # List all 98 programs
+phos list                    # List all 99 programs
 phos list -c ethereum        # List by category
 phos themes                  # List 13 themes
 phos info docker             # Program details
 phos preview                 # Preview themes
 ```
 
-## Programs (98)
+## Programs (99)
 
 | Category | Count | Examples |
 |----------|-------|----------|
