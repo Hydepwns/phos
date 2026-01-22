@@ -276,56 +276,34 @@ fn process_line_stats(
     }
 }
 
-/// Process PTY bytes into lines, handling CR/LF and outputting colorized content.
+/// Write bytes directly to stdout (passthrough mode) while tracking lines for stats/alerts.
+///
+/// Bytes are written unchanged to preserve terminal escape sequences.
+/// Line tracking is done separately for optional stats/alerting without modifying output.
 #[cfg(unix)]
-fn process_pty_bytes(
+fn write_passthrough(
     buf: &[u8],
     line_buffer: &mut String,
-    colorizer: &mut Colorizer,
     stdout: &mut std::io::Stdout,
     stats: &mut Option<&mut StatsCollector>,
     alerts: &mut Option<&mut AlertManager>,
-    raw: bool,
 ) -> std::io::Result<()> {
-    if raw {
-        stdout.write_all(buf)?;
-    }
+    // Write bytes unchanged
+    stdout.write_all(buf)?;
 
-    for (i, &byte) in buf.iter().enumerate() {
-        match byte {
+    // Track lines for stats/alerts if enabled (without modifying output)
+    if stats.is_some() || alerts.is_some() {
+        buf.iter().for_each(|&byte| match byte {
             b'\n' => {
                 let stripped = phos::strip_ansi(line_buffer);
-                if !raw {
-                    writeln!(stdout, "{}", colorizer.colorize(&stripped))?;
-                }
                 process_line_stats(&stripped, stats, alerts, !stripped.is_empty());
                 line_buffer.clear();
             }
-            b'\r' if buf.get(i + 1) != Some(&b'\n') => line_buffer.clear(),
-            b'\r' => {}
+            b'\r' => line_buffer.clear(),
             _ => line_buffer.push(byte as char),
-        }
+        });
     }
-    stdout.flush()
-}
 
-/// Flush remaining line buffer content.
-#[cfg(unix)]
-fn flush_line_buffer(
-    line_buffer: &str,
-    colorizer: &mut Colorizer,
-    stdout: &mut std::io::Stdout,
-    raw: bool,
-) -> std::io::Result<()> {
-    let trimmed = line_buffer.trim();
-    if !trimmed.is_empty() {
-        let stripped = phos::strip_ansi(trimmed);
-        if raw {
-            writeln!(stdout, "{}", stripped)?;
-        } else {
-            writeln!(stdout, "{}", colorizer.colorize(&stripped))?;
-        }
-    }
     stdout.flush()
 }
 
@@ -368,18 +346,17 @@ mod pty_helpers {
 
 /// Run a command with PTY support for interactive programs.
 ///
-/// This function creates a pseudo-terminal so that child processes see a TTY,
-/// allowing interactive programs like vim, less, and editors to work correctly.
+/// Creates a pseudo-terminal so child processes see a TTY, allowing interactive
+/// programs (vim, less, editors, TUI apps) to work correctly. Output is passed
+/// through unchanged (raw passthrough mode) to preserve escape sequences for
+/// cursor control, screen clearing, and other terminal operations.
 ///
-/// If `raw` is true, output is passed through without colorization (for vim, etc.).
 /// The `pty_config` provides configurable timeouts and other PTY settings.
 #[cfg(unix)]
 pub fn run_command_pty(
-    colorizer: &mut Colorizer,
     args: &[String],
     mut stats: Option<&mut StatsCollector>,
     mut alert_manager: Option<&mut AlertManager>,
-    raw: bool,
     pty_config: &phos::PtyConfig,
 ) -> Result<()> {
     let (cmd, cmd_args) = args.split_first().context("No command specified")?;
@@ -422,14 +399,12 @@ pub fn run_command_pty(
             let _sigwinch_handle = setup_sigwinch_handler(master_fd);
             let _signal_forwarder = SignalForwarder::new(child.as_raw());
 
-            // Run I/O loop
+            // Run I/O loop with raw passthrough (no colorization)
             let exit_code = run_pty_io_loop(
-                colorizer,
                 pty_pair.master,
                 child,
                 &mut stats,
                 &mut alert_manager,
-                raw,
                 pty_config,
             )?;
 
@@ -442,18 +417,19 @@ pub fn run_command_pty(
     }
 }
 
-/// Main I/O loop: forward stdin to PTY, colorize PTY output to stdout.
+/// Main I/O loop: forward stdin to PTY, pass PTY output to stdout unchanged.
 ///
-/// This loop reads until EOF/EIO from the PTY, not just until the child exits.
-/// This prevents output truncation when the child produces output and exits quickly.
+/// Operates in raw passthrough mode - bytes flow through without modification
+/// to preserve terminal escape sequences for TUI applications.
+///
+/// Reads until EOF/EIO from the PTY (not just until child exits) to prevent
+/// output truncation when the child produces output and exits quickly.
 #[cfg(unix)]
 fn run_pty_io_loop(
-    colorizer: &mut Colorizer,
     mut pty: phos::pty::PtyMaster,
     child: Pid,
     stats: &mut Option<&mut StatsCollector>,
     alerts: &mut Option<&mut AlertManager>,
-    raw: bool,
     pty_config: &phos::PtyConfig,
 ) -> Result<i32> {
     use is_terminal::IsTerminal;
@@ -498,15 +474,7 @@ fn run_pty_io_loop(
         if events.is_readable() {
             match ReadOutcome::from_read_result(pty.read(&mut buf)) {
                 ReadOutcome::Data(n) => {
-                    process_pty_bytes(
-                        &buf[..n],
-                        &mut line_buffer,
-                        colorizer,
-                        &mut stdout,
-                        stats,
-                        alerts,
-                        raw,
-                    )?;
+                    write_passthrough(&buf[..n], &mut line_buffer, &mut stdout, stats, alerts)?;
                 }
                 ReadOutcome::Eof => break,
                 ReadOutcome::Retry => continue,
@@ -515,28 +483,18 @@ fn run_pty_io_loop(
         } else if events.is_eof() {
             // POLLHUP without POLLIN - do final read attempt
             if let ReadOutcome::Data(n) = ReadOutcome::from_read_result(pty.read(&mut buf)) {
-                process_pty_bytes(
-                    &buf[..n],
-                    &mut line_buffer,
-                    colorizer,
-                    &mut stdout,
-                    stats,
-                    alerts,
-                    raw,
-                )?;
+                write_passthrough(&buf[..n], &mut line_buffer, &mut stdout, stats, alerts)?;
             }
             break;
         } else if events.error || (child_exited && events.is_timeout()) {
             // Error or child exited with no more events - drain and exit
             if child_exited {
-                drain_remaining(
+                drain_pty_output(
                     &mut pty,
                     &mut line_buffer,
-                    colorizer,
                     &mut stdout,
                     stats,
                     alerts,
-                    raw,
                     pty_config,
                 )?;
             }
@@ -545,8 +503,6 @@ fn run_pty_io_loop(
         // else: timeout with no events and child running, continue loop
     }
 
-    flush_line_buffer(&line_buffer, colorizer, &mut stdout, raw)?;
-
     // Return captured exit code or wait for child
     exit_code.map_or_else(
         || wait_child(child).map(|s| wait_status_to_exit_code(s).unwrap_or(0)),
@@ -554,28 +510,23 @@ fn run_pty_io_loop(
     )
 }
 
-/// Drain remaining PTY output after child exits (robust version with retry logic).
+/// Drain remaining PTY output after child exits.
 ///
 /// Uses `poll_events` for proper POLLIN/POLLHUP detection and retries on
 /// transient errors. Gives up after configured max retries consecutive timeouts.
 #[cfg(unix)]
-#[allow(clippy::too_many_arguments)]
-fn drain_remaining(
+fn drain_pty_output(
     pty: &mut phos::pty::PtyMaster,
     line_buffer: &mut String,
-    colorizer: &mut Colorizer,
     stdout: &mut std::io::Stdout,
     stats: &mut Option<&mut StatsCollector>,
     alerts: &mut Option<&mut AlertManager>,
-    raw: bool,
     pty_config: &phos::PtyConfig,
 ) -> Result<()> {
     let mut buf = [0u8; 4096];
     let pty_fd = pty.as_raw_fd();
-    let mut consecutive_timeouts = 0u32;
-
-    // Use half the drain timeout for retry polling
     let retry_timeout = pty_config.drain_timeout_ms / 2;
+    let mut consecutive_timeouts = 0u32;
 
     loop {
         let events = poll_events(pty_fd, retry_timeout)?;
@@ -584,36 +535,18 @@ fn drain_remaining(
             consecutive_timeouts = 0;
             match ReadOutcome::from_read_result(pty.read(&mut buf)) {
                 ReadOutcome::Data(n) => {
-                    process_pty_bytes(
-                        &buf[..n],
-                        line_buffer,
-                        colorizer,
-                        stdout,
-                        stats,
-                        alerts,
-                        raw,
-                    )?;
+                    write_passthrough(&buf[..n], line_buffer, stdout, stats, alerts)?;
                 }
-                ReadOutcome::Eof => break,
+                ReadOutcome::Eof | ReadOutcome::Error(_) => break,
                 ReadOutcome::Retry => continue,
-                ReadOutcome::Error(_) => break, // Don't propagate errors during drain
             }
         } else if events.hangup {
             // POLLHUP - do final read attempt and exit
             if let ReadOutcome::Data(n) = ReadOutcome::from_read_result(pty.read(&mut buf)) {
-                process_pty_bytes(
-                    &buf[..n],
-                    line_buffer,
-                    colorizer,
-                    stdout,
-                    stats,
-                    alerts,
-                    raw,
-                )?;
+                write_passthrough(&buf[..n], line_buffer, stdout, stats, alerts)?;
             }
             break;
         } else {
-            // Timeout - increment counter and check if we should give up
             consecutive_timeouts += 1;
             if consecutive_timeouts >= pty_config.drain_max_retries {
                 break;

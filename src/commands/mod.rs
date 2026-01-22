@@ -18,7 +18,7 @@ pub use colors::show_colors;
 pub use completions::generate_completions;
 pub use config::{handle_config_action, ConfigAction};
 pub use info::show_info;
-pub use interactive::needs_pty;
+pub use interactive::{execution_mode, ExecutionMode};
 pub use list::list_programs;
 pub use man::generate_man_page;
 pub use preview::preview_themes;

@@ -225,6 +225,35 @@ enum Commands {
     },
 }
 
+/// Resolve execution mode from CLI flags and auto-detection.
+///
+/// Priority (highest to lowest):
+/// 1. `--no-pty` forces Pipe mode
+/// 2. `--pty` or `--interactive` forces PtyPassthrough
+/// 3. User-configured interactive commands
+/// 4. Auto-detection via `execution_mode()`
+#[cfg(unix)]
+fn resolve_execution_mode(cli: &Cli, global_config: &GlobalConfig) -> commands::ExecutionMode {
+    use commands::ExecutionMode;
+
+    // Check user-configured interactive commands
+    let is_user_configured = || {
+        cli.args
+            .first()
+            .and_then(|cmd| std::path::Path::new(cmd).file_name())
+            .and_then(|name| name.to_str())
+            .is_some_and(|base| global_config.pty.interactive_commands.iter().any(|c| c == base))
+    };
+
+    // Priority chain: CLI overrides > user config > auto-detection
+    match () {
+        _ if cli.no_pty => ExecutionMode::Pipe,
+        _ if cli.pty || cli.raw || cli.interactive => ExecutionMode::PtyPassthrough,
+        _ if is_user_configured() => ExecutionMode::PtyPassthrough,
+        _ => commands::execution_mode(&cli.args),
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -383,44 +412,31 @@ fn main() -> Result<()> {
     }
 
     if !cli.args.is_empty() {
-        // Run the command - choose PTY or pipe mode
+        // Determine execution mode from command arguments and CLI overrides
         #[cfg(unix)]
         {
-            let use_pty = if cli.no_pty {
-                false
-            } else if cli.pty || cli.raw || cli.interactive {
-                true // Explicit request or raw mode (which implies PTY)
-            } else if !cli.args.is_empty() {
-                // Auto: use PTY for known interactive commands (vim, nano, less, etc.)
-                // Also detects git subcommands that spawn editors (git commit, git rebase -i, etc.)
-                // Also check user-configured interactive commands
-                commands::needs_pty(&cli.args)
-                    || global_config.pty.interactive_commands.iter().any(|cmd| {
-                        std::path::Path::new(&cli.args[0])
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .is_some_and(|base| base == cmd)
-                    })
-            } else {
-                false
-            };
+            use commands::ExecutionMode;
 
-            if use_pty {
-                commands::run_command_pty(
-                    &mut colorizer,
-                    &cli.args,
-                    stats.as_mut(),
-                    alert_manager.as_mut(),
-                    cli.raw,
-                    &global_config.pty,
-                )?;
-            } else {
-                commands::run_command(
-                    &mut colorizer,
-                    &cli.args,
-                    stats.as_mut(),
-                    alert_manager.as_mut(),
-                )?;
+            // Resolve execution mode: CLI overrides take precedence, then auto-detection
+            let mode = resolve_execution_mode(&cli, &global_config);
+
+            match mode {
+                ExecutionMode::PtyPassthrough => {
+                    commands::run_command_pty(
+                        &cli.args,
+                        stats.as_mut(),
+                        alert_manager.as_mut(),
+                        &global_config.pty,
+                    )?;
+                }
+                ExecutionMode::Pipe => {
+                    commands::run_command(
+                        &mut colorizer,
+                        &cli.args,
+                        stats.as_mut(),
+                        alert_manager.as_mut(),
+                    )?;
+                }
             }
         }
 

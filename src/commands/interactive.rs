@@ -3,6 +3,21 @@
 //! Detects commands that require pseudo-terminal (PTY) support,
 //! including interactive programs, editors, REPLs, and TUI applications.
 
+/// Execution mode for running commands through phos.
+///
+/// Determines how phos handles command I/O:
+/// - `Pipe`: Standard pipe mode with line-by-line colorization
+/// - `PtyPassthrough`: PTY mode with raw byte passthrough for TUI apps
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExecutionMode {
+    /// Pipe mode - capture stdout/stderr and colorize line by line.
+    /// Used for non-interactive commands that output text logs.
+    Pipe,
+    /// PTY passthrough - create pseudo-terminal and pass bytes through unchanged.
+    /// Used for interactive/TUI applications (vim, less, git commit, etc.).
+    PtyPassthrough,
+}
+
 /// Commands that require PTY for proper operation (interactive/TUI programs).
 const INTERACTIVE_COMMANDS: &[&str] = &[
     // Editors
@@ -182,6 +197,21 @@ pub fn needs_pty(args: &[String]) -> bool {
         "ssh" => is_ssh_interactive(base, args),
         _ => is_repl_interactive(base, args),
     }
+}
+
+/// Determine the execution mode for a command.
+///
+/// Maps command arguments to the appropriate execution mode:
+/// - Interactive/TUI commands -> `PtyPassthrough`
+/// - Everything else -> `Pipe`
+///
+/// This is the primary entry point for execution mode detection.
+/// All PTY commands use passthrough mode since colorizing TUI output
+/// would corrupt escape sequences for cursor control, screen clearing, etc.
+pub fn execution_mode(args: &[String]) -> ExecutionMode {
+    args.first()
+        .filter(|_| needs_pty(args))
+        .map_or(ExecutionMode::Pipe, |_| ExecutionMode::PtyPassthrough)
 }
 
 #[cfg(test)]
@@ -432,5 +462,54 @@ mod tests {
         assert!(needs_pty(&["irb".to_string()]));
         assert!(!needs_pty(&["python".to_string(), "script.py".to_string()]));
         assert!(!needs_pty(&["node".to_string(), "app.js".to_string()]));
+    }
+
+    // -------------------------------------------------------------------------
+    // ExecutionMode Tests
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn test_execution_mode_pipe_for_non_interactive() {
+        assert_eq!(
+            execution_mode(&["ls".to_string()]),
+            ExecutionMode::Pipe
+        );
+        assert_eq!(
+            execution_mode(&["cargo".to_string(), "build".to_string()]),
+            ExecutionMode::Pipe
+        );
+        assert_eq!(
+            execution_mode(&["git".to_string(), "status".to_string()]),
+            ExecutionMode::Pipe
+        );
+    }
+
+    #[test]
+    fn test_execution_mode_pty_passthrough_for_editors() {
+        assert_eq!(
+            execution_mode(&["vim".to_string(), "file.txt".to_string()]),
+            ExecutionMode::PtyPassthrough
+        );
+        assert_eq!(
+            execution_mode(&["nano".to_string()]),
+            ExecutionMode::PtyPassthrough
+        );
+    }
+
+    #[test]
+    fn test_execution_mode_pty_passthrough_for_git_commit() {
+        assert_eq!(
+            execution_mode(&["git".to_string(), "commit".to_string()]),
+            ExecutionMode::PtyPassthrough
+        );
+        assert_eq!(
+            execution_mode(&["git".to_string(), "commit".to_string(), "-a".to_string()]),
+            ExecutionMode::PtyPassthrough
+        );
+    }
+
+    #[test]
+    fn test_execution_mode_empty_args() {
+        assert_eq!(execution_mode(&[]), ExecutionMode::Pipe);
     }
 }
