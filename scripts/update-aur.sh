@@ -66,16 +66,39 @@ package() {
 }
 EOF
 
-# Generate .SRCINFO
-makepkg --printsrcinfo > .SRCINFO
+# Generate .SRCINFO (manually, since makepkg is Arch-only)
+cat > .SRCINFO << EOF
+pkgbase = phos
+	pkgdesc = Universal log colorizer with 99+ program support
+	pkgver = ${VERSION}
+	pkgrel = 1
+	url = https://github.com/Hydepwns/phos
+	arch = x86_64
+	arch = aarch64
+	license = MIT
+	license = Apache-2.0
+	makedepends = cargo
+	depends = gcc-libs
+	source = phos-${VERSION}.tar.gz::https://github.com/Hydepwns/phos/archive/refs/tags/v${VERSION}.tar.gz
+	sha256sums = ${SHA256}
+
+pkgname = phos
+EOF
 
 echo ""
-echo "PKGBUILD updated:"
+echo "PKGBUILD and .SRCINFO updated:"
 grep -E "pkgver|pkgrel|sha256sums" PKGBUILD | head -3
 
+# Check if there are changes to commit
+if git diff --quiet PKGBUILD .SRCINFO 2>/dev/null; then
+    echo ""
+    echo "No changes to commit (package already at v${VERSION})"
+    exit 0
+fi
+
+# Commit and push
 echo ""
-echo "To publish:"
-echo "  cd $AUR_DIR"
-echo "  git add PKGBUILD .SRCINFO"
-echo "  git commit -m 'Update to ${VERSION}'"
-echo "  git push"
+git add PKGBUILD .SRCINFO
+git commit -m "Update to ${VERSION}"
+git push origin master
+echo "AUR package published for v${VERSION}"
