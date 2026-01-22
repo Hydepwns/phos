@@ -5,6 +5,7 @@ set -e
 VERSION="${1:-$(grep '^version' Cargo.toml | head -1 | cut -d'"' -f2)}"
 REPO="Hydepwns/phos"
 TAP_DIR="${2:-/tmp/homebrew-phos}"
+DRY_RUN="${DRY_RUN:-}"
 
 echo "Updating Homebrew formula to v${VERSION}..."
 
@@ -30,5 +31,22 @@ sed -i '' "s/[0-9]* programs/${COUNT} programs/" phos.rb
 echo "Formula updated:"
 grep -E "url|sha256|desc" phos.rb | head -3
 
-echo ""
-echo "To publish: cd $TAP_DIR && git add phos.rb && git commit -m 'phos ${VERSION}' && git push"
+# Check if there are changes to commit
+if git diff --quiet phos.rb; then
+    echo ""
+    echo "No changes to commit (formula already at v${VERSION})"
+    exit 0
+fi
+
+# Commit and push unless dry run
+if [ -n "$DRY_RUN" ]; then
+    echo ""
+    echo "[DRY RUN] Would commit and push:"
+    git diff phos.rb
+else
+    echo ""
+    git add phos.rb
+    git commit -m "phos ${VERSION}"
+    git push origin main
+    echo "Homebrew formula published for v${VERSION}"
+fi
